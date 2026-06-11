@@ -306,6 +306,7 @@ async function init (){
 
     //メインループのインターバル設定（40FPS）
     setInterval( function() { main() } , 25);
+    console.log("Render Start");
     /*
     EM.spawnNPC(player.px+TILESIZE*2,player.py,TILESIZE,TILESIZE,0xFF,
             Math.sign(Math.random()-0.5)*8*Math.random(),
