@@ -411,10 +411,12 @@ function RenderBuffer(){
     RenderPlayer();
     
     //イメージレンダーのテスト
+    /*
     IR.renderImg(img.imgList["testEffect"],player.px+renderCamera.camX,player.py+renderCamera.camY,DebugFrameC,
         img.imgList["testEffect"].width*(1+Math.cos(DebugFrameC/30)),
         img.imgList["testEffect"].height*(1+Math.sin(DebugFrameC*Math.PI/180))
     );
+    */
 
 }
 //バッファの内容を転送する関数
