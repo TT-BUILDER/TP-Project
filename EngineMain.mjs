@@ -220,10 +220,10 @@ const promise = new Promise( async function(resolve,reject) {
 
         
         //画像データたちを読み込む
-        img.AddImg("tile-0","./assets/tiles/0.png");
-        img.AddImg("MapTip_Debug","./assets/tiles/testTiles1.png");
-        img.AddImg("MapTip_Generic","./assets/tiles/GenericTiles.png");
-        img.AddImg("testEffect","./assets/effects/TestEffect.png");
+        await img.AddImg("tile-0","./assets/tiles/0.png");
+        await img.AddImg("MapTip_Debug","./assets/tiles/testTiles1.png");
+        await img.AddImg("MapTip_Generic","./assets/tiles/GenericTiles.png");
+        await img.AddImg("testEffect","./assets/effects/TestEffect.png");
         //タイルチップデータの読み込み
         TR.newLoadImg(img.imgList["MapTip_Generic"]);
 
@@ -275,7 +275,7 @@ const promise = new Promise( async function(resolve,reject) {
 })
 //失敗時(reject)の処理
 .catch((value) => {
-    console.log(value);
+    console.error(value);
 })
 
 //                  関数群
@@ -412,12 +412,10 @@ function RenderBuffer(){
     RenderPlayer();
     
     //イメージレンダーのテスト
-    /*
     IR.renderImg(img.imgList["testEffect"],player.px+renderCamera.camX,player.py+renderCamera.camY,DebugFrameC,
         img.imgList["testEffect"].width*(1+Math.cos(DebugFrameC/30)),
         img.imgList["testEffect"].height*(1+Math.sin(DebugFrameC*Math.PI/180))
     );
-    */
 
 }
 //バッファの内容を転送する関数

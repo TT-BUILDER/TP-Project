@@ -13,18 +13,30 @@ export class Images {
      * @param {String} ImgPass 画像への相対パス
      */
     //Debug Done
-    AddImg(Name,ImgPass){
+    async AddImg(Name,ImgPass){
         const img = new Image();
+        /*
         img.onload = () => {
             console.log("Success : "+ImgPass+' as "'+Name+'"');
         };
         img.onerror = () => {
             console.error("Unsuccess:", ImgPass);
         };
-        img.src = ImgPass;
-        img.id = Name;
         this.imgSrcList[Name] = ImgPass;
         this.imgList[Name] = img;
+        */
+        img.src = ImgPass;
+        img.id = Name;
+        try {
+            await img.decode()
+        
+            console.log("Success : "+ImgPass+' as "'+Name+'"');
+            this.imgSrcList[Name] = ImgPass;
+            this.imgList[Name] = img;
+        } catch (error) {
+            console.error(`imgLoad Unsuccess: ${error}`);
+        }
+        
     }
 
 
