@@ -1,0 +1,41 @@
+
+
+＜根幹のオブジェクトたち＞
+< Tiles class >
+・タイル、スプライトに使用する画像を読み込む。
+｜
+・AddImg(string : ImgName , string : ImgPass , int : ImgWidth , int : ImgHeight)
+・GetImg(string : ImgName) return ... 画像のデータ
+
+
+< SpriteManager class >
+・スプライト生成、削除に関する。
+｜
+・AddSprite(string : SpName , int : px , int : py , int : sizex , int : sizey)
+・DeleteSprite(string : SpName)
+・HitCheck(string : Target1 , string : Target2) return ... 接触したかのブーリアン値
+・DoCollision(string : Target)
+
+< Sprite class >
+・基本的なスプライトの機能を持つオブジェクト。Player,Enemy,Boss,Items,Bulletsクラスの親クラス。
+・コンストラクタ引数は  [ int : px ] [ int : py ] [ int : sizex ] [ int : sizey ] [ int : HP ] [ string : Types ] [ string : type ]
+｜
+・Move(int : vx , int : vy)
+・SetPos(int : px , int : py)
+・GetInfo(string : SpName) return ... 座標の値
+・HitCheck(string : Targe) return ... 接触したかのブーリアン値
+・DoCollision()
+・Damage(int : damage)
+・
+
+< Render class >
+・タイルマップ、スプライトを描画するオブジェクト。
+
+
+< 
+< 
+< 
+< 
+< 
+< 
+ 
