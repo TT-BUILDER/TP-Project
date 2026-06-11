@@ -1,0 +1,51 @@
+具体的な関係リスト
+
+< NPC class >
+Do Instructions to 
+・Enemy class
+・Item class
+・Boss class
+Recieve Request from
+・Enemy class
+・Item class
+・Boss class
+
+< Enemy class >
+Recieve Request from
+・Player class(but send it to NPC class)
+Send Request to
+・NPC class
+
+< Boss class >
+Recieve Request from
+・Player class(but send it to NPC class)
+Send Request to
+・NPC class
+
+< Item class >
+Recieve Request from
+・Player class(but send it to NPC class)
+Send Request to
+・NPC class
+
+< Player class >
+Do Instructions to
+・Player class
+Recieve Request from
+・Enemy class
+・Item class
+・Boss class
+・Stage class
+Send Request to
+・Enemy class
+・Boss class
+・Item class
+
+< Stage class >
+Do Instructions to
+・Stage class
+Recieve Request from
+・Boss class
+Send Request to
+・Player class
+・NPC class
