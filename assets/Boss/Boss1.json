@@ -1,0 +1,7 @@
+{
+    "Name" : "Rock",
+    "Position" : [170,100],
+    "sizeX" : 48,
+    "sizeY" : 36,
+    "MaxHP" : 120
+}

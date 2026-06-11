@@ -1,0 +1,1 @@
+{ "Position" : [224,320], "MapSize" : [40,30], "Direction" : 0, "isThereBoss" : true, "BossPass" : "./assets/Boss/Boss1.json", "Description" : "メッセージ。あとで変えてね。" }
