@@ -936,7 +936,7 @@ export class Boss extends Enemy {
                 if (this.waitFrame(40)){
                     this.BossState++;
                     //攻撃する回数
-                    this.BossMemory["attackNum"] = 0;//+Math.round(Math.random()*2);
+                    this.BossMemory["attackNum"] = 4+Math.round(Math.random()*2);
                     //ぶつかった回数メモリ
                     this.forList["j"] = 0;
                     //汎用メモリ
@@ -1027,7 +1027,7 @@ export class Boss extends Enemy {
                     if (this.forList["j"] < this.BossMemory["attackNum"]){
                         this.BossState = 5;
                     } else {
-                        if (false/*Math.round(Math.random()) > 0*/){
+                        if (Math.round(Math.random()) > 0){
                             //飛び上がり
                             this.BossState = 8;
                             this.forList["i"] = 0;
