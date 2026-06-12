@@ -490,7 +490,8 @@ export class sprite {
         } else {
             this.vx += fadeIn(this.vx,vx,smoothSpeed);
             this.vy += fadeIn(this.vy,vy,smoothSpeed);
-            this.vz += fadeIn(this.vz,vz,smoothSpeed);
+            //this.vz += fadeIn(this.vz,vz,smoothSpeed);
+            this.vz = vz;
         }
         if (Math.round(this.vx) == 0) this.vx = 0;
         if (Math.round(this.vy) == 0) this.vy = 0;
