@@ -1,10 +1,13 @@
 import { randInt } from "./EngineMain.mjs";
 import { radians } from "./EngineMain.mjs";
+import { fadeIn } from "./EngineMain.mjs";
 import { playerCamera } from "./EngineMain.mjs";
 import { screenSetOffsetRand } from "./EngineMain.mjs";
 import { screenSetOffset } from "./EngineMain.mjs";
 import { player } from "./EngineMain.mjs";
-import { EM } from "./EngineMain.mjs";
+import { EnM } from "./EngineMain.mjs";
+import { img } from "./EngineMain.mjs";
+import { IR } from "./EngineMain.mjs";
 let NowCanvas;
 let NowCTX;
 export let isNowBossAnimation = false;
@@ -16,6 +19,80 @@ export function NowCanvasContext(canvas,context){
 }
 export function dotProduct(Pos1,Pos2){
     return (Pos1[0]*Pos2[0]+Pos1[1]*Pos2[1]);
+}
+
+export class imgData {
+    /**
+     * 画像データの保持をする構造体
+     * @param {Image} imgD 画像本体
+     * @param {Number} trimSX トリミング開始位置X
+     * @param {Number} trimSY トリミング開始位置Y
+     * @param {Number} trimEX トリミング終了位置X
+     * @param {Number} trimEY トリミング終了位置Y
+     * @param {Number} sizeX 描画サイズX
+     * @param {Number} sizeY 描画サイズY
+     * @param {Number} rad 回転角度
+     */
+    constructor(imgD,trimSX = 0,trimSY = 0,trimEX = imgD.width,trimEY = imgD.height,sizeX = imgD.width,sizeY = imgD.height,rad = 0){
+        this.imageData = imgD;
+        this.trimStX = trimSX;
+        this.trimStY = trimSY;
+        this.trimEnX = trimEX;
+        this.trimEnY = trimEY;
+        this.sizeX = sizeX;
+        this.sizeY = sizeY;
+        this.roll = rad;
+    }
+    /**
+     * 描画サイズの設定
+     * @param {Number} sx 描画サイズX
+     * @param {Number} sy 描画サイズY
+     */
+    setSize(sx,sy){
+        this.sizeX = sx;
+        this.sizeY = sy;
+    }
+    /**
+     * トリミング設定
+     * @param {Number} trimSX トリミング開始位置X
+     * @param {Number} trimSY トリミング開始位置Y
+     * @param {Number} sizeX トリミングサイズX
+     * @param {Number} sizeY トリミングサイズY
+     */
+    setTrim(trimSX,trimSY,sizeX,sizeY){
+        this.trimStX = trimSX;
+        this.trimStY = trimSY;
+        this.trimEnX = trimSX + sizeX;
+        this.trimEnY = trimSY + sizeY;
+    }
+    /**
+     * 画像描画
+     * @param {Number} px 描画位置X
+     * @param {Number} py 描画位置Y
+     */
+    render(px,py){
+        IR.renderImg(
+            this.imageData,
+            px,
+            py,
+            this.roll,
+            this.sizeX,
+            this.sizeY,
+            this.trimStX,
+            this.trimStY,
+            this.trimEnX,
+            this.trimEnY
+        )
+    }
+    /**
+     * レンダリングする画像の設定（トリミング位置は自動で全体へと決定）
+     * @param {Image} imgData 画像本体
+     */
+    setImage(imgData){
+        this.imageData = imgData;
+        this.setSize(this.imageData.width,this.imageData.height);
+        this.setTrim(0,0,this.imageData.width,this.imageData.height);
+    }
 }
 
 export class EnemyManager {
@@ -70,6 +147,58 @@ export class EnemyManager {
 
 }
 
+export class EffectManager {
+    constructor(Max = 100){
+        this.spriteList = [];
+        this.EfFlag = true;
+
+        for (let i = 0; i < Max; i++){
+            this.spriteList.push(new Effect(0,0,0,0,"effect"));
+        }
+
+        //this.spriteNameList = [];
+    }
+    /**
+     * @param {Number} px ポジションｘ
+     * @param {Number} py ポジションｙ　
+     * @param {Number} sx サイズｘ
+     * @param {Number} sy サイズｙ
+     * @param {String} type タイプ
+     * @param {Number} vx ベクトルX
+     * @param {Number} vy ベクトルY
+     * @param {Number} vz ベクトルZ
+     * @param {Number} MemLength そのエネミーが保持できる固有メモリ。中身を直接記述もできる。
+     * @param {Number} MHP マックスＨＰ（デフォルトは１）
+     * @param {Number} HP 名の通りＨＰ（デフォルトはMHP）
+     */
+    spawnNPC(px,py,sx,sy,type,vx = 0,vy = 0,vz = 0,MemLength = [],MHP = 1,HP = MHP){
+        if (this.EfFlag){
+            const availableEffect = this.spriteList.find(npc => !npc.active);
+
+            if (availableEffect) {
+                availableEffect.activate(px,py,sx,sy,type,vx,vy,vz,MemLength,HP);
+            } else {
+                console.warn("Full of Effect!");
+            }
+        }
+    }
+    Disable(){
+        this.EfFlag = false;
+        let Unactivate = this.spriteList.filter(
+            function(npc){
+                return npc.active == true;
+        });
+        for (let i = 0; i < Unactivate.length; i++){
+            Unactivate[i].Unactivate();
+        }
+    }
+    Enable(){
+        this.EfFlag = true;
+    }
+
+
+}
+
 //Debug End
 export class sprite {
     /**
@@ -86,12 +215,14 @@ export class sprite {
         this.py = py;
         this.pz = 0;
         this.gravity = 1.5;
+        this.slowDownV = 2;
         this.sx = sx;
         this.sy = sy;
         this.type = type;
         this.MaxHp = MHP;
         this.hp = HP;
         this.frame = 0;
+        this.state = 0;
         this.collisionFlag = 1;
         //U D L R
         this.collisionState = 0;
@@ -106,6 +237,10 @@ export class sprite {
         this.stop = false;
         this.showflag = true;
         this.direction = 0;
+        this.myImg = new imgData(img.imgList["null"]);
+        this.waitFrameList = {
+            "w1" : 0
+        };
     }
 
     /**
@@ -121,11 +256,13 @@ export class sprite {
         this.py = py;
         this.pz = 0;
         this.gravity = 1.5;
+        this.slowDownV = 2;
         this.sx = sx;
         this.sy = sy;
         this.MaxHp = MHP;
         this.hp = HP;
         this.frame = 0;
+        this.state = 0;
         this.collisionFlag = 1;
         //U D L R
         this.collisionState = 0;
@@ -138,8 +275,14 @@ export class sprite {
         this.invisibleTime = 0;
         this.maxInvisibleTime = 32;
         this.direction = 0;
+        this.myImg = new imgData(img.imgList["null"]);
+        this.waitFrameList = {
+            "w1" : 0
+        };
     }
-
+    clearFrame(){
+        this.frame = 0;
+    }
     /**
      * 
      * @param {Number} CamX どのカメラを基準に描くかX
@@ -174,6 +317,8 @@ export class sprite {
         if (this.showflag) {
             //NowCTX.arc(32,32,32,0,Math.PI*2,false);
             if (this.invisibleTime % 4 <= 1) {
+                let RestoreAplha = NowCTX.globalAlpha;
+                NowCTX.globalAlpha = 0.3;
                 NowCTX.fillStyle = style;
                 NowCTX.fillRect(
                     (RenSprX-(this.sx/2)),
@@ -181,6 +326,7 @@ export class sprite {
                     this.sx,
                     this.sy
                 );
+                NowCTX.globalAlpha = RestoreAplha;
             }
             if (ShowHP) {
                 //NowCTX.fillStyle = "white";
@@ -201,6 +347,9 @@ export class sprite {
                     6
                 );
             }
+            this.myImg.setSize(this.sx,this.sy);
+            this.myImg.render(RenSprX,RenSprY);
+            
         }
     }
 
@@ -265,7 +414,7 @@ export class sprite {
      * @param {Vector} vx 移動ベクトルX
      * @param {Vector} vy 移動ベクトルY
      */
-    move(ColMap,TILESIZE,vx,vy,fallOK = true){
+    move(ColMap,TILESIZE,vx = this.vx,vy = this.vy,fallOK = true){
         
         if (!this.stop) {
             //当たり判定ステートの初期化
@@ -325,18 +474,51 @@ export class sprite {
         this.vy += rvy;
         this.vz += rvz;
     }
-
+    setSlowDownV(vec){
+        this.slowDownV = vec;
+    }
     /**
      * @param {Number} vx セットするベクターX
      * @param {Number} vy セットするベクターY
      * @param {Number} vz セットするベクターZ
      */
-    setVector(vx,vy,vz = 0){
-        this.vx = vx;
-        this.vy = vy;
-        this.vz = vz;
+    setVector(vx,vy,vz = 0,smooth = false,smoothSpeed = 2){
+        if (!smooth){
+            this.vx = vx;
+            this.vy = vy;
+            this.vz = vz;
+        } else {
+            this.vx += fadeIn(this.vx,vx,smoothSpeed);
+            this.vy += fadeIn(this.vy,vy,smoothSpeed);
+            this.vz += fadeIn(this.vz,vz,smoothSpeed);
+        }
+        if (Math.round(this.vx) == 0) this.vx = 0;
+        if (Math.round(this.vy) == 0) this.vy = 0;
+        if (Math.round(this.vz) == 0) this.vz = 0;
     }
-
+    
+    slowDown(slowDownSpeed = this.slowDownV){
+        this.vx += fadeIn(this.vx,0,slowDownSpeed);
+        this.vy += fadeIn(this.vy,0,slowDownSpeed);
+        if (Math.round(this.vx) == 0) this.vx = 0;
+        if (Math.round(this.vy) == 0) this.vy = 0;
+        /*
+        if (Math.round(this.vx) > 0){
+            this.vx -= this.slowDownV;
+        } else if (Math.round(this.vx) < 0) {
+            this.vx += this.slowDownV;
+        } else {
+            this.vx = 0;
+        }
+        if (Math.round(this.vy) > 0){
+            this.vy -= this.slowDownV;
+        } else if (Math.round(this.vy) < 0) {
+            this.vy += this.slowDownV;
+        } else {
+            this.vy = 0;
+        }
+        */
+    }
     /**
      * @param {Number} px ポジションX
      * @param {Number} py ポジションY
@@ -425,6 +607,7 @@ export class Enemy extends sprite {
         this.hp = this.MaxHp;
         this.active = true;
         this.frame = 0;
+        this.state = 0;
         this.collisionFlag = 1;
         //U D L R
         this.collisionState = 0;
@@ -467,6 +650,142 @@ export class Enemy extends sprite {
                 }
                 break;
                 
+            default:
+                this.Unactivate();
+                console.error(`Error : Undefined Enemy's property "type": "${this.type}"`)
+        }
+
+
+    }
+
+}
+
+export class Effect extends sprite {
+    /**
+     * @param {Number} px ポジションｘ
+     * @param {Number} py ポジションｙ　
+     * @param {Number} sx サイズｘ
+     * @param {Number} sy サイズｙ
+     * @param {String} type タイプ
+     * @param {Number} MHP マックスＨＰ（デフォルトは１）
+     * @param {Number} HP 名の通りＨＰ（デフォルトはMHP）
+     */
+    constructor(px,py,sx,sy,type,MHP = 1,HP = MHP,active = false){
+        super(px,py,sx,sy,type,MHP,HP);
+        this.active = active;
+    }
+    /**
+     * @param {Number} px ポジションｘ
+     * @param {Number} py ポジションｙ　
+     * @param {Number} sx サイズｘ
+     * @param {Number} sy サイズｙ
+     * @param {String} type タイプ
+     * @param {Number} vx ベクトルX
+     * @param {Number} vy ベクトルY
+     * @param {Number} vz ベクトルZ
+     * @param {Number} Memory そのエネミーが保持できる固有メモリ。中身を直接記述もできる。
+     * @param {Number} MHP マックスＨＰ（デフォルトは１）
+     * @param {Number} HP 名の通りＨＰ（デフォルトはMHP）
+     */
+    activate(px,py,sx,sy,type,vx = 0,vy = 0,vz = 0,Memory = [],MHP = 1,HP = MHP){
+        this.px = px;
+        this.py = py;
+        this.sx = sx;
+        this.sy = sy;
+        this.type = type;
+        this.MaxHp = HP;
+        this.hp = this.MaxHp;
+        this.active = true;
+        this.frame = 0;
+        this.state = 0;
+        this.collisionFlag = 1;
+        //U D L R
+        this.collisionState = 0;
+        this.vx = vx;
+        this.vy = vy;
+        this.vz = vz;
+        //固有の配列を取得
+        this.memory = Memory;
+        console.log([this.vx,this.vy]);
+
+    }
+    Unactivate(){
+        this.active = false;
+        //配列をサヨナラ
+        this.memory = [];
+    }
+    /**
+     * @param {Array} ColMap コリジョンマップ
+     * @param {Number} TILESIZE 1タイル当たりのピクセル数
+     */
+    EfMove(ColMap,TILESIZE,fallOK = true){
+        this.move(ColMap,TILESIZE,this.vx,this.vy,fallOK);
+        //console.log([this.vx,this.vy]);
+    }
+    /**
+     * @param {Array} ColMap コリジョンマップ
+     * @param {Number} TILESIZE 1タイル当たりのピクセル数
+     */
+    EffectAction(ColMap,TILESIZE){
+        switch (this.type) {
+            case "Sword":
+                    if (this.state <= 0) {
+                        this.myImg.setImage(img.imgList["SwordEffect"]);
+                        this.myImg.roll = 0;
+                        this.state = 1;
+                        console.log("State 0 is done");
+                    } else if (this.state == 1) {
+                                this.setSlowDownV(8);
+                                this.setCollision(0);
+                                this.state = 2;
+                        switch (player.direction) {
+                            case 0:
+                                this.myImg.roll = 0;
+                                this.setVector(0,-12);
+                                break;
+                            case 1:
+                                this.myImg.roll = 45;
+                                this.setVector(8.4,-8.4);
+                                break;
+                            case 2:
+                                this.myImg.roll = 90;
+                                this.setVector(12,0);
+                                break;
+                            case 3:
+                                this.myImg.roll = 135;
+                                this.setVector(8.4,8.4);
+                                break;
+                            case 4:
+                                this.myImg.roll = 180;
+                                this.setVector(0,12);
+                                break;
+                            case 5:
+                                this.myImg.roll = 225;
+                                this.setVector(-8.4,8.4);
+                                break;
+                            case 6:
+                                this.myImg.roll = 270;
+                                this.setVector(-12,0);
+                                break;
+                            case 7:
+                                this.myImg.roll = 315;
+                                this.setVector(-8.4,-8.4);
+                                break;
+                            default:
+                            this.state = 0;
+                        }
+                        console.log("State 1 is done");
+                    } else if (this.state == 2) {
+                        this.EfMove(ColMap,TILESIZE);
+                        this.slowDown();
+                        if (Math.abs(this.vx) <= 1.5 && Math.abs(this.vy) <= 1.5) this.state = 3;
+                        console.log(`Effect Vec ${[this.vx,this.vy]}`);
+                    } else {
+                        this.Unactivate()
+                        console.log("State 2 is done. I die.");
+                        
+                    }
+                break;
             default:
                 this.Unactivate();
                 console.error(`Error : Undefined Enemy's property "type": "${this.type}"`)
@@ -617,7 +936,7 @@ export class Boss extends Enemy {
                 if (this.waitFrame(40)){
                     this.BossState++;
                     //攻撃する回数
-                    this.BossMemory["attackNum"] = 4+Math.round(Math.random()*2);
+                    this.BossMemory["attackNum"] = 0;//+Math.round(Math.random()*2);
                     //ぶつかった回数メモリ
                     this.forList["j"] = 0;
                     //汎用メモリ
@@ -678,7 +997,7 @@ export class Boss extends Enemy {
                         npcVX *= Math.ceil((Math.random()+1)*3);
                         npcVY *= Math.ceil((Math.random()+1)*3);
                         console.log([npcVX,npcVY]);
-                        EM.spawnNPC(
+                        EnM.spawnNPC(
                             spX,
                             spY,
                             2+(Math.random()*2),
@@ -708,7 +1027,7 @@ export class Boss extends Enemy {
                     if (this.forList["j"] < this.BossMemory["attackNum"]){
                         this.BossState = 5;
                     } else {
-                        if (Math.round(Math.random()) > 0){
+                        if (false/*Math.round(Math.random()) > 0*/){
                             //飛び上がり
                             this.BossState = 8;
                             this.forList["i"] = 0;
@@ -846,6 +1165,7 @@ export class Boss extends Enemy {
                     }
 
                 } else {
+                    //ゲキトツ処理
                     for (let i = 0; i<6+Math.round(Math.random()*8); i++){
                         let npcVX = 0;
                         let npcVY = 0;
@@ -872,7 +1192,7 @@ export class Boss extends Enemy {
                         npcVX *= Math.ceil((Math.random()+1)*3);
                         npcVY *= Math.ceil((Math.random()+1)*3);
                         console.log([npcVX,npcVY]);
-                        EM.spawnNPC(
+                        EnM.spawnNPC(
                             spX,
                             spY,
                             2+(Math.random()*2),
@@ -886,9 +1206,33 @@ export class Boss extends Enemy {
                     //ぶつかった回数のインクリメント
                     this.forList["j"]++;
                     this.forList["i"] = 0;
+                    this.setVector(-this.vx,-this.vy);
                     this.BossState++;
                 }
-
+                break;
+            //ゲキトツモーション
+            case 13:
+                this.setVector(0,0,0,true,8);
+                this.fallOK = false;
+                if (this.forList["i"]<240){
+                    this.pz = 0;
+                    if (this.forList["i"] < 15){
+                        screenSetOffsetRand(8,8);
+                    } else if (this.forList["i"] < 30){
+                        screenSetOffsetRand(6,6);
+                    } else if (this.forList["i"] < 50){
+                        screenSetOffsetRand(3,3);
+                    } else if (this.forList["i"] < 250){
+                        if ((this.forList["i"]%20) >= 10){
+                            this.pz = 3;
+                        } else {
+                            this.pz = 0;
+                        }
+                    }
+                } else {
+                    this.BossState = 4;
+                }
+                this.forList["i"]++;
                 break;
             //異常終了
             default:
