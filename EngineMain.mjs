@@ -620,28 +620,28 @@ function plyayerAction(){
     if (!isNowBossAnimation){
 
         if (playerKey.keyRight && playerKey.keyUp) {
-            player.setVector(playerBaseAcs*0.7,playerBaseAcs*-0.7,0,true,spd);
+            player.setVector(playerBaseAcs*0.7,playerBaseAcs*-0.7,player.vz,true,spd);
             player.direction = 1;
         } else if (playerKey.keyRight && playerKey.keyDown) {
-            player.setVector(playerBaseAcs*0.7,playerBaseAcs*0.7,0,true,spd);
+            player.setVector(playerBaseAcs*0.7,playerBaseAcs*0.7,player.vz,true,spd);
             player.direction = 3;
         } else if (playerKey.keyLeft && playerKey.keyDown) {
-            player.setVector(playerBaseAcs*-0.7,playerBaseAcs*0.7,0,true,spd);
+            player.setVector(playerBaseAcs*-0.7,playerBaseAcs*0.7,player.vz,true,spd);
             player.direction = 5;
         } else if (playerKey.keyLeft && playerKey.keyUp) {
-            player.setVector(playerBaseAcs*-0.7,playerBaseAcs*-0.7,0,true,spd);
+            player.setVector(playerBaseAcs*-0.7,playerBaseAcs*-0.7,player.vz,true,spd);
             player.direction = 7;
         } else if (playerKey.keyLeft) {
-            player.setVector(playerBaseAcs*-1,0,0,true,spd);
+            player.setVector(playerBaseAcs*-1,0,player.vz,true,spd);
             player.direction = 6;
         } else if (playerKey.keyRight) {
-            player.setVector(playerBaseAcs,0,0,true,spd);
+            player.setVector(playerBaseAcs,0,player.vz,true,spd);
             player.direction = 2;
         }else if (playerKey.keyUp) {
-            player.setVector(0,playerBaseAcs*-1,0,true,spd);
+            player.setVector(0,playerBaseAcs*-1,player.vz,true,spd);
             player.direction = 0;
         } else if (playerKey.keyDown) {
-            player.setVector(0,playerBaseAcs,0,true,spd);
+            player.setVector(0,playerBaseAcs,player.vz,true,spd);
             player.direction = 4;
         } else {
             player.slowDown(spd);
