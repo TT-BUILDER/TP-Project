@@ -5,6 +5,8 @@ import { playerCamera } from "./EngineMain.mjs";
 import { screenSetOffsetRand } from "./EngineMain.mjs";
 import { screenSetOffset } from "./EngineMain.mjs";
 import { player } from "./EngineMain.mjs";
+import { plaAttackAABB } from "./EngineMain.mjs";
+import { nowStatus } from "./EngineMain.mjs";
 import { EnM } from "./EngineMain.mjs";
 import { img } from "./EngineMain.mjs";
 import { IR } from "./EngineMain.mjs";
@@ -42,6 +44,14 @@ export class imgData {
         this.sizeX = sizeX;
         this.sizeY = sizeY;
         this.roll = rad;
+    }
+    setAnimIndex(csX,csY){
+        this.charSizeX = csX;
+        this.charSizeY = csY;
+        this.charIndexX = Math.floor(this.imageData.width/csX);
+        this.charIndexY = Math.floor(this.imageData.height/csY);
+        return [this.charIndexX,this.charIndexY];
+
     }
     /**
      * 描画サイズの設定
@@ -210,7 +220,7 @@ export class sprite {
      * @param {Number} MHP マックスＨＰ（デフォルトは１）
      * @param {Number} HP 名の通りＨＰ（デフォルトはMHPHP）
      */
-    constructor(px,py,sx,sy,type,MHP = 1,HP = MHP){
+    constructor(px,py,sx,sy,type,MHP = 1,HP = MHP,MST = 1,ST = MST,SPD = 4){
         this.px = px;
         this.py = py;
         this.pz = 0;
@@ -221,7 +231,11 @@ export class sprite {
         this.type = type;
         this.MaxHp = MHP;
         this.hp = HP;
-        this.frame = 0;
+        this.MaxStamina = MST;
+        this.stamina = ST;
+        this.Speed = SPD;
+        this.animationFrame = 0;
+        this.animationState = 0;
         this.state = 0;
         this.collisionFlag = 1;
         //U D L R
@@ -229,6 +243,7 @@ export class sprite {
         this.vx = 0;
         this.vy = 0;
         this.vz = 0;
+        this.VLOCK = false;
         //ダメージ関係
         this.invisilbe = false;
         //フレーム単位
@@ -238,11 +253,10 @@ export class sprite {
         this.showflag = true;
         this.direction = 0;
         this.myImg = new imgData(img.imgList["null"]);
-        this.waitFrameList = {
-            "w1" : 0
-        };
+        this.animFrameClockDiv = 1;
+        this.animFrameClock = 0;
+        this.animFrameSumByClock = 0;
     }
-
     /**
      * @param {Number} px ポジションｘ
      * @param {Number} py ポジションｙ　
@@ -251,7 +265,7 @@ export class sprite {
      * @param {Number} MHP マックスＨＰ（デフォルトは１）
      * @param {Number} HP 名の通りＨＰ（デフォルトはMHPHP）
      */
-    initalize(px,py,sx,sy,MHP = 1,HP = MHP){
+    initalize(px,py,sx,sy,MHP = 1,HP = MHP,MST = 1,ST = MST,SPD = 4){
         this.px = px;
         this.py = py;
         this.pz = 0;
@@ -261,7 +275,11 @@ export class sprite {
         this.sy = sy;
         this.MaxHp = MHP;
         this.hp = HP;
-        this.frame = 0;
+        this.MaxStamina = MST;
+        this.stamina = ST;
+        this.Speed = SPD;
+        this.animationFrame = 0;
+        this.animationState = 0;
         this.state = 0;
         this.collisionFlag = 1;
         //U D L R
@@ -276,20 +294,38 @@ export class sprite {
         this.maxInvisibleTime = 32;
         this.direction = 0;
         this.myImg = new imgData(img.imgList["null"]);
-        this.waitFrameList = {
-            "w1" : 0
-        };
+        this.animFrameClockDiv = 1;
+        this.animFrameClock = 0;
+        this.animFrameSumByClock = 0;
+        
     }
-    clearFrame(){
-        this.frame = 0;
+    clearFrame(num = 0){
+        this.animationFrame = num;
+    }
+    clearanimFrameSum(){
+        this.animFrameSumByClock = 0;
+    }
+    setAnimFrameClockDiv(div){
+        this.animFrameClockDiv = div;
+    }
+    changeAnimState(state){
+        this.animationFrame = 0;
+        this.clearanimFrameSum();
+        this.animationState = state;
     }
     /**
      * 
      * @param {Number} CamX どのカメラを基準に描くかX
      * @param {Number} CamY どのカメラを基準に描くかY
      * @param {String} style カラースタイル。
+     * @param {boolean} ShowHP HPを表示するかどうか（デバッグ）
+     * @param {boolean} ShowShadow 影を表示するかどうか
+     * @param {Number} imgStX 画像の切り取り開始点X
+     * @param {Number} imgStY 画像の切り取り開始点Y
+     * @param {Number} imgSX 画像の切り取りサイズX
+     * @param {Number} imgSY 画像の切り取りサイズY
      */
-    RenderMyself(CamX,CamY,style,ShowHP = false,ShowShadow = true){
+    RenderMyself(CamX,CamY,style,ShowHP = false,ShowShadow = true,imgStX = 0,imgStY = 0,imgSX = this.myImg.imageData.width, imgSY = this.myImg.imageData.height){
         if (this.invisilbe){
             this.invisibleTime--;
             if (this.invisibleTime <= 0) this.invisilbe = false;
@@ -346,7 +382,23 @@ export class sprite {
                     (this.sx*1.2)*(this.hp/this.MaxHp),
                     6
                 );
+                NowCTX.fillStyle = "red";
+                NowCTX.fillRect(
+                    RenSprX-(this.sx*0.6),
+                    RenSprY-this.sy*0.6-21,
+                    this.sx*1.2,
+                    6
+                );
+                NowCTX.fillStyle = "rgb(0, 128, 255)";
+                NowCTX.fillRect(
+                    RenSprX-(this.sx*0.6),
+                    RenSprY-this.sy*0.6-21,
+                    (this.sx*1.2)*(this.stamina/this.MaxStamina),
+                    6
+                );
+                
             }
+            this.myImg.setTrim(imgStX,imgStY,imgSX,imgSY);
             this.myImg.setSize(this.sx,this.sy);
             this.myImg.render(RenSprX,RenSprY);
             
@@ -460,6 +512,13 @@ export class sprite {
 
             if (fallOK) this.ZAxisFall();
 
+            this.setStaminaRelative(0.2);
+            this.animFrameClock++;
+            if (this.animFrameClock >= this.animFrameClockDiv) {
+                this.animFrameClock = 0;
+                this.animFrameSumByClock++;
+            }
+
         }
 
     }
@@ -482,43 +541,47 @@ export class sprite {
      * @param {Number} vy セットするベクターY
      * @param {Number} vz セットするベクターZ
      */
-    setVector(vx,vy,vz = 0,smooth = false,smoothSpeed = 2){
-        if (!smooth){
-            this.vx = vx;
-            this.vy = vy;
-            this.vz = vz;
-        } else {
-            this.vx += fadeIn(this.vx,vx,smoothSpeed);
-            this.vy += fadeIn(this.vy,vy,smoothSpeed);
-            //this.vz += fadeIn(this.vz,vz,smoothSpeed);
-            this.vz = vz;
+    setVector(vx,vy,vz = this.vz,smooth = false,smoothSpeed = 2){
+        if (!this.VLOCK) {
+            if (!smooth){
+                this.vx = vx;
+                this.vy = vy;
+                this.vz = vz;
+            } else {
+                this.vx += fadeIn(this.vx,vx,smoothSpeed);
+                this.vy += fadeIn(this.vy,vy,smoothSpeed);
+                //this.vz += fadeIn(this.vz,vz,smoothSpeed);
+                this.vz = vz;
+            }
+            if (Math.round(this.vx) == 0) this.vx = 0;
+            if (Math.round(this.vy) == 0) this.vy = 0;
+            if (Math.round(this.vz) == 0) this.vz = 0;
         }
-        if (Math.round(this.vx) == 0) this.vx = 0;
-        if (Math.round(this.vy) == 0) this.vy = 0;
-        if (Math.round(this.vz) == 0) this.vz = 0;
     }
     
     slowDown(slowDownSpeed = this.slowDownV){
-        this.vx += fadeIn(this.vx,0,slowDownSpeed);
-        this.vy += fadeIn(this.vy,0,slowDownSpeed);
-        if (Math.round(this.vx) == 0) this.vx = 0;
-        if (Math.round(this.vy) == 0) this.vy = 0;
-        /*
-        if (Math.round(this.vx) > 0){
-            this.vx -= this.slowDownV;
-        } else if (Math.round(this.vx) < 0) {
-            this.vx += this.slowDownV;
-        } else {
-            this.vx = 0;
+        if (!this.VLOCK) {
+            this.vx += fadeIn(this.vx,0,slowDownSpeed);
+            this.vy += fadeIn(this.vy,0,slowDownSpeed);
+            if (Math.round(this.vx) == 0) this.vx = 0;
+            if (Math.round(this.vy) == 0) this.vy = 0;
+            /*
+            if (Math.round(this.vx) > 0){
+                this.vx -= this.slowDownV;
+            } else if (Math.round(this.vx) < 0) {
+                this.vx += this.slowDownV;
+            } else {
+                this.vx = 0;
+            }
+            if (Math.round(this.vy) > 0){
+                this.vy -= this.slowDownV;
+            } else if (Math.round(this.vy) < 0) {
+                this.vy += this.slowDownV;
+            } else {
+                this.vy = 0;
+            }
+            */
         }
-        if (Math.round(this.vy) > 0){
-            this.vy -= this.slowDownV;
-        } else if (Math.round(this.vy) < 0) {
-            this.vy += this.slowDownV;
-        } else {
-            this.vy = 0;
-        }
-        */
     }
     /**
      * @param {Number} px ポジションX
@@ -529,6 +592,10 @@ export class sprite {
         this.px = px;
         this.py = py;
         this.pz = pz;
+    }
+    setSize(sx,sy){
+        this.sx = sx;
+        this.sy = sy;
     }
 
     setCollision(CF){
@@ -544,7 +611,7 @@ export class sprite {
      * @param {Number} tpy 相手のポジションY
      * @param {Number} tsx 相手のサイズX
      * @param {Number} tsy 相手のサイズY
-     * @returns 
+     * @returns boolean
      */
     hitCheck(tpx,tpy,tsx,tsy,px = this.px,py = this.py,sx = this.sx,sy = this.sy){
         if ( Math.abs(tpx-px) < (sx+tsx)/2 && Math.abs(tpy-py) < (sy+tsy)/2 ){
@@ -566,6 +633,16 @@ export class sprite {
             this.invisilbe = true;
         }
     
+    }
+
+    SetStamina(st,mst = this.MaxStamina){
+        this.MaxStamina = mst;
+        this.stamina = st;
+    }
+
+    setStaminaRelative(add){
+        this.stamina += add;
+        this.stamina = Math.min(this.MaxStamina,Math.max(0,this.stamina));
     }
 
 
@@ -598,16 +675,20 @@ export class Enemy extends sprite {
      * @param {Number} MHP マックスＨＰ（デフォルトは１）
      * @param {Number} HP 名の通りＨＰ（デフォルトはMHP）
      */
-    activate(px,py,sx,sy,type,vx = 0,vy = 0,vz = 0,Memory = [],MHP = 1,HP = MHP){
+    activate(px,py,sx,sy,type,vx = 0,vy = 0,vz = 0,Memory = [],MHP = 1,HP = MHP,MST = 1,ST = MST,SPD = 4){
         this.px = px;
         this.py = py;
         this.sx = sx;
         this.sy = sy;
         this.type = type;
-        this.MaxHp = HP;
-        this.hp = this.MaxHp;
+        this.MaxHp = MHP;
+        this.hp = HP;
+        this.MaxStamina = MST;
+        this.stamina = ST;
+        this.Speed = SPD;
         this.active = true;
-        this.frame = 0;
+        this.animationFrame = 0;
+        this.animationState = 0;
         this.state = 0;
         this.collisionFlag = 1;
         //U D L R
@@ -617,7 +698,7 @@ export class Enemy extends sprite {
         this.vz = vz;
         //固有の配列を取得
         this.memory = Memory;
-        console.log([this.vx,this.vy]);
+        //console.log([this.vx,this.vy]);
 
     }
     Unactivate(){
@@ -688,16 +769,20 @@ export class Effect extends sprite {
      * @param {Number} MHP マックスＨＰ（デフォルトは１）
      * @param {Number} HP 名の通りＨＰ（デフォルトはMHP）
      */
-    activate(px,py,sx,sy,type,vx = 0,vy = 0,vz = 0,Memory = [],MHP = 1,HP = MHP){
+    activate(px,py,sx,sy,type,vx = 0,vy = 0,vz = 0,Memory = [],MHP = 1,HP = MHP,MST = 1,ST = MST,SPD = 4){
         this.px = px;
         this.py = py;
         this.sx = sx;
         this.sy = sy;
         this.type = type;
-        this.MaxHp = HP;
-        this.hp = this.MaxHp;
+        this.MaxHp = MHP;
+        this.hp = HP;
+        this.MaxStamina = MST;
+        this.stamina = ST;
+        this.Speed = SPD;
         this.active = true;
-        this.frame = 0;
+        this.animationFrame = 0;
+        this.animationState = 0;
         this.state = 0;
         this.collisionFlag = 1;
         //U D L R
@@ -707,7 +792,7 @@ export class Effect extends sprite {
         this.vz = vz;
         //固有の配列を取得
         this.memory = Memory;
-        console.log([this.vx,this.vy]);
+        //console.log([this.vx,this.vy]);
 
     }
     Unactivate(){
@@ -734,7 +819,7 @@ export class Effect extends sprite {
                         this.myImg.setImage(img.imgList["SwordEffect"]);
                         this.myImg.roll = 0;
                         this.state = 1;
-                        console.log("State 0 is done");
+                        //console.log("State 0 is done");
                     } else if (this.state == 1) {
                                 this.setSlowDownV(8);
                                 this.setCollision(0);
@@ -775,15 +860,17 @@ export class Effect extends sprite {
                             default:
                             this.state = 0;
                         }
-                        console.log("State 1 is done");
+                        //console.log("State 1 is done");
                     } else if (this.state == 2) {
+                        //消滅するときの速度
+                        const breakSpeed = 5;
                         this.EfMove(ColMap,TILESIZE);
                         this.slowDown();
-                        if (Math.abs(this.vx) <= 1.5 && Math.abs(this.vy) <= 1.5) this.state = 3;
-                        console.log(`Effect Vec ${[this.vx,this.vy]}`);
+                        if ((Math.abs(this.vx)**2+Math.abs(this.vy)**2) <= breakSpeed**2 ) this.state = 3;
+                        //console.log(`Effect Vec ${[this.vx,this.vy]}`);
                     } else {
                         this.Unactivate()
-                        console.log("State 2 is done. I die.");
+                        //console.log("State 2 is done. I die.");
                         
                     }
                 break;
@@ -881,19 +968,6 @@ export class Boss extends Enemy {
      */
     BossAction(ColMap,TILESIZE){
         if (this.type == "Rock"){
-            /*
-            if (this.BossState == 0){
-
-            } else if (this.BossState == 0){
-
-            } else if (this.BossState == 1) {
-                
-            } else if (this.BossState == 2) {
-                
-            } else {
-                
-            }
-            */
            let moveOK = true;
            this.fallOK = true;
            switch (this.BossState) {
@@ -901,6 +975,7 @@ export class Boss extends Enemy {
             case 0:
                 this.clearForList();
                 this.clearMemory();
+                this.hp = this.MaxHp;
                 isNowBossAnimation = true;
                 this.setPos(this.px,this.py,-360);
                 this.BossState++;
@@ -961,7 +1036,7 @@ export class Boss extends Enemy {
                     //突進スピード
                     this.BossState++;
                     this.BossMemory["MultSpeed"] = 4;
-                    console.log([this.BossMemory["tarX"],this.BossMemory["tarY"]]);
+                    //console.log([this.BossMemory["tarX"],this.BossMemory["tarY"]]);
                 }
                 break;
             //突進じゃぁ
@@ -997,7 +1072,7 @@ export class Boss extends Enemy {
                         }
                         npcVX *= Math.ceil((Math.random()+1)*3);
                         npcVY *= Math.ceil((Math.random()+1)*3);
-                        console.log([npcVX,npcVY]);
+                        //console.log([npcVX,npcVY]);
                         EnM.spawnNPC(
                             spX,
                             spY,
@@ -1248,6 +1323,19 @@ export class Boss extends Enemy {
            if (moveOK){
                 this.EnMove(ColMap,TILESIZE,this.fallOK);
            }
+            let hitFlag = this.hitCheck(
+                plaAttackAABB.px,
+                plaAttackAABB.py,
+                plaAttackAABB.sx,
+                plaAttackAABB.sy
+            );
+            if (hitFlag == 1) {
+                this.damage(nowStatus.AP);
+            }
+            if (this.hp <= 0){
+                this.BossState = 14;
+            }
+
         }
     }
 

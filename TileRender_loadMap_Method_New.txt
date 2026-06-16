@@ -1,0 +1,42 @@
+	/**
+	 * @param {String} MapPass マップデータへのパス
+	 */
+	async newLoadMap(MapPass){
+		try {
+
+			const response = await fetch(MapPass);
+			
+			if (!response.ok) {
+				throw new Error(`An Error! : ${response.status}`);
+			}
+
+			const mapText = await response.text();
+			
+			// 1. カンマや改行、スペースで分割し、すべて数値の「1次元配列」にする
+			const mapData = mapText
+				.trim()
+				.split(/[\s,]+/)             // カンマや改行、スペースで分割
+				.filter(item => item !== '') // 空の要素を除外
+				.map(Number);                // 数値に変換
+
+			// 2. すでに読み込み済みの変数（M_Width, M_Height）を使用
+			// ※もしクラスのプロパティなら this.M_Width などに適宜書き換えてください
+			const width = M_Width;
+			const height = M_Height;
+
+			// 3. 指定された「幅」ごとにデータを切り分けて、2次元配列を構築
+			const map2DArray = [];
+			for (let i = 0; i < height; i++) {
+				const start = i * width;
+				const end = start + width;
+				const row = mapData.slice(start, end);
+				map2DArray.push(row);
+			}
+
+			return map2DArray;
+		} catch (error) {
+			console.error("An Error!", error);
+			return 0;
+		}
+
+	}

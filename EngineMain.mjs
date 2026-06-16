@@ -47,7 +47,6 @@ NowCanvasContext(ScreenB,ScB);
 ctx.imageSmoothingEnabled = false;
 
 //プレイヤーの基本移動速度
-const playerBaseAcs = 4;
 
 //                  クラス定義
 
@@ -78,11 +77,45 @@ class usrKey {
         this.keyUp = false;
         this.keyDown = false;
         this.keyJump = false;
+        this.lastkeyA_button = false;
+        this.lastkeyB_button = false;
+        this.lastkeyC_button = false;
+        this.pulsekeyA_button = false;
+        this.pulsekeyB_button = false;
+        this.pulsekeyC_button = false;
         this.keyA_button = false;
         this.keyB_button = false;
         this.keyC_button = false;
         this.keyQuit = false;
+        this.lastkeyPause = false;
+        this.pulsekeyPause = false;
         this.keyPause = false;
+    }
+    pulseSet(){
+        if (this.keyA_button && !this.lastkeyA_button){
+            this.pulsekeyA_button = true;
+        } else {
+            this.pulsekeyA_button = false;
+        }
+        if (this.keyB_button && !this.lastkeyB_button){
+            this.pulsekeyB_button = true;
+        } else {
+            this.pulsekeyB_button = false;
+        }
+        if (this.keyC_button && !this.lastkeyC_button){
+            this.pulsekeyC_button = true;
+        } else {
+            this.pulsekeyC_button = false;
+        }
+        if (this.keyPause && !this.lastkeyPause){
+            this.pulsekeyPause = true;
+        } else {
+            this.pulsekeyPause = false;
+        }
+        this.lastkeyA_button = this.keyA_button;
+        this.lastkeyB_button = this.keyB_button;
+        this.lastkeyC_button = this.keyC_button;
+        this.lastkeyPause = this.keyPause;
     }
 }
 //カメラ座標を保持する構造体
@@ -158,6 +191,48 @@ class stage {
     }
 
 }
+class status {
+    /**
+     * @param {number} AP 攻撃力
+     * @param {number} MP MP
+     * @param {number} DP 防御力
+     * @param {number} SPD すばやさ
+     * @param {number} STM スタミナ
+     * @param {number} MHP HP
+     */
+    constructor(AP = 0,MP = 0,DP = 0,SPD = 0,STM = 0,MHP = 0){
+        //Attack Power
+        this.AP = AP;
+        //Magic Power
+        this.MP = MP;
+        //Difence Power
+        this.DP = DP;
+        //Speed
+        this.SPD = SPD;
+        //Stamina
+        this.STM = STM;
+        //Max HP
+        this.MHP = MHP;
+        
+    }
+
+    setStatus(AP,MP,DP,SPD,STM,MHP){
+        //Attack Power
+        this.AP = AP;
+        //Magic Power
+        this.MP = MP;
+        //Difence Power
+        this.DP = DP;
+        //Speed
+        this.SPD = SPD;
+        //Stamina
+        this.STM = STM;
+        //Max HP
+        this.MHP = MHP;
+    }
+
+}
+
 
 //初期化（プロミスオブジェクトだとグローバルにならないため入れれない）
 
@@ -182,13 +257,49 @@ const lastKeys = {};
 
 const plSize = 16;
 
+const VecDirList = [
+    [0,-1],
+    [0.7,-0.7],
+    [1,0],
+    [0.7,0.7],
+    [0,1],
+    [-0.7,0.7],
+    [-1,0],
+    [-0.7,-0.7],
+]
+
 export const img = new Images();                                 //イメージインスタンス
 export const IR = new imgRender(ScreenB,ScB);                    //イメージレンダークラス
 //なにもない（null）に割り当てる画像の読み込み
 await img.AddImg("null","./assets/tiles/0.png");
 
 //プレイヤーオブジェクト
-export const player = new sprite(0,0,plSize,plSize,"player",45);
+export let nowStatus = new status(0,0,0,0,0,0);
+export const knightStatus =     new status(24,15,18,18,50,60);
+export const archerStatus =     new status(15,20,15,24,38,50);
+export const magicianStatus =   new status(12,42,10,20,32,45);
+export let player = new sprite(
+    0,
+    0,
+    plSize,
+    plSize,
+    "player",
+    knightStatus.MHP,
+    knightStatus.MHP,
+    knightStatus.STM,
+    knightStatus.STM,
+    knightStatus.SPD
+);
+/*  0...standing
+    1...walking
+    2...running
+    3...jumping
+    4...attacking
+    5...damaging
+*/
+//ステータス関連
+export const plaAttackAABB = new sprite(player.px,player.py,0,0,"PlaAtAABB");
+//export let pla_Anim_
 //player.setCollision(1);
 
 export const EnM = new EnemyManager(100);
@@ -348,6 +459,48 @@ function main(){
 }
 function showDebugInfo(Debug = DebugMode){
 }
+function playerSelect(key){
+    let [MHP,MST,SPD] = [0,0,0];
+    if (key == "KNIGHT") {
+        nowStatus.setStatus(
+            knightStatus.AP,
+            knightStatus.MP,
+            knightStatus.DP,
+            knightStatus.SPD,
+            knightStatus.STM,
+            knightStatus.MHP
+        )
+    } else if (key == "MAGICIAN") {
+        nowStatus.setStatus(
+            magicianStatus.AP,
+            magicianStatus.MP,
+            magicianStatus.DP,
+            magicianStatus.SPD,
+            magicianStatus.STM,
+            magicianStatus.MHP
+        )
+    } else if (key == "ARCHER") {
+        nowStatus.setStatus(
+            archerStatus.AP,
+            archerStatus.MP,
+            archerStatus.DP,
+            archerStatus.SPD,
+            archerStatus.STM,
+            archerStatus.MHP
+        )
+    }
+    player.initalize(
+        NowMapJSON["Position"][0]*(TILESIZE/showTILESIZE),
+        NowMapJSON["Position"][1]*(TILESIZE/showTILESIZE),
+        plSize,
+        plSize,
+        nowStatus.MHP,
+        nowStatus.MHP,
+        nowStatus.STM,
+        nowStatus.STM,
+        nowStatus.SPD
+    );
+}
 /**
  * @param {String} stageName 辞書に格納されているキー
  */
@@ -358,12 +511,16 @@ async function StageSet(stageName){
     NowMapCollision = MapCollisions[stageName];
     NowMapJSON = MapJSONs[stageName];
     TR.setMapData(NowMap,NowMapCollision);
+    playerSelect("KNIGHT");
+    /*
     player.initalize(
         NowMapJSON["Position"][0]*(TILESIZE/showTILESIZE),
         NowMapJSON["Position"][1]*(TILESIZE/showTILESIZE),
         plSize,
         plSize,
         45);
+    */
+    player.setAnimFrameClockDiv(2);
     player.setSlowDownV(3);
     player.setGravity(0.7);
     EnM.Enable();
@@ -375,7 +532,7 @@ async function StageSet(stageName){
             temp["sizeX"],
             temp["sizeY"],
             temp["Name"],
-            temp["MaxHP"]
+            temp["status"][5]
         );
     } else {
         NowBoss = 0;
@@ -407,7 +564,8 @@ function RenderBuffer(){
     ScB.imageSmoothingEnabled = false;
     
     //バッファキャンバスのクリア
-    ScB.fillStyle = "black";
+    //ScB.globalAlpha = 0.5;
+    ScB.fillStyle = "rgb(0,0,0)";
     ScB.fillRect(0,0,ScWidth,ScHeight);
 
     //各自描画処理
@@ -422,19 +580,12 @@ function RenderBuffer(){
     //プレイヤーの描画
     RenderPlayer();
     
-    //イメージレンダーのテスト
-    /*
-    IR.renderImg(img.imgList["SwordEffect"],player.px+renderCamera.camX,player.py+renderCamera.camY,DebugFrameC,
-        img.imgList["SwordEffect"].width*(1+Math.cos(DebugFrameC/30)),
-        img.imgList["SwordEffect"].height*(1+Math.sin(DebugFrameC*Math.PI/180))
-    );
-    //console.log(DebugFrameC);
-    */
 }
 //バッファの内容を転送する関数
 function RenderCanvas(){
 
-
+    //モーションブラー定数(0~1)
+    ctx.globalAlpha = 1;
     //バッファの内容を実際のcanvasへ転送
     ctx.drawImage(ScreenB,0,0,ScWidth,ScHeight,0,0,canvas.width,canvas.height);
 
@@ -443,6 +594,7 @@ function RenderCanvas(){
 function RenderPlayer(){
 
     player.RenderMyself(renderCamera.camX,renderCamera.camY,"green",DebugMode);
+    plaAttackAABB.RenderMyself(renderCamera.camX,renderCamera.camY,"rgb(255,0,0/50%)",DebugMode);
     /*
     ScB.fillStyle = "green";
     ScB.fillRect(
@@ -507,9 +659,9 @@ function RenderStage() {
 
     //cameraSet(DebugFrameC,0);
     //console.log([player.px,player.py]);
-    if (!keyInput.key["c"]) {
+    //if (!keyInput.key["c"]) {
         playerCameraSet(1);
-    }
+    //}
     RenderCameraSet();
     TR.RenderMap(renderCamera.camX,renderCamera.camY,DebugMode);
 
@@ -609,15 +761,20 @@ function keyConvert(){
     playerKey.keyB_button = keyInput.key["x"];
     playerKey.keyC_button = keyInput.key["c"];
     playerKey.keyPause = keyInput.key[" "];
+    playerKey.pulseSet();
     //console.log(Keys);
 }
 function plyayerAction(){
 
     let vx = 0; let vy = 0;
 
+    const nowPlaDir = player.direction;
+
     const spd = 4;
 
-    if (!isNowBossAnimation){
+    const playerBaseAcs = player.Speed/5;
+
+    if (!isNowBossAnimation || true){
 
         if (playerKey.keyRight && playerKey.keyUp) {
             player.setVector(playerBaseAcs*0.7,playerBaseAcs*-0.7,player.vz,true,spd);
@@ -646,33 +803,93 @@ function plyayerAction(){
         } else {
             player.slowDown(spd);
         }
-        if (playerKey.keyB_button && player.pz >= 0) {
-            player.ZAxisJump(-6);
-        }
-        let AcEf = EfM.spriteList.filter(
-            function(npc) {
-                return npc.active == true;
-            }
-        )
-        if (playerKey.keyA_button && AcEf.length == 0) {
-            EfM.spawnNPC(player.px,player.py,32,24,"Sword");
-        }
 
-        /*アニメーション処理*/
-    
+        if (playerKey.pulsekeyC_button && player.pz >= -3 && player.stamina >= player.MaxStamina/5) {
+            //バックステップ（要修正）
+            console.log("executed");
+            player.setPos(player.px,player.py,0);
+            player.ZAxisJump(-6);
+            player.setVector(1.5*playerBaseAcs*VecDirList[player.direction][0],1.5*playerBaseAcs*VecDirList[player.direction][1]);
+            player.setStaminaRelative(-player.MaxStamina/5);
+            player.VLOCK = true;
+        } else {
+            if (player.vz >= 0) {
+                player.VLOCK = false;
+            }
+            if (playerKey.pulsekeyB_button && player.pz >= -3) {
+                //ジャンプ
+                player.setPos(player.px,player.py,0);
+                player.ZAxisJump(-6);
+            }
+        }
+        
+        if (playerKey.pulsekeyA_button && player.animationState <= 3) {
+            EfM.spawnNPC(player.px,player.py,32,24,"Sword");
+            player.changeAnimState(4);
+        }
+        /*  アニメーション処理  */
+        //console.log(`animF : ${player.animFrameClock}`);
+        if (player.direction != nowPlaDir && player.animationState <= 2){
+            player.clearFrame(0);
+            player.clearanimFrameSum();
+            //1/20秒周期（0.05秒周期）でanimFrameSumByClockが1ずつインクリメントする
+            //player.setAnimFrameClockDiv(4);
+        }
+        plaAttackAABB.setSize(0,0);
+        //Walking or Running
+        if (player.animationState == 1 || player.animationState == 2) {
+            player.setAnimFrameClockDiv(4);
+            if (player.animFrameSumByClock >= 1) /* 0.2 sec */{
+                if (player.animationFrame >= 4) {
+                    player.animationFrame = 0;
+                } else {
+                    player.animationFrame++;
+                }
+                player.clearanimFrameSum();
+            }
+        } else if (player.animationState == 3) /*Jumping*/ {
+
+        } else if (player.animationState == 4) /*attacking*/ {
+            plaAttackAABB.setSize(
+                24+(Math.abs(10*VecDirList[player.direction][1])),
+                24+(Math.abs(8*VecDirList[player.direction][0]))
+            );
+            player.setAnimFrameClockDiv(2);
+            if (player.animFrameSumByClock >= 1) /* 0.2 sec */ {
+                if (player.animationFrame >= 5) {
+                    player.changeAnimState(6);
+                } else {
+                    player.animationFrame++;
+                }
+                player.clearanimFrameSum();
+            }
+        } else if (player.animationState == 5) /*Damaging*/ {
+
+        } else if (player.animationState == 6) /*Set to 1 or 2*/ {
+            player.changeAnimState(2);
+        } else {
+            player.changeAnimState(6);
+        }
+        //console.log(`animState : ${player.animationState}`);
+        //console.log(`animFrame : ${player.animationFrame}`);
+        //console.log(`player's speed : ${((player.vx)**2+(player.vy)**2)**0.5}, vz is ${player.vz}`);
+        //console.log(`VLOCK is ${player.VLOCK}`);
+
     } else {
         player.setVector(0,0,0);
     }
     //console.log(`player's vec: ${[player.vx,player.vy]}`);
 
-
     player.move(NowMapCollision,TILESIZE);
-
+    plaAttackAABB.setPos(
+        player.px+(VecDirList[player.direction][0]*plaAttackAABB.sx/2),
+        player.py+(VecDirList[player.direction][1]*plaAttackAABB.sy/2),
+        player.pz);
     
-    let debugScaler = 1+3*(Math.random());
 
     /*
     //デバッグ用の機能
+    let debugScaler = 1+3*(Math.random());
     if (playerKey.keyPause){
 
         EnM.spawnNPC(player.px,player.py,
@@ -721,7 +938,7 @@ function enemyAction(){
         function(npc){
             return npc.active === true;
         })
-    console.log(AcEn.length);
+    //console.log(AcEn.length);
     //抽出したやつらのプログラムを実行
     for (let i = 0; i < AcEn.length; i++) {
         let npc = AcEn[i];
