@@ -27,6 +27,10 @@ const canvas = document.getElementById("GameCanvas");       //実際のキャン
 const ctx = canvas.getContext("2d");                        //2Dメソッド取得
 const initCanvasHeight = canvas.height;                     //初期キャンバスのサイズ高さ
 const initCanvasWidth = canvas.width;                       //初期キャンバスのサイズ幅
+ctx.fillStyle = "rgb(0,0,0)";
+ctx.font = `${TextSize}px monospace`;
+ctx.textBaseline = "hanging";
+ctx.fillText("Now Loading... Please wait a moment.",0,0);
 
 const canvasDefaultMult = 1;                                //デフォルト拡大値
 let canvasMult = canvasDefaultMult;                         //キャンバスの拡大比
@@ -267,6 +271,9 @@ const VecDirList = [
     [-1,0],
     [-0.7,-0.7],
 ]
+
+
+
 
 export const img = new Images();                                 //イメージインスタンス
 export const IR = new imgRender(ScreenB,ScB);                    //イメージレンダークラス
