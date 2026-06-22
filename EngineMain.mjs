@@ -781,6 +781,7 @@ function plyayerAction(){
 
     const playerBaseAcs = player.Speed/5;
 
+
     if (!isNowBossAnimation || true){
 
         if (playerKey.keyRight && playerKey.keyUp) {
@@ -888,11 +889,15 @@ function plyayerAction(){
     //console.log(`player's vec: ${[player.vx,player.vy]}`);
 
     player.move(NowMapCollision,TILESIZE);
-    plaAttackAABB.setPos(
-        player.px+(VecDirList[player.direction][0]*plaAttackAABB.sx/2),
-        player.py+(VecDirList[player.direction][1]*plaAttackAABB.sy/2),
-        player.pz);
     
+    if (player.animationState == 4) {
+        plaAttackAABB.setPos(
+            player.px+(VecDirList[player.direction][0]*plaAttackAABB.sx/2),
+            player.py+(VecDirList[player.direction][1]*plaAttackAABB.sy/2),
+            player.pz);
+    } else {
+        plaAttackAABB.setPos(65536,65536,65536);
+    }
 
     /*
     //デバッグ用の機能

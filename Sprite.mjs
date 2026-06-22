@@ -228,6 +228,7 @@ export class sprite {
         this.slowDownV = 2;
         this.sx = sx;
         this.sy = sy;
+        this.sz = this.sy;
         this.type = type;
         this.MaxHp = MHP;
         this.hp = HP;
@@ -273,6 +274,7 @@ export class sprite {
         this.slowDownV = 2;
         this.sx = sx;
         this.sy = sy;
+        this.sz = this.sy;
         this.MaxHp = MHP;
         this.hp = HP;
         this.MaxStamina = MST;
@@ -596,6 +598,7 @@ export class sprite {
     setSize(sx,sy){
         this.sx = sx;
         this.sy = sy;
+        this.sz = this.sy;
     }
 
     setCollision(CF){
@@ -603,18 +606,26 @@ export class sprite {
     }
 
     /**
-     * @param {Number} px 自身のポジションX
-     * @param {Number} py 自身のポジションY
-     * @param {Number} sx 自身のサイズX
-     * @param {Number} sy 自身のサイズY
      * @param {Number} tpx 相手のポジションX
      * @param {Number} tpy 相手のポジションY
+     * @param {Number} tpz 相手のポジションZ
      * @param {Number} tsx 相手のサイズX
      * @param {Number} tsy 相手のサイズY
+     * @param {Number} tsz 相手のサイズZ
+     * @param {Number} px 自身のポジションX
+     * @param {Number} py 自身のポジションY
+     * @param {Number} pz 自身のポジションZ
+     * @param {Number} sx 自身のサイズX
+     * @param {Number} sy 自身のサイズY
+     * @param {Number} sz 自身のサイズZ
      * @returns boolean
      */
-    hitCheck(tpx,tpy,tsx,tsy,px = this.px,py = this.py,sx = this.sx,sy = this.sy){
-        if ( Math.abs(tpx-px) < (sx+tsx)/2 && Math.abs(tpy-py) < (sy+tsy)/2 ){
+    hitCheck(tpx,tpy,tpz,tsx,tsy,tsz,px = this.px,py = this.py,pz = this.pz,sx = this.sx,sy = this.sy,sz = this.sz){
+        if (
+            Math.abs(tpx-px) < (sx+tsx)/2 && 
+            Math.abs(tpy-py) < (sy+tsy)/2 && 
+            Math.abs(tpz-pz) < (sz+tsz)/2
+        ){
             return 1
         } else { 
             return 0
@@ -680,6 +691,7 @@ export class Enemy extends sprite {
         this.py = py;
         this.sx = sx;
         this.sy = sy;
+        this.sz = this.sy;
         this.type = type;
         this.MaxHp = MHP;
         this.hp = HP;
@@ -723,7 +735,7 @@ export class Enemy extends sprite {
             case "rocks":
                 this.EnMove(ColMap,TILESIZE);
 
-                if (this.hitCheck(player.px,player.py,player.sx,player.sy)){
+                if (this.hitCheck(player.px,player.py,player.pz,player.sx,player.sy,player.sz)){
                     player.damage(1);
                 }
 
@@ -774,6 +786,7 @@ export class Effect extends sprite {
         this.py = py;
         this.sx = sx;
         this.sy = sy;
+        this.sz = this.sy;
         this.type = type;
         this.MaxHp = MHP;
         this.hp = HP;
@@ -1326,8 +1339,10 @@ export class Boss extends Enemy {
             let hitFlag = this.hitCheck(
                 plaAttackAABB.px,
                 plaAttackAABB.py,
+                plaAttackAABB.pz,
                 plaAttackAABB.sx,
-                plaAttackAABB.sy
+                plaAttackAABB.sy,
+                plaAttackAABB.sz
             );
             if (hitFlag == 1) {
                 this.damage(nowStatus.AP);
