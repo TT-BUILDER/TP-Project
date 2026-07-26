@@ -1,7 +1,10 @@
-import { randInt } from "./EngineMain.mjs";
+import { EfM, randInt } from "./EngineMain.mjs";
+import { randFloat } from "./EngineMain.mjs";
 import { radians } from "./EngineMain.mjs";
+import { degrees } from "./EngineMain.mjs";
 import { fadeIn } from "./EngineMain.mjs";
 import { playerCamera } from "./EngineMain.mjs";
+import { renderCamera } from "./EngineMain.mjs";
 import { screenSetOffsetRand } from "./EngineMain.mjs";
 import { screenSetOffset } from "./EngineMain.mjs";
 import { player } from "./EngineMain.mjs";
@@ -10,6 +13,10 @@ import { nowStatus } from "./EngineMain.mjs";
 import { EnM } from "./EngineMain.mjs";
 import { img } from "./EngineMain.mjs";
 import { IR } from "./EngineMain.mjs";
+import { VecDirList } from "./EngineMain.mjs";
+import { mapWidth } from "./EngineMain.mjs";
+import { mapHeight } from "./EngineMain.mjs";
+import { NowBoss } from "./EngineMain.mjs";
 let NowCanvas;
 let NowCTX;
 export let isNowBossAnimation = false;
@@ -22,7 +29,39 @@ export function NowCanvasContext(canvas,context){
 export function dotProduct(Pos1,Pos2){
     return (Pos1[0]*Pos2[0]+Pos1[1]*Pos2[1]);
 }
+/**
+     * @param {Array} ColMap コリジョンマップ
+     * @param {Number} TILESIZE 1タイル当たりのピクセル数
+     * @param {Number} px ポジションX
+     * @param {Number} py ポジションY
+     * @param {Number} sx サイズX
+     * @param {Number} sy サイズY
+     * @returns {Boolean} 当たったかどうかをブール値で返す
+     */
+export function hitWallCheck(ColMap,TILESIZE,px,py,sx,sy){
+    const ltx = Math.floor((px-(sx/2))/TILESIZE);
+    const rtx = Math.floor((px+(sx/2)-1)/TILESIZE);
+    const uty = Math.floor((py-(sy/2))/TILESIZE);
+    const dty = Math.floor((py+(sy/2)-1)/TILESIZE);
 
+    for (let iy = uty; iy <= dty; iy++){
+
+        //undefine回避
+        if (ColMap.length <= iy || iy < 0) return 1;
+
+        for (let ix = ltx; ix <= rtx; ix++){
+
+            //undefine回避
+            if (ColMap[iy].length <= ix || ix < 0) return 1;
+
+            if (ColMap[iy][ix] > 0) {
+                return 1;
+            }
+        } 
+    }
+    return 0;
+
+}
 export class imgData {
     /**
      * 画像データの保持をする構造体
@@ -119,8 +158,10 @@ export class EnemyManager {
     /**
      * @param {Number} px ポジションｘ
      * @param {Number} py ポジションｙ　
+     * @param {Number} pz ポジションｚ　
      * @param {Number} sx サイズｘ
      * @param {Number} sy サイズｙ
+     * @param {Number} sz サイズｚ
      * @param {String} type タイプ
      * @param {Number} vx ベクトルX
      * @param {Number} vy ベクトルY
@@ -129,12 +170,12 @@ export class EnemyManager {
      * @param {Number} MHP マックスＨＰ（デフォルトは１）
      * @param {Number} HP 名の通りＨＰ（デフォルトはMHP）
      */
-    spawnNPC(px,py,sx,sy,type,vx = 0,vy = 0,vz = 0,MemLength = [],MHP = 1,HP = MHP){
+    spawnNPC(px,py,pz,sx,sy,sz,type,vx = 0,vy = 0,vz = 0,MemLength = [],MHP = 1,HP = MHP){
         if (this.EnFlag){
             const availableNPC = this.spriteList.find(npc => !npc.active);
 
             if (availableNPC) {
-                availableNPC.activate(px,py,sx,sy,type,vx,vy,vz,MemLength,HP);
+                availableNPC.activate(px,py,pz,sx,sy,sz,type,vx,vy,vz,MemLength,HP);
             } else {
                 console.warn("Full of Enemy!");
             }
@@ -171,8 +212,10 @@ export class EffectManager {
     /**
      * @param {Number} px ポジションｘ
      * @param {Number} py ポジションｙ　
+     * @param {Number} pz ポジションｚ　
      * @param {Number} sx サイズｘ
      * @param {Number} sy サイズｙ
+     * @param {Number} sz サイズｚ
      * @param {String} type タイプ
      * @param {Number} vx ベクトルX
      * @param {Number} vy ベクトルY
@@ -181,12 +224,12 @@ export class EffectManager {
      * @param {Number} MHP マックスＨＰ（デフォルトは１）
      * @param {Number} HP 名の通りＨＰ（デフォルトはMHP）
      */
-    spawnNPC(px,py,sx,sy,type,vx = 0,vy = 0,vz = 0,MemLength = [],MHP = 1,HP = MHP){
+    spawnNPC(px,py,pz,sx,sy,sz,type,vx = 0,vy = 0,vz = 0,MemLength = [],MHP = 1,HP = MHP){
         if (this.EfFlag){
             const availableEffect = this.spriteList.find(npc => !npc.active);
 
             if (availableEffect) {
-                availableEffect.activate(px,py,sx,sy,type,vx,vy,vz,MemLength,HP);
+                availableEffect.activate(px,py,pz,sx,sy,sz,type,vx,vy,vz,MemLength,HP);
             } else {
                 console.warn("Full of Effect!");
             }
@@ -244,6 +287,7 @@ export class sprite {
         this.vx = 0;
         this.vy = 0;
         this.vz = 0;
+        this.nonDamage = false;
         this.VLOCK = false;
         //ダメージ関係
         this.invisilbe = false;
@@ -289,6 +333,7 @@ export class sprite {
         this.vx = 0;
         this.vy = 0;
         this.vz = 0;
+        this.nonDamage = false;
         //ダメージ関係
         this.invisilbe = false;
         //フレーム単位
@@ -301,19 +346,48 @@ export class sprite {
         this.animFrameSumByClock = 0;
         
     }
+    /**
+     * animationFrameのクリア
+     * @param {Number} num セットしたいanimationFrameの値
+     */
     clearFrame(num = 0){
         this.animationFrame = num;
     }
+    /**
+     * animFrameSumByClockのクリア
+     */
     clearanimFrameSum(){
         this.animFrameSumByClock = 0;
     }
+    /**
+     * animFrameClockDiv（何フレームでanimationFrameのインクリメントを行うか）にセットしたい値
+     * @param {Number} div animFrameClockDivにセットしたい値
+     */
     setAnimFrameClockDiv(div){
         this.animFrameClockDiv = div;
+    }
+    /**
+     * 指定したフレーム分待機してから指定ステートへ移行する。
+     * @param {Number} frame 移行にかけるフレーム数
+     * @param {Number} state 移行したいステート番号
+     */
+    incrementAnimFrame(frame,state){
+        this.animationFrame++;
+        if (frame <= this.animationFrame){
+            this.changeAnimState(state);
+        }
     }
     changeAnimState(state){
         this.animationFrame = 0;
         this.clearanimFrameSum();
         this.animationState = state;
+    }
+    updateAnimSumByClock(){
+        this.animFrameClock++;
+        if (this.animFrameClock >= this.animFrameClockDiv) {
+            this.animFrameClock = 0;
+            this.animFrameSumByClock++;
+        }
     }
     /**
      * 
@@ -335,6 +409,7 @@ export class sprite {
         const RenSprX = this.px + CamX;
         const RenSprY = this.py + CamY + this.pz;        
         NowCTX.beginPath();
+        //影
         if (ShowShadow) {
             let Alpha = 25;//+this.pz*0.2;
             if (Alpha < 0) Alpha = 0;
@@ -352,7 +427,8 @@ export class sprite {
                 Math.PI*2);
             NowCTX.fill();
         }
-        if (this.showflag) {
+        //本体を描くかどうか
+        if (this.showflag && this.invisibleTime % 4 <= 1) {
             //NowCTX.arc(32,32,32,0,Math.PI*2,false);
             if (this.invisibleTime % 4 <= 1) {
                 let RestoreAplha = NowCTX.globalAlpha;
@@ -360,17 +436,19 @@ export class sprite {
                 NowCTX.fillStyle = style;
                 NowCTX.fillRect(
                     (RenSprX-(this.sx/2)),
-                    (RenSprY-(this.sy/2)),
+                    (RenSprY-(Math.max(this.sy,this.sz)/2)),
                     this.sx,
                     this.sy
                 );
                 NowCTX.globalAlpha = RestoreAplha;
             }
+            //HP
             if (ShowHP) {
                 //NowCTX.fillStyle = "white";
+                NowCTX.fillStyle = "red";
                 NowCTX.font = "14px monospace";
                 NowCTX.fillText(`HP:${this.hp},Dir:${this.direction}`,RenSprX-this.sx*2,RenSprY+this.sy+10);
-                NowCTX.fillStyle = "red";
+                NowCTX.fillText(`vx:${this.vx.toFixed(2)},vy:${this.vy.toFixed(2)},vz:${this.vz.toFixed(2)}`,RenSprX-this.sx*2,RenSprY+this.sy+25);
                 NowCTX.fillRect(
                     RenSprX-(this.sx*0.6),
                     RenSprY-this.sy*0.6-12,
@@ -401,7 +479,7 @@ export class sprite {
                 
             }
             this.myImg.setTrim(imgStX,imgStY,imgSX,imgSY);
-            this.myImg.setSize(this.sx,this.sy);
+            this.myImg.setSize(this.sx,this.sz);
             this.myImg.render(RenSprX,RenSprY);
             
         }
@@ -472,6 +550,8 @@ export class sprite {
         
         if (!this.stop) {
             //当たり判定ステートの初期化
+            //Floor, Top, Left, Right, Bottom
+            //F + UDLR
             this.collisionState = 0;
 
             //ベクトルX分動かす
@@ -515,11 +595,7 @@ export class sprite {
             if (fallOK) this.ZAxisFall();
 
             this.setStaminaRelative(0.2);
-            this.animFrameClock++;
-            if (this.animFrameClock >= this.animFrameClockDiv) {
-                this.animFrameClock = 0;
-                this.animFrameSumByClock++;
-            }
+            this.updateAnimSumByClock();
 
         }
 
@@ -542,6 +618,8 @@ export class sprite {
      * @param {Number} vx セットするベクターX
      * @param {Number} vy セットするベクターY
      * @param {Number} vz セットするベクターZ
+     * @param {Boolean} smooth スムージングフラグ
+     * @param {Number} smoothSpeed スムージング係数(fadein関数の引数)
      */
     setVector(vx,vy,vz = this.vz,smooth = false,smoothSpeed = 2){
         if (!this.VLOCK) {
@@ -555,9 +633,9 @@ export class sprite {
                 //this.vz += fadeIn(this.vz,vz,smoothSpeed);
                 this.vz = vz;
             }
-            if (Math.round(this.vx) == 0) this.vx = 0;
-            if (Math.round(this.vy) == 0) this.vy = 0;
-            if (Math.round(this.vz) == 0) this.vz = 0;
+            if (Math.round(this.vx*10) == 0) this.vx = 0;
+            if (Math.round(this.vy*10) == 0) this.vy = 0;
+            if (Math.round(this.vz*10) == 0) this.vz = 0;
         }
     }
     
@@ -595,10 +673,10 @@ export class sprite {
         this.py = py;
         this.pz = pz;
     }
-    setSize(sx,sy){
+    setSize(sx,sy,sz = this.sz){
         this.sx = sx;
         this.sy = sy;
-        this.sz = this.sy;
+        this.sz = sz;
     }
 
     setCollision(CF){
@@ -635,13 +713,24 @@ export class sprite {
     /**
      * @param {Number} di 与えるダメージ。負の数だと回復する。
      * @param {boolean} slip スリップダメージかどうか
+     * @param {boolean} nkockback ノックバックフラグ
+     * @param {number} tvx ノックバックベクトルX
+     * @param {number} tvy ノックバックベクトルY
      */
-    damage(di,slip = false){
+    damage(di = 1,slip = false,nkockback = true,tvx = 0,tvy = 0){
         if (!this.invisilbe || slip){
             this.hp = this.hp - di
             if (this.hp <= 0) this.hp = 0;
             this.invisibleTime = this.maxInvisibleTime;
             this.invisilbe = true;
+            if (!slip && nkockback) {
+                let [vx,vy] = VecDirList[this.direction]
+                vx *= -4, vy *= -4;
+                vx += tvx, vy += tvy;
+                this.setVector(vx,vy);
+                this.ZAxisJump(-4);
+                this.VLOCK = true;
+            }
         }
     
     }
@@ -676,8 +765,10 @@ export class Enemy extends sprite {
     /**
      * @param {Number} px ポジションｘ
      * @param {Number} py ポジションｙ　
+     * @param {Number} pz ポジションｚ　
      * @param {Number} sx サイズｘ
      * @param {Number} sy サイズｙ
+     * @param {Number} sz サイズｚ
      * @param {String} type タイプ
      * @param {Number} vx ベクトルX
      * @param {Number} vy ベクトルY
@@ -686,12 +777,13 @@ export class Enemy extends sprite {
      * @param {Number} MHP マックスＨＰ（デフォルトは１）
      * @param {Number} HP 名の通りＨＰ（デフォルトはMHP）
      */
-    activate(px,py,sx,sy,type,vx = 0,vy = 0,vz = 0,Memory = [],MHP = 1,HP = MHP,MST = 1,ST = MST,SPD = 4){
+    activate(px,py,pz,sx,sy,sz,type,vx = 0,vy = 0,vz = 0,Memory = [],MHP = 1,HP = MHP,MST = 1,ST = MST,SPD = 4){
         this.px = px;
         this.py = py;
+        this.pz = pz;
         this.sx = sx;
         this.sy = sy;
-        this.sz = this.sy;
+        this.sz = sz;
         this.type = type;
         this.MaxHp = MHP;
         this.hp = HP;
@@ -708,6 +800,7 @@ export class Enemy extends sprite {
         this.vx = vx;
         this.vy = vy;
         this.vz = vz;
+        this.nonDamage = false;
         //固有の配列を取得
         this.memory = Memory;
         //console.log([this.vx,this.vy]);
@@ -732,6 +825,7 @@ export class Enemy extends sprite {
      */
     EnemyAction(ColMap,TILESIZE){
         switch (this.type) {
+            //rocks - 小さい岩。飛ぶ向きはspawn関数の引数に持たせよう
             case "rocks":
                 this.EnMove(ColMap,TILESIZE);
 
@@ -743,7 +837,267 @@ export class Enemy extends sprite {
                     this.Unactivate();
                 }
                 break;
+            //stone - 地を滑る岩。
+            case "stone":
+                this.EnMove(ColMap,TILESIZE);
+
+                if (this.collisionState & 0b10000 == 0b10000) {
+                    this.ZAxisJump(-4*Math.random());
+                }
+
+                if (this.memory.length < 1){
+                    console.error("Enemy.rock : Vector memory is not exist.");
+                    //0~1をroundで丸めて符号生成、それに0~1に4をかけてベクトルの大きさを決める。
+                    this.memory.unshift(Math.round(-Math.random())*Math.random()*5);
+                    this.memory.unshift(Math.round(-Math.random())*Math.random()*5);
+                }
+
+                this.setVector(this.memory[1],this.memory[2]);
+
+                if (this.memory.length < 2){
+                    console.error("Enemy.rock : collision counter is not exist.");
+                    this.memory.unshift(0); 
+                }
+
+                if ((this.collisionState & 0b1100) > 0) /* Up or Down */ {
+                    this.setVector(this.vx,-1*this.vy);
+                    this.memory[0]++;
+                }
+                if ((this.collisionState & 0b0011) > 0) /* Left or Right */ {
+                    this.setVector(-1*this.vx,this.vy);
+                    this.memory[0]++;
+                }
                 
+                if (this.hitCheck(player.px,player.py,player.pz,player.sx,player.sy,player.sz)){
+                    player.damage(1);
+                }
+
+                [this.memory[1],this.memory[2]] = [this.vx,this.vy];
+
+                if (this.memory[0] >= 7){
+                    this.Unactivate();
+                }
+
+                break;
+            //落ちてくる岩
+            case "fallRock":
+                if (this.memory[0]){
+                    this.setPos(this.px,this.py,-360);
+                    this.memory[0] = 0;
+                }
+                this.EnMove(ColMap,TILESIZE);
+                
+                if (this.hitCheck(player.px,player.py,player.pz,player.sx,player.sy,player.sz)){
+                    player.damage(1);
+                }
+
+                if ( this.collisionState  > 0 ) {
+                    for (let i = 0; i<4; i++){
+                        EnM.spawnNPC(
+                            this.px,
+                            this.py,
+                            0,
+                            TILESIZE/2,
+                            TILESIZE/2,
+                            TILESIZE,
+                            "rocks",
+                            randFloat(-4,4)+Math.sign(this.vx)*Math.random()*Math.abs(this.vx),
+                            randFloat(-4,4)+Math.sign(this.vy)*Math.random()*Math.abs(this.vy),
+                            -4-Math.random()*2
+                        )
+                    }
+                    this.Unactivate();
+                }
+
+                break;
+            //投げられた雪玉
+            case "throwSnow":
+                this.EnMove(ColMap,TILESIZE);
+
+                this.setGravity(0.2);
+
+                if (this.hitCheck(player.px,player.py,player.pz,player.sx,player.sy,player.sz)){
+                    player.damage(1);
+                }
+
+                if ( this.collisionState > 0 ) {
+                    for (let i = 0; i<4; i++){
+                        EfM.spawnNPC(
+                            this.px,
+                            this.py,
+                            0,
+                            TILESIZE/3,
+                            TILESIZE/3,
+                            TILESIZE,
+                            "particle_snow",
+                            randFloat(-4,4)+Math.sign(this.vx)*Math.random()*Math.abs(this.vx),
+                            randFloat(-4,4)+Math.sign(this.vy)*Math.random()*Math.abs(this.vy),
+                            -4-Math.random()*2
+                        )
+                    }
+                    this.Unactivate();
+                }
+                break;
+            //落ちてくるツララ
+            case "icicle":
+                if (this.memory[0]){
+                    this.setPos(this.px,this.py,-360);
+                    this.memory[0] = 0;
+                }
+                this.EnMove(ColMap,TILESIZE);
+                
+                if (this.hitCheck(player.px,player.py,player.pz,player.sx,player.sy,player.sz)){
+                    player.damage(1);
+                }
+
+                if ( this.collisionState  > 0 ) {
+                    for (let i = 0; i<4; i++){
+                        EfM.spawnNPC(
+                            this.px,
+                            this.py,
+                            0,
+                            TILESIZE/2,
+                            TILESIZE/2,
+                            TILESIZE,
+                            "particle_ice",
+                            randFloat(-4,4)+Math.sign(this.vx)*Math.random()*Math.abs(this.vx),
+                            randFloat(-4,4)+Math.sign(this.vy)*Math.random()*Math.abs(this.vy),
+                            -4-Math.random()*2
+                        )
+                    }
+                    this.Unactivate();
+                }
+                break;
+            //敵にあてれる氷
+            case "friendly_ice":
+                if (this.memory.length < 1){
+                    this.memory.unshift(0);
+                    this.memory.unshift(0);
+                    this.memory.unshift(0);
+                }
+                this.EnMove(ColMap,TILESIZE);
+                
+
+                this.setGravity(0.5)
+
+                //斬撃に当たったかチェック
+                if (this.hitCheck(
+                        plaAttackAABB.px,
+                        plaAttackAABB.py,
+                        plaAttackAABB.pz,
+                        plaAttackAABB.sx,
+                        plaAttackAABB.sy,
+                        plaAttackAABB.sz
+                    ) && this.pz >= 0){
+                        let dist = ((this.px-player.px)**2+(this.py-player.py)**2)**0.5
+                    this.setVector(
+                        (this.px-player.px)/dist*6*(1.5*this.sx/TILESIZE),
+                        (this.py-player.py)/dist*6*(1.5*this.sy/TILESIZE)
+                    );
+                    this.memory[1] = this.vx;
+                    this.memory[2] = this.vy;
+                    this.ZAxisJump(-4);
+                    this.memory[0] = plaAttackAABB.direction;
+                    
+                    if (this.sx >= TILESIZE/2){
+                        EfM.spawnNPC(
+                                this.px,
+                                this.py,
+                                0,
+                                TILESIZE/2,
+                                TILESIZE/2,
+                                TILESIZE,
+                                "particle_ice",
+                                randFloat(-4,4)+Math.sign(this.vx)*Math.random()*Math.abs(this.vx),
+                                randFloat(-4,4)+Math.sign(this.vy)*Math.random()*Math.abs(this.vy),
+                                -4-Math.random()*2
+                            )
+                        this.setSize(
+                                this.sx-(this.sx*0.1),
+                                this.sy-(this.sy*0.1),
+                                this.sz-(this.sz*0.1),
+                            )
+                    } else {
+                        for (let i = 0; i<4; i++){
+                            EfM.spawnNPC(
+                                this.px,
+                                this.py,
+                                0,
+                                TILESIZE/2,
+                                TILESIZE/2,
+                                TILESIZE,
+                                "particle_ice",
+                                randFloat(-4,4)+Math.sign(this.vx)*Math.random()*Math.abs(this.vx),
+                                randFloat(-4,4)+Math.sign(this.vy)*Math.random()*Math.abs(this.vy),
+                                -4-Math.random()*2
+                            )
+                        }
+                        this.Unactivate();
+                    }
+                }
+                this.slowDown(12);
+                /*
+                if(Math.abs(this.vx) < 0.5) this.vx = 0;
+                if(Math.abs(this.vy) < 0.5) this.vy = 0;
+                */
+                
+                if (this.pz < 0){
+                    this.setVector(
+                        this.memory[1],
+                        this.memory[2]
+                    );
+                }
+
+                if ((this.collisionState & 0b1100) > 0) /* Up or Down */ {
+                    this.setVector(this.vx,-1*this.vy);
+                    
+                }
+                if ((this.collisionState & 0b0011) > 0) /* Left or Right */ {
+                    this.setVector(-1*this.vx,this.vy);
+                    
+                }
+
+                this.memory[1] = this.vx;
+                this.memory[2] = this.vy;
+
+                //ボスにダメージを与える
+                if (typeof(NowBoss) == "object"){
+                    if (this.hitCheck(
+                            NowBoss.px,
+                            NowBoss.py,
+                            NowBoss.pz,
+                            NowBoss.sx,
+                            NowBoss.sy,
+                            NowBoss.sz
+                        )){
+                        NowBoss.damage(nowStatus.AP,false,false);
+                        NowBoss.lastBossState = NowBoss.BossState;
+                        NowBoss.BossState = "damage";
+                        /*
+                        this.setVector(
+                            Math.sign(this.px-NowBoss.px)*Math.abs(this.vx),
+                            Math.sign(this.py-NowBoss.py)*Math.abs(this.vy));
+                        this.memory[1] = this.vx;
+                        this.memory[2] = this.vy;
+                        */
+                        for (let i = 0; i<4; i++){
+                            EfM.spawnNPC(
+                                this.px,
+                                this.py,
+                                0,
+                                TILESIZE/2,
+                                TILESIZE/2,
+                                TILESIZE,
+                                "particle_ice",
+                                randFloat(-4,4)+Math.sign(this.vx)*Math.random()*Math.abs(this.vx),
+                                randFloat(-4,4)+Math.sign(this.vy)*Math.random()*Math.abs(this.vy),
+                                -4-Math.random()*2
+                            )
+                        }
+                        this.Unactivate();
+                    }
+                }
+                break;
             default:
                 this.Unactivate();
                 console.error(`Error : Undefined Enemy's property "type": "${this.type}"`)
@@ -771,8 +1125,10 @@ export class Effect extends sprite {
     /**
      * @param {Number} px ポジションｘ
      * @param {Number} py ポジションｙ　
+     * @param {Number} pz ポジションｚ　
      * @param {Number} sx サイズｘ
      * @param {Number} sy サイズｙ
+     * @param {Number} sz サイズｚ
      * @param {String} type タイプ
      * @param {Number} vx ベクトルX
      * @param {Number} vy ベクトルY
@@ -781,12 +1137,13 @@ export class Effect extends sprite {
      * @param {Number} MHP マックスＨＰ（デフォルトは１）
      * @param {Number} HP 名の通りＨＰ（デフォルトはMHP）
      */
-    activate(px,py,sx,sy,type,vx = 0,vy = 0,vz = 0,Memory = [],MHP = 1,HP = MHP,MST = 1,ST = MST,SPD = 4){
+    activate(px,py,pz,sx,sy,sz,type,vx = 0,vy = 0,vz = 0,Memory = [],MHP = 1,HP = MHP,MST = 1,ST = MST,SPD = 4){
         this.px = px;
         this.py = py;
+        this.pz = pz;
         this.sx = sx;
         this.sy = sy;
-        this.sz = this.sy;
+        this.sz = sz;
         this.type = type;
         this.MaxHp = MHP;
         this.hp = HP;
@@ -803,6 +1160,7 @@ export class Effect extends sprite {
         this.vx = vx;
         this.vy = vy;
         this.vz = vz;
+        this.nonDamage = false;
         //固有の配列を取得
         this.memory = Memory;
         //console.log([this.vx,this.vy]);
@@ -827,16 +1185,17 @@ export class Effect extends sprite {
      */
     EffectAction(ColMap,TILESIZE){
         switch (this.type) {
-            case "Sword":
+            case "sword":
                     if (this.state <= 0) {
                         this.myImg.setImage(img.imgList["SwordEffect"]);
                         this.myImg.roll = 0;
                         this.state = 1;
                         //console.log("State 0 is done");
                     } else if (this.state == 1) {
-                                this.setSlowDownV(8);
-                                this.setCollision(0);
-                                this.state = 2;
+                            this.setSlowDownV(8);
+                            this.setCollision(0);
+                            this.state = 2;
+                            this.direction = player.direction;
                         switch (player.direction) {
                             case 0:
                                 this.myImg.roll = 0;
@@ -887,6 +1246,30 @@ export class Effect extends sprite {
                         
                     }
                 break;
+            case "particle_rock":
+                this.setGravity(1);
+                this.EfMove(ColMap,TILESIZE);
+
+                if ( (this.collisionState & 0b10000) === 0b10000 ) {
+                    this.Unactivate();
+                }
+                break;
+            case "particle_snow":
+                this.EfMove(ColMap,TILESIZE);
+
+                if (this.collisionState & 0b10000){
+                    this.Unactivate();
+                }
+
+                break;
+            case "particle_ice":
+                this.EfMove(ColMap,TILESIZE);
+
+                if (this.collisionState & 0b10000){
+                    this.Unactivate();
+                }
+
+                break;
             default:
                 this.Unactivate();
                 console.error(`Error : Undefined Enemy's property "type": "${this.type}"`)
@@ -915,6 +1298,7 @@ export class Boss extends Enemy {
         this.waitFrameC = 0;
         this.waitFinished = true;
         this.BossState = 0;
+        this.lastBossState = 0;
         this.BossMemory = {};
         //forループ的な使い方を想定
         this.forList = {
@@ -952,7 +1336,7 @@ export class Boss extends Enemy {
     waitFrame(Frame = 0){
         //もしフレームのリセットをかけていなかったらリセットする。
         if (this.waitFinished) this.waitFrameReset();
-        if (this.waitFrameC < Frame) {
+        if (this.waitFrameC <= Frame) {
             this.waitFrameC++;
             this.waitFinished = false;
             return 0;
@@ -962,7 +1346,7 @@ export class Boss extends Enemy {
         }
     }
     /**
-     * ブリモーション
+     * ブリモーション。ただずらすだけ
      * @param {Number} UY 上方向
      * @param {Number} DY 下方向
      */
@@ -975,383 +1359,760 @@ export class Boss extends Enemy {
             this.pz = DY;
         }
     }
+    BossInit(){
+        this.clearForList();
+        this.clearMemory();
+        this.hp = this.MaxHp;
+        isNowBossAnimation = true;
+        this.BossState++;
+    }
     /**
      * @param {Array} ColMap コリジョンマップ
      * @param {Number} TILESIZE 1タイル当たりのピクセル数
      */
     BossAction(ColMap,TILESIZE){
+        let moveOK = true;
+        this.fallOK = false;
         if (this.type == "Rock"){
-           let moveOK = true;
-           this.fallOK = true;
-           switch (this.BossState) {
-            //初期化
-            case 0:
-                this.clearForList();
-                this.clearMemory();
-                this.hp = this.MaxHp;
-                isNowBossAnimation = true;
-                this.setPos(this.px,this.py,-360);
-                this.BossState++;
-                break;
-            //落下
-            case 1:
-                if (this.collisionState && 0b10000 == 0b10000) {
-                    this.BossState++;
-                }
-                break;
-            //落下衝撃
-            case 2:
-                //forループの代替案
-                if ( this.forList["i"]<20 ) {
-                    screenSetOffsetRand(6,6);
-                } else if (this.forList["i"]<40) {
-                    screenSetOffsetRand(2,2);
-                } else {
-                    screenSetOffset(0,0)
-                }
-                if (this.forList["i"]>80) {
-                    this.BossState++;
-                }
-                this.forList["i"]++;
-                break;
-            //アニメーション終了
-            case 3:
-                isNowBossAnimation = false;
-                this.waitFrameReset();
-                this.BossState++;
-                break;
-            //謎待機＆いろいろ初期化
-            case 4:
-                if (this.waitFrame(40)){
-                    this.BossState++;
-                    //攻撃する回数
-                    this.BossMemory["attackNum"] = 4+Math.round(Math.random()*2);
-                    //ぶつかった回数メモリ
-                    this.forList["j"] = 0;
-                    //汎用メモリ
-                    this.forList["i"] = 0;
-                }
-                break;
-            //ブリつけ中＆突進方向の決定
-            case 5:
-                if (this.forList["i"] < 80){
-                    this.vibrate(-1,2);
-                    this.forList["i"]++;
-                } else {
-                    let distance = ((player.px - this.px)**2+(player.py - this.py)**2)**0.5;
-                    if (distance <= 0) {
-                        this.BossMemory["tarX"] = Math.random();
-                        this.BossMemory["tarY"] = Math.random();
-                    } else {
-                        this.BossMemory["tarX"] = (player.px - this.px)/distance;
-                        this.BossMemory["tarY"] = (player.py - this.py)/distance;
-                    }
-                    //突進スピード
-                    this.BossState++;
-                    this.BossMemory["MultSpeed"] = 4;
-                    //console.log([this.BossMemory["tarX"],this.BossMemory["tarY"]]);
-                }
-                break;
-            //突進じゃぁ
-            case 6:
-                if ((this.collisionState & 0b01111) < 1){
-                    this.setVector(
-                        this.BossMemory["tarX"]*this.BossMemory["MultSpeed"],
-                        this.BossMemory["tarY"]*this.BossMemory["MultSpeed"]
-                    );
-                } else {
-                    for (let i = 0; i<6+Math.round(Math.random()*8); i++){
-                        let npcVX = 0;
-                        let npcVY = 0;
-                        let spX = this.px;
-                        let spY = this.py;
-                        if ((this.collisionState & 0b01100) == 0b1000) {
-                            spY -= this.sy/2+2
-                            npcVY = 1;
-                        } else if ((this.collisionState & 0b01100) == 0b0100) {
-                            spY += this.sy/2-2
-                            npcVY = -1;
-                        } else {
-                            npcVY = Math.sign(Math.random()-0.5);
-                        }
-                        if ((this.collisionState & 0b00011) == 0b0010) {
-                            spX -= this.sx/2+2
-                            npcVX = 1;
-                        } else if ((this.collisionState & 0b00011) == 0b0001) {
-                            spX += this.sx/2-2
-                            npcVX = -1;
-                        } else {
-                            npcVX = Math.sign(Math.random()-0.5);
-                        }
-                        npcVX *= Math.ceil((Math.random()+1)*3);
-                        npcVY *= Math.ceil((Math.random()+1)*3);
-                        //console.log([npcVX,npcVY]);
-                        EnM.spawnNPC(
-                            spX,
-                            spY,
-                            2+(Math.random()*2),
-                            2+(Math.random()*2),
-                            "rocks",
-                            npcVX,
-                            npcVY,
-                            -8+(Math.random()*-7)
-                        );
-                    }
-                    //ぶつかった回数のインクリメント
-                    this.forList["j"]++;
-                    this.forList["i"] = 0;
-                    this.BossState++;
-                }
-                break;
-            //壁にゲキトツ
-            case 7:
-                this.setVector(0,0,0);
-                if (this.forList["i"] < 20){
-                    screenSetOffsetRand(5,5);
-                    this.vibrate(-1,2);
-                } else {
-                    screenSetOffsetRand(2,2);
-                }
-                if (this.forList["i"] > 39){
-                    if (this.forList["j"] < this.BossMemory["attackNum"]){
-                        this.BossState = 5;
-                    } else {
-                        if (Math.round(Math.random()) > 0){
-                            //飛び上がり
-                            this.BossState = 8;
-                            this.forList["i"] = 0;
-                            break;
-                        } else {
-                            //高速回転
-                            this.BossState = 11;
-                            this.forList["i"] = 0;
-                            break;
-                        }
-                        
-                    }
-                }
-                this.forList["i"]++;
-                break;
-            //上方へと飛び上がる（case 8 ～ case 10）
-            case 8:
-                if (this.forList["i"] < 20) {
-                    this.vibrate(-1,2);
-                } else {
-                    this.fallOK = false;
-                    if (this.pz < -1024){
-                        this.showflag = false;
+            this.nonDamage = true;
+            switch (this.BossState) {
+                //初期化
+                case 0:
+                    this.setPos(this.px,this.py,-360);
+                    this.BossInit();
+                    break;
+                //落下
+                case 1:
+                    this.fallOK = true;
+                    if (this.collisionState && 0b10000 == 0b10000) {
                         this.BossState++;
-                        this.forList["i"] = 0;
-                    } else {
-                        this.pz -= 24
                     }
-
-                }
-                this.forList["i"]++;
-                break;
-            //落下～振動
-            case 9:
-                if (this.pz < 0) {
-                    this.fallOK = false;
-                    if (this.pz > -600) {
-                        this.showflag = true;
-                        this.setPos(this.px,this.py,this.pz+10);
-                    } else {
-                        this.setPos(player.px,player.py,this.pz+5);
-                    }
-                } else {
-                    this.pz = 0;
-                    if (this.forList["i"] < 15){
-                        screenSetOffsetRand(8,8);
-                    } else
-                    if (this.forList["i"] < 30){
+                    break;
+                //落下衝撃
+                case 2:
+                    //forループの代替案
+                    if ( this.forList["i"]<20 ) {
                         screenSetOffsetRand(6,6);
-                    } else
-                    if (this.forList["i"] < 50){
-                        screenSetOffsetRand(3,3);
+                    } else if (this.forList["i"]<40) {
+                        screenSetOffsetRand(2,2);
                     } else {
+                        screenSetOffset(0,0)
+                    }
+                    if (this.forList["i"]>80) {
                         this.BossState++;
-                        this.forList["i"] = 0;
                     }
                     this.forList["i"]++;
-                }
-                break;
-            //スタン、case4（いろいろ初期化）へ
-            case 10:
-                this.fallOK = false;
-                if (this.forList["i"]<240){
-                    if (this.forList["i"]<200){
-                        if ((this.forList["i"]%20) >= 10){
-                            this.pz = 3;
+                    break;
+                //アニメーション終了
+                case 3:
+                    isNowBossAnimation = false;
+                    this.waitFrameReset();
+                    this.BossState++;
+                    break;
+                //謎待機＆いろいろ初期化
+                case 4:
+                    if (this.waitFrame(40)){
+                        this.BossState++;
+                        //攻撃する回数
+                        this.BossMemory["attackNum"] = 4+Math.round(Math.random()*2);
+                        //ぶつかった回数メモリ
+                        this.forList["j"] = 0;
+                        //汎用メモリ
+                        this.forList["i"] = 0;
+                        this.BossMemory["wallDist"] = 0;
+                        this.BossMemory["lastWallDist"] = 0;
+                    }
+                    break;
+                //ブリつけ中＆突進方向の決定
+                case 5:
+                    if (this.forList["i"] < 80){
+                        this.vibrate(-1,2);
+                        this.forList["i"]++;
+                    } else {
+                        let distance = ((player.px - this.px)**2+(player.py - this.py)**2)**0.5;
+                        if (distance <= 0) {
+                            this.BossMemory["tarX"] = Math.random();
+                            this.BossMemory["tarY"] = Math.random();
+                        }/* else if ((this.BossMemory["wallDist"] - this.BossMemory["lastWallDist"]) <= 5) {
+                            this.BossMemory["tarX"] = -1*(player.px - this.px)/distance;
+                            this.BossMemory["tarY"] = -1*(player.py - this.py)/distance;
+                        } */else {
+                            this.BossMemory["tarX"] = (player.px - this.px)/distance;
+                            this.BossMemory["tarY"] = (player.py - this.py)/distance;
+                        }
+                        //突進スピード
+                        this.BossState++;
+                        this.BossMemory["MultSpeed"] = 4;
+                        this.BossMemory["lastWallDist"] = this.BossMemory["wallDist"];
+                        //console.log([this.BossMemory["tarX"],this.BossMemory["tarY"]]);
+                    }
+                    break;
+                //突進じゃぁ
+                case 6:
+                    if ((this.collisionState & 0b01111) < 1){
+                        this.setVector(
+                            this.BossMemory["tarX"]*this.BossMemory["MultSpeed"],
+                            this.BossMemory["tarY"]*this.BossMemory["MultSpeed"]
+                        );
+                        this.BossMemory["wallDist"]++;
+                    } else {
+                        for (let i = 0; i<6+Math.round(Math.random()*8); i++){
+                            let npcVX = 0;
+                            let npcVY = 0;
+                            let spX = this.px;
+                            let spY = this.py;
+                            if ((this.collisionState & 0b01100) == 0b1000) {
+                                spY -= this.sy/2+2
+                                npcVY = 1;
+                            } else if ((this.collisionState & 0b01100) == 0b0100) {
+                                spY += this.sy/2-2
+                                npcVY = -1;
+                            } else {
+                                npcVY = Math.sign(Math.random()-0.5);
+                            }
+                            if ((this.collisionState & 0b00011) == 0b0010) {
+                                spX -= this.sx/2+2
+                                npcVX = 1;
+                            } else if ((this.collisionState & 0b00011) == 0b0001) {
+                                spX += this.sx/2-2
+                                npcVX = -1;
+                            } else {
+                                npcVX = Math.sign(Math.random()-0.5);
+                            }
+                            let StspX = this.px + npcVX*(TILESIZE/2) , StspY = this.py + npcVY*(TILESIZE/2);
+                            npcVX *= Math.ceil((Math.random()+1)*3);
+                            npcVY *= Math.ceil((Math.random()+1)*3);
+                            //console.log([npcVX,npcVY]);
+                            EnM.spawnNPC(
+                                spX,
+                                spY,
+                                0,
+                                2+(Math.random()*2),
+                                2+(Math.random()*2),
+                                TILESIZE,
+                                "rocks",
+                                npcVX,
+                                npcVY,
+                                -8+(Math.random()*-7)
+                            );
+                            if (i % 3 == 0) {
+                                EnM.spawnNPC(
+                                    StspX,
+                                    StspY,
+                                    0,
+                                    TILESIZE/2,
+                                    TILESIZE/2,
+                                    TILESIZE,
+                                    "stone",
+                                    npcVX/(2-Math.random()),
+                                    npcVY/(2-Math.random()),
+                                    -8+(Math.random()*-7),[0,npcVX/(2-Math.random()),npcVY/(2-Math.random())]
+                                );
+                            }
+                        }
+                        //ぶつかった回数のインクリメント
+                        this.forList["j"]++;
+                        this.forList["i"] = 0;
+                        this.BossState++;
+                    }
+                    break;
+                //壁にゲキトツ
+                case 7:
+                    this.setVector(0,0,0);
+                    if (this.forList["i"] < 20){
+                        screenSetOffsetRand(5,5);
+                        this.vibrate(-1,2);
+                    } else {
+                        screenSetOffsetRand(2,2);
+                    }
+                    if (this.forList["i"] > 39){
+                        if (this.forList["j"] < this.BossMemory["attackNum"]){
+                            this.BossState = 5;
                         } else {
-                            this.pz = 0;
+                            if (Math.round(Math.random()) > 0){
+                                //飛び上がり
+                                this.BossState = 8;
+                                this.forList["i"] = 0;
+                                break;
+                            } else {
+                                //高速回転
+                                this.BossState = 11;
+                                this.forList["i"] = 0;
+                                break;
+                            }
+                            
                         }
                     }
-                } else {
-                    this.BossState = 4;
-                }
-                this.forList["i"]++;
-                break;
-            //高速回転（case 11 ～ case ）ブリをかける
-            case 11:
-                if (this.forList["i"] > 20) {
-                    this.vibrate(-1,2);
-                    if (this.forList["i"] > 40) {
+                    this.forList["i"]++;
+                    break;
+                //上方へと飛び上がる（case 8 ～ case 10）
+                case 8:
+                    if (this.forList["i"] < 20) {
+                        this.vibrate(-1,2);
+                    } else {
+                        if (this.pz < -1024){
+                            this.showflag = false;
+                            this.BossState++;
+                            this.forList["i"] = 0;
+                        } else {
+                            this.pz -= 24
+                        }
 
-                        //高速回転アニメーション
-
-                        if (this.forList["i"] > 60) {
-                            let distance = ((player.px - this.px)**2+(player.py - this.py)**2)**0.5;
-                            if (distance <= 0) {
-                                this.vx = Math.random();
-                                this.vy = Math.random();
-                            } else {
-                                this.vx = (player.px - this.px)/distance;
-                                this.vy = (player.py - this.py)/distance;
+                    }
+                    this.forList["i"]++;
+                    break;
+                //落下～振動
+                case 9:
+                    if (this.pz < 0) {
+                        if (this.pz > -600) {
+                            this.showflag = true;
+                            this.setPos(this.px,this.py,this.pz+10);
+                        } else {
+                            this.setPos(player.px,player.py,this.pz+5);
+                        }
+                    } else {
+                        this.pz = 0;
+                        let [tpx,tpy] = [0,0];
+                        if (this.forList["i"] < 3+((this.hp <= this.MaxHp/2)*2)) {
+                            [tpx,tpy] = [
+                                    randFloat(player.px-(TILESIZE*8),player.px+(TILESIZE*8)),
+                                    randFloat(player.py-(TILESIZE*8),player.py+(TILESIZE*8))
+                                ]
+                            while (
+                                    hitWallCheck(ColMap,TILESIZE,tpx,tpy,TILESIZE*1.5,TILESIZE*1.5) || 
+                                    (
+                                        Math.abs(this.px+this.sx)*2 < Math.abs(tpx-this.px) && 
+                                        Math.abs(this.py+this.sy)*2 < Math.abs(tpy-this.py)
+                                    )
+                                ){
+                                [tpx,tpy] = [
+                                        randFloat(player.px-(TILESIZE*8),player.px+(TILESIZE*8)),
+                                        randFloat(player.py-(TILESIZE*8),player.py+(TILESIZE*8))
+                                    ]
                             }
-                            this.vx *= 4
-                            this.vy *= 4
+                            EnM.spawnNPC(
+                                tpx,
+                                tpy,
+                                -600,
+                                TILESIZE*2,
+                                TILESIZE,
+                                TILESIZE*2,
+                                "fallRock"
+                            );
+                        } else
+                        if (this.forList["i"] < 15){
+                            screenSetOffsetRand(8,8);
+                        } else
+                        if (this.forList["i"] < 30){
+                            screenSetOffsetRand(6,6);
+                        } else
+                        if (this.forList["i"] < 50){
+                            screenSetOffsetRand(3,3);
+                        } else {
                             this.BossState++;
                             this.forList["i"] = 0;
                         }
+                        this.forList["i"]++;
                     }
-                }
-                this.forList["i"]++;
-                break;
-            //じんわり追いかける
-            case 12:                
-                if ((this.collisionState & 0b01111) < 1){
-                    
-                    //右を向いている度合い
-                    let Rightness = 0;
-                    //正面を向いている度合い
-                    let Frontness = 0;
-                    //ボスからプレイヤーへのびるベクトル[=>PB]
-                    let VecPB = [player.px-this.px,player.py-this.py];
-                    //90度右へ回転させた移動ベクトル
-                    let RightVec = [this.vy,-1*this.vx];
-                    //
-                    let degree = 2;
-                    let sin = Math.sin(radians(degree));
-                    let cos = Math.cos(radians(degree));
-
-                    //ベクトル[=>PB]と自身の移動ベクトルの内積
-                    Frontness = dotProduct(VecPB,[this.vx,this.vy]);
-                    //ベクトル[=>PB]と自身の移動ベクトルを右へ垂直に回転させたものの内積
-                    Rightness = dotProduct(VecPB,RightVec);
-
-                    //自身の移動ベクトルに回転行列をかける
-                    if (Rightness >= 0) {
-                        //回転行列そのまま
-                        let tempVX = this.vx;
-                        this.vx = this.vy*sin+this.vx*cos;
-                        this.vy = this.vy*cos+tempVX*-1*sin;
+                    break;
+                //スタン、case4（いろいろ初期化）へ
+                case 10:
+                    this.nonDamage = false;
+                    this.setVector(0,0,0);
+                    if (this.forList["i"]<240){
+                        if (this.forList["i"]<200){
+                            if ((this.forList["i"]%20) >= 10){
+                                this.pz = 3;
+                            } else {
+                                this.pz = 0;
+                            }
+                        }
                     } else {
-                        //回転行列をちょっとかえる
-                        let tempVX = this.vx;
-                        this.vx = this.vy*-1*sin+this.vx*cos;
-                        this.vy = this.vy*cos+tempVX*sin;
+                        this.BossState = 4;
                     }
+                    this.forList["i"]++;
+                    break;
+                //高速回転（case 11 ～ case 13 ）ブリをかける
+                case 11:
+                    if (this.forList["i"] > 20) {
+                        this.vibrate(-1,2);
+                        if (this.forList["i"] > 40) {
 
-                } else {
-                    //ゲキトツ処理
-                    for (let i = 0; i<6+Math.round(Math.random()*8); i++){
-                        let npcVX = 0;
-                        let npcVY = 0;
-                        let spX = this.px;
-                        let spY = this.py;
-                        if ((this.collisionState & 0b01100) == 0b1000) {
-                            spY -= this.sy/2+2
-                            npcVY = 1;
-                        } else if ((this.collisionState & 0b01100) == 0b0100) {
-                            spY += this.sy/2-2
-                            npcVY = -1;
-                        } else {
-                            npcVY = Math.sign(Math.random()-0.5);
+                            //高速回転アニメーション
+
+                            if (this.forList["i"] > 60) {
+                                let distance = ((player.px - this.px)**2+(player.py - this.py)**2)**0.5;
+                                if (distance <= 0) {
+                                    this.vx = Math.random();
+                                    this.vy = Math.random();
+                                } else {
+                                    this.vx = (player.px - this.px)/distance;
+                                    this.vy = (player.py - this.py)/distance;
+                                }
+                                this.vx *= 4
+                                this.vy *= 4
+                                this.BossState++;
+                                this.forList["i"] = 0;
+                            }
                         }
-                        if ((this.collisionState & 0b00011) == 0b0010) {
-                            spX -= this.sx/2+2
-                            npcVX = 1;
-                        } else if ((this.collisionState & 0b00011) == 0b0001) {
-                            spX += this.sx/2-2
-                            npcVX = -1;
-                        } else {
-                            npcVX = Math.sign(Math.random()-0.5);
-                        }
-                        npcVX *= Math.ceil((Math.random()+1)*3);
-                        npcVY *= Math.ceil((Math.random()+1)*3);
-                        console.log([npcVX,npcVY]);
-                        EnM.spawnNPC(
-                            spX,
-                            spY,
-                            2+(Math.random()*2),
-                            2+(Math.random()*2),
-                            "rocks",
-                            npcVX,
-                            npcVY,
-                            -8+(Math.random()*-7)
-                        );
                     }
-                    //ぶつかった回数のインクリメント
-                    this.forList["j"]++;
-                    this.forList["i"] = 0;
-                    this.setVector(-this.vx,-this.vy);
+                    this.forList["i"]++;
+                    break;
+                //じんわり追いかける
+                case 12:
+                    if ((this.collisionState & 0b01111) < 1){
+                        
+                        //右を向いている度合い
+                        let Rightness = 0;
+                        //正面を向いている度合い
+                        let Frontness = 0;
+                        //ボスからプレイヤーへのびるベクトル[=>PB]
+                        let VecPB = [player.px-this.px,player.py-this.py];
+                        //90度右へ回転させた移動ベクトル
+                        let RightVec = [this.vy,-1*this.vx];
+                        //
+                        let degree = 2;
+                        let sin = Math.sin(radians(degree));
+                        let cos = Math.cos(radians(degree));
+
+                        //ベクトル[=>PB]と自身の移動ベクトルの内積
+                        Frontness = dotProduct(VecPB,[this.vx,this.vy]);
+                        //ベクトル[=>PB]と自身の移動ベクトルを右へ垂直に回転させたものの内積
+                        Rightness = dotProduct(VecPB,RightVec);
+
+                        //自身の移動ベクトルに回転行列をかける
+                        if (Rightness >= 0) {
+                            //回転行列そのまま
+                            let tempVX = this.vx;
+                            this.vx = this.vy*sin+this.vx*cos;
+                            this.vy = this.vy*cos+tempVX*-1*sin;
+                        } else {
+                            //回転行列をちょっとかえる
+                            let tempVX = this.vx;
+                            this.vx = this.vy*-1*sin+this.vx*cos;
+                            this.vy = this.vy*cos+tempVX*sin;
+                        }
+
+                    } else {
+                        this.setVector(0,0,0);
+                        //ゲキトツ処理
+                        for (let i = 0; i<6+Math.round(Math.random()*8); i++){
+                            let npcVX = 0;
+                            let npcVY = 0;
+                            let spX = this.px;
+                            let spY = this.py;
+                            if ((this.collisionState & 0b01100) == 0b1000) {
+                                spY -= this.sy/2+2
+                                npcVY = 1;
+                            } else if ((this.collisionState & 0b01100) == 0b0100) {
+                                spY += this.sy/2-2
+                                npcVY = -1;
+                            } else {
+                                npcVY = Math.sign(Math.random()-0.5);
+                            }
+                            if ((this.collisionState & 0b00011) == 0b0010) {
+                                spX -= this.sx/2+2
+                                npcVX = 1;
+                            } else if ((this.collisionState & 0b00011) == 0b0001) {
+                                spX += this.sx/2-2
+                                npcVX = -1;
+                            } else {
+                                npcVX = Math.sign(Math.random()-0.5);
+                            }
+                            npcVX *= Math.ceil((Math.random()+1)*3);
+                            npcVY *= Math.ceil((Math.random()+1)*3);
+                            console.log([npcVX,npcVY]);
+                            EnM.spawnNPC(
+                                spX,
+                                spY,
+                                0,
+                                2+(Math.random()*2),
+                                2+(Math.random()*2),
+                                TILESIZE,
+                                "rocks",
+                                npcVX,
+                                npcVY,
+                                -8+(Math.random()*-7)
+                            );
+                        }
+                        //ぶつかった回数のインクリメント
+                        this.forList["j"]++;
+                        this.forList["i"] = 0;
+                        this.setVector(-this.vx,-this.vy);
+                        this.BossState++;
+                    }
+                    break;
+                //ゲキトツモーション
+                case 13:
+                    this.setVector(0,0,0,true,8);
+                    this.nonDamage = false;
+                    if (this.forList["i"]<240){
+                        this.pz = 0;
+                        if (this.forList["i"] < 15){
+                            screenSetOffsetRand(8,8);
+                        } else if (this.forList["i"] < 30){
+                            screenSetOffsetRand(6,6);
+                        } else if (this.forList["i"] < 50){
+                            screenSetOffsetRand(3,3);
+                        } else if (this.forList["i"] < 250){
+                            if ((this.forList["i"]%20) >= 10){
+                                this.pz = 3;
+                            } else {
+                                this.pz = 0;
+                            }
+                        }
+                    } else {
+                        this.BossState = 4;
+                    }
+                    this.forList["i"]++;
+                    break;
+                //ダメージ（ノーモーション）
+                case "damage":
+                    this.BossState = this.lastBossState;
+                    break;
+                //死モーション
+                case "died":
+                    this.vibrate(-1,2);
+                    if (this.waitFrame(280)){
+                        renderCamera.setVibCamera(-8,8,80);
+                        this.allive = false;
+                        for (let i = 0; i<8; i++){
+                            EfM.spawnNPC(
+                                this.px,
+                                this.py,
+                                0,
+                                TILESIZE,
+                                TILESIZE,
+                                TILESIZE,
+                                "particle_rock",
+                                randFloat(-6,6),
+                                randFloat(-6,6),
+                                randFloat(-3,-8)*2
+                            )
+                        }
+                    }
+                    if (this.waitFrameC > 40) {
+                        if (this.waitFrameC%4 == 0){
+                            EfM.spawnNPC(
+                                this.px,
+                                this.py,
+                                0,
+                                TILESIZE,
+                                TILESIZE,
+                                TILESIZE,
+                                "particle_rock",
+                                randFloat(-3,3)*3,
+                                randFloat(-3,3)*3,
+                                randFloat(-2,-4)*3
+                            )
+                        }
+                    }
+                    break;
+                //異常終了
+                default:
+                    console.error(`Error BossSate is : ${this.BossState} Unkown State `);
+                    this.BossState = 0;
+                    this.clearForList();
+                    this.clearMemory();
+                    this.setVector(0,0,0);
+                    break;
+            }
+        } else if (this.type == "Snow"){
+            this.nonDamage = true;
+            switch (this.BossState) {
+                //初期化
+                case 0:
+                    this.BossInit();
+                    console.log("Snow Boss Init end");
+                    
+                    break;
+                //登場アニメーション
+                case 1:
+                    console.log("Snow Boss Animation");
                     this.BossState++;
-                }
-                break;
-            //ゲキトツモーション
-            case 13:
-                this.setVector(0,0,0,true,8);
-                this.fallOK = false;
-                if (this.forList["i"]<240){
-                    this.pz = 0;
-                    if (this.forList["i"] < 15){
-                        screenSetOffsetRand(8,8);
-                    } else if (this.forList["i"] < 30){
-                        screenSetOffsetRand(6,6);
-                    } else if (this.forList["i"] < 50){
-                        screenSetOffsetRand(3,3);
-                    } else if (this.forList["i"] < 250){
-                        if ((this.forList["i"]%20) >= 10){
-                            this.pz = 3;
-                        } else {
-                            this.pz = 0;
+                    break;
+                //アニメーション終了
+                case 2:
+                    console.log("Snow Boss Animation end");
+                    this.BossState++;
+                    this.waitFrameReset();
+                    this.BossMemory["throwCounter"] = 20 - ((this.hp <= this.MaxHp/2)*5);
+                    break;
+                //通常モーション
+                case 3:
+                    this.nonDamage = false;
+                    /*
+                    //氷でのダメージ
+                    const tNPC = EnM.spriteList.find(npc => npc.type == "friendly_ice");
+                    if (typeof(tNPC) == "object") {
+                        if (this.hitCheck(
+                                tNPC.px,
+                                tNPC.py,
+                                tNPC.pz,
+                                tNPC.sx,
+                                tNPC.sy,
+                                tNPC.sz
+                                ) && !this.nonDamage) {
+                                this.damage(nowStatus.AP,false,false);
+                                this.lastBossState = this.BossState;
+                                this.BossState = "damage";
+                                
+                            }
+                    } else {
+                        for (let i = 0; i<tNPC.length; i++){
+                            if (this.hitCheck(
+                                tNPC[i].px,
+                                tNPC[i].py,
+                                tNPC[i].pz,
+                                tNPC[i].sx,
+                                tNPC[i].sy,
+                                tNPC[i].sz
+                                ) && !this.nonDamage) {
+                                this.damage(nowStatus.AP,false,false);
+                                this.lastBossState = this.BossState;
+                                this.BossState = "damage";
+                                break;
+                            }
                         }
                     }
-                } else {
+                    console.log(`friendly_ice found : ${typeof(tNPC)}`);
+                    console.log(tNPC);
+                    */
+                    this.waitFrame(80);
+                    let cycle = Math.floor(80-((this.hp <= this.MaxHp/2)*20));
+                    let dist = ((this.px-player.px)**2+(this.py-player.py)**2)**0.5;
+                    if (this.waitFrameC%(cycle/4) == 0){
+                        if (this.animationFrame >= 4){
+                            this.animationFrame++;
+                        } else {
+                            this.animationFrame = 0;
+                        }
+                        //console.log(`now animationFrame : ${this.animationFrame}`);
+                    }
+                    if (this.waitFrameC%cycle == cycle/10){
+                        EnM.spawnNPC(
+                            this.px,
+                            this.py,
+                            0,
+                            TILESIZE*2/3,
+                            TILESIZE*2/3,
+                            TILESIZE*2/3,
+                            "throwSnow",
+                            (player.px-this.px+randFloat(-1,1)*4)/dist*6,
+                            (player.py-this.py+randFloat(-1,1)*4)/dist*6,
+                            -randFloat(0.5,1.5)*dist/(TILESIZE*3)
+                        );
+                        
+                        this.BossMemory["throwCounter"]--;
+                    }
+                    if (this.BossMemory["throwCounter"] <= 0 || randInt(0,(this.hp <= this.MaxHp/2)*3) >= 1){
+                        this.BossState = 4;
+                        this.waitFrameReset();
+                    }
+                    //console.log([this.waitFrameC,this.waitFinished]);
+                    //this.BossState++;
+                    break;
+                //地団駄ふむぜ
+                case 4:
+                    if (this.waitFrame(80)) {
+                        this.waitFrameReset();
+                        this.BossState++;
+                        this.setGravity(0.5);
+                        this.ZAxisJump(-8);
+                    }
+                    if (this.waitFrameC >= 40){
+                        this.vibrate(-1,2);
+                    }
+                    console.log(this.waitFrameC);
+                    break;
+                //ジャンプ！
+                case 5:
+                    this.fallOK = true;
+                    this.waitFrameReset();
+                    if (this.collisionState & 0b10000){
+                        this.BossState++;
+                    }
+                    break;
+                //ツララシャワー
+                case 6:
+                    if(this.waitFrame(50)){
+                        if(randInt((this.hp <= this.MaxHp/2)*2,5) == 5){
+                            this.waitFrameReset();
+                            this.BossState = 7;
+                        } else {
+                            this.waitFrameReset();
+                            this.BossState = 2;
+                        }
+                    }
+                    if (this.waitFrameC < 20){
+                        let [tpx,tpy] = [0,0];
+                        if (this.waitFrameC%(5-((this.hp <= this.MaxHp/2)*2)) == 0){
+                            [tpx,tpy] = [
+                                    randFloat(player.px-(TILESIZE*6),player.px+(TILESIZE*6)),
+                                    randFloat(player.py-(TILESIZE*6),player.py+(TILESIZE*6))
+                                ]
+                            while (hitWallCheck(ColMap,TILESIZE,tpx,tpy,TILESIZE*1.5,TILESIZE*1.5)){
+                                [tpx,tpy] = [
+                                        randFloat(player.px-(TILESIZE*6),player.px+(TILESIZE*6)),
+                                        randFloat(player.py-(TILESIZE*6),player.py+(TILESIZE*6))
+                                    ]
+                            }
+                            EnM.spawnNPC(
+                                tpx,
+                                tpy,
+                                0,
+                                TILESIZE,
+                                TILESIZE,
+                                TILESIZE*4,
+                                "icicle",
+                                0,
+                                0,
+                                0,
+                                [1]
+                            );
+                        }
+                        if (this.waitFrameC == 19){
+                            EnM.spawnNPC(
+                                player.px,
+                                player.py,
+                                0,
+                                TILESIZE,
+                                TILESIZE,
+                                TILESIZE*4,
+                                "icicle",
+                                0,
+                                0,
+                                0,
+                                [1]
+                            );
+                            while (hitWallCheck(ColMap,TILESIZE,tpx,tpy,TILESIZE*1.5,TILESIZE*1.5)){
+                                [tpx,tpy] = [
+                                        randInt(0,mapWidth*TILESIZE),
+                                        randInt(0,mapHeight*TILESIZE)
+                                    ]
+                            }
+                            EnM.spawnNPC(
+                                tpx,
+                                tpy,
+                                -360,
+                                TILESIZE,
+                                TILESIZE,
+                                TILESIZE,
+                                "friendly_ice"
+                            );
+                        }
+                        screenSetOffsetRand(-4,4);
+                    } else if(this.waitFrameC < 40){
+                        screenSetOffsetRand(-2,2);
+                    }
+                    break;
+                //雪玉爆裂
+                case 7:
+                    if (this.waitFrame(80)){
+                        
+                        this.waitFrameReset();
+                        this.BossState = 2;
+                    }
+                    if (this.waitFrameC < 60){
+                        this.vibrate(-1,2);
+                    } else if (this.waitFrameC == 60) {
+                        let dist = ((this.px-player.px)**2+(this.py-player.py)**2)**0.5;
+                        //let deg = degrees(Math.asin((player.py-this.py)/dist));
+                        //console.log(deg);
+                        for (let i = 0; i<12; i++){
+                            /*
+                            EnM.spawnNPC(
+                                this.px,
+                                this.py,
+                                0,
+                                TILESIZE*2/3,
+                                TILESIZE*2/3,
+                                TILESIZE*2/3,
+                                "throwSnow",
+                                Math.cos(radians(30*i+15))*dist/TILESIZE,
+                                Math.sin(radians(30*i+15))*dist/TILESIZE,
+                                -randFloat(0.5,1)*dist/(TILESIZE*3)
+                            )
+                            EnM.spawnNPC(
+                                this.px,
+                                this.py,
+                                0,
+                                TILESIZE*2/3,
+                                TILESIZE*2/3,
+                                TILESIZE*2/3,
+                                "throwSnow",
+                                Math.cos(radians(30*i+15))*dist/TILESIZE,
+                                Math.sin(radians(30*i+15))*dist/TILESIZE,
+                                -randFloat(1,1.5)*dist/(TILESIZE*3)
+                            )
+                            */
+                            EnM.spawnNPC(
+                                this.px,
+                                this.py,
+                                0,
+                                TILESIZE*2/3,
+                                TILESIZE*2/3,
+                                TILESIZE*2/3,
+                                "throwSnow",
+                                randFloat(-0.5,0,5)+Math.cos(radians(30*i))*dist/TILESIZE,
+                                randFloat(-0.5,0,5)+Math.sin(radians(30*i))*dist/TILESIZE,
+                                -randFloat(0.75,1.25)*dist/(TILESIZE*3)
+                            )
+                        }
+                    }
+                    break;
+                case "damage":
                     this.BossState = 4;
-                }
-                this.forList["i"]++;
-                break;
-            //異常終了
-            default:
-                console.error(`Error BossSate is : "${this.BossState}" Unkown State `);
-                this.BossState = 0;
-                this.clearForList();
-                this.clearMemory();
-                this.setVector(0,0,0);
-                break;
-           }
+                    this.waitFrameReset();
+                    break;
+                case "died":
 
-           if (moveOK){
-                this.EnMove(ColMap,TILESIZE,this.fallOK);
-           }
-            let hitFlag = this.hitCheck(
-                plaAttackAABB.px,
-                plaAttackAABB.py,
-                plaAttackAABB.pz,
-                plaAttackAABB.sx,
-                plaAttackAABB.sy,
-                plaAttackAABB.sz
-            );
-            if (hitFlag == 1) {
-                this.damage(nowStatus.AP);
+                    break;
+                //異常終了
+                default:
+                    console.error(`Error BossSate is : "${this.BossState}" Unkown State `);
+                    this.BossState = 0;
+                    this.clearForList();
+                    this.clearMemory();
+                    this.setVector(0,0,0);
+                    break;
             }
-            if (this.hp <= 0){
-                this.BossState = 14;
-            }
-
         }
+
+        //console.log(this.BossState);
+
+        if (moveOK){
+            this.EnMove(ColMap,TILESIZE,this.fallOK);
+        }
+        let hitFlag = this.hitCheck(
+            plaAttackAABB.px,
+            plaAttackAABB.py,
+            plaAttackAABB.pz,
+            plaAttackAABB.sx,
+            plaAttackAABB.sy,
+            plaAttackAABB.sz
+        );
+        if (hitFlag == 1 && !this.nonDamage) {
+            this.damage(nowStatus.AP,false,false);
+            this.lastBossState = this.BossState;
+            this.BossState = "damage";
+        }
+        hitFlag = this.hitCheck(
+            player.px,
+            player.py,
+            player.pz,
+            player.sx,
+            player.sy,
+            player.sz
+        );
+        if (hitFlag == 1) {
+            player.damage(1,false,true,this.vx,this.vy);
+        }
+        if (this.hp <= 0){
+            this.BossState = "died";
+        }
+
+        
     }
 
 }

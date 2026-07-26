@@ -130,6 +130,53 @@ class camera {
         this.farZ = 1;
         this.offX = 0;
         this.OffY = 0;
+        this.vibMX = 0;
+        this.vibMY = 0;
+        this.vibmX = 0;
+        this.vibmY = 0;
+        this.frameC = 0;
+        this.frameN = 0;
+        this.frameF = 1;
+    }
+
+    setVibCamera(maxX,maxY,frame,minX = -maxX, minY = -maxY){
+        this.vibMX = maxX;
+        this.vibMY = maxY;
+        this.vibmX = minX;
+        this.vibmY = minY;
+        this.frameN = frame;
+        this.frameC - 0;
+        this.frameF = 0;
+    }
+
+    VibCamera(){
+        if (this.frameF != 0) {
+            this.frameC = 0;
+            this.vibMX = 0;
+            this.vibMY = 0;
+            this.vibmX = 0;
+            this.vibmY = 0;
+        } else {
+            this.frameC++;
+        }
+
+        if (this.frameC >= this.frameN){
+            this.frameF = 1;
+        } else {
+            screenSetOffsetRand(
+                Math.round(this.vibMX*((this.frameN-this.frameC)/this.frameN)),
+                Math.round(this.vibMY*((this.frameN-this.frameC)/this.frameN)),
+                Math.round(this.vibmX*((this.frameN-this.frameC)/this.frameN)),
+                Math.round(this.vibmY*((this.frameN-this.frameC)/this.frameN))
+            );
+        }
+        /*
+        console.log(`
+                FC : ${this.frameC},
+                FN : ${this.frameN},
+                FC/FN : ${(this.frameN-this.frameC)/this.frameN},
+            `)
+        */
     }
 
 }
@@ -150,7 +197,11 @@ class stage {
         this.StageFrameC[eventName] = 0;
         this.StageFrameCF[eventName] = false;
     }
-
+    /**
+     * @param {Number} frame カウントするフレーム数
+     * @param {String} en カウントするイベントキー
+     * @returns 
+     */
     countFrame(frame,en = "Default"){
         let cf = this.StageFrameCF[en];
         let c = this.StageFrameC[en];
@@ -173,7 +224,10 @@ class stage {
         }
 
     }
-
+    /**
+     * @param {Number} frame カウントするフレーム数
+     * @returns {Number} 1なら動ける
+     */
     stopPlayerByFrame(frame){
         if (!this.countFrame(frame,"stopPlayer")) {
             player.stop = true;
@@ -250,7 +304,7 @@ export const MapJSONs = {};
 let NowMap;
 let NowMapCollision;
 let NowMapJSON;
-let NowBoss;
+export let NowBoss;
 
 //不要。デバッグ用
 let DebugFrameC = 0;
@@ -261,7 +315,7 @@ const lastKeys = {};
 
 const plSize = 16;
 
-const VecDirList = [
+export const VecDirList = [
     [0,-1],
     [0.7,-0.7],
     [1,0],
@@ -272,9 +326,6 @@ const VecDirList = [
     [-0.7,-0.7],
 ]
 
-
-
-
 export const img = new Images();                                 //イメージインスタンス
 export const IR = new imgRender(ScreenB,ScB);                    //イメージレンダークラス
 //なにもない（null）に割り当てる画像の読み込み
@@ -282,9 +333,10 @@ await img.AddImg("null","./assets/tiles/0.png");
 
 //プレイヤーオブジェクト
 export let nowStatus = new status(0,0,0,0,0,0);
-export const knightStatus =     new status(24,15,18,18,50,60);
+//export const knightStatus =     new status(24,15,18,18,50,60);
 export const archerStatus =     new status(15,20,15,24,38,50);
 export const magicianStatus =   new status(12,42,10,20,32,45);
+export const knightStatus =     new status(5,5,18,18,50,8);
 export let player = new sprite(
     0,
     0,
@@ -314,7 +366,9 @@ export const EfM = new EffectManager(200);
 
 //メイン関係のオブジェクト
 const TR = new TileRender(ScreenB,ScB);                     //タイルレンダーインスタンス
-TR.TILESIZEUpdate(32,16);
+TR.TILESIZEUpdate(24,32);
+export let mapWidth = 0;
+export let mapHeight = 0;
 export const keyInput = new key();                                 //キー入力の保持
 const playerKey = new usrKey();                             //ユーザーのキー保持
 export const playerCamera = new camera();                          //プレイヤーカメラ座標の保持
@@ -323,6 +377,8 @@ let DebugStage = new stage("Debug2");                       //ステージオブ
 const mainStage = new stage("Map_1");
 //DebugStage.setCountEvent("stopPlayer");
 let test = 0;
+
+let stageClear = 0;
 
 let jsonData = undefined;
 
@@ -333,23 +389,31 @@ const promise = new Promise( async function(resolve,reject) {
     try {
 
         //デバッグステージのデータ読み込み（「Debug」として追加）
-        MapJSONs["Debug"] = await fecthJSON("./assets/maps/Debug1.json");
-        MapJSONs["Debug2"] = await fecthJSON("./assets/maps/Debug2.json");
+        //マップデータはJSONファイルから先に読む（TileRenderクラスのnewLoadMapメソッドがJSONファイルを利用するため）
         MapJSONs["Map_1"] = await fecthJSON("./assets/maps/Map1.json");
-        Maps["Debug"] = await TR.newLoadMap(MapJSONs["Debug"],"./assets/maps/Debug1.txt");
-        Maps["Debug2"] = await TR.newLoadMap(MapJSONs["Debug2"],"./assets/maps/Debug2.txt");
         Maps["Map_1"] = await TR.newLoadMap(MapJSONs["Map_1"],"./assets/maps/Map1.txt");
-        MapCollisions["Debug"] = await TR.newLoadMap(MapJSONs["Debug"],"./assets/maps/Debug1_C.txt");
-        MapCollisions["Debug2"] = await TR.newLoadMap(MapJSONs["Debug2"],"./assets/maps/Debug2_C.txt");
         MapCollisions["Map_1"] = await TR.newLoadMap(MapJSONs["Map_1"],"./assets/maps/Map1_C.txt");
-
+        
+        MapJSONs["Map_2"] = await fecthJSON("./assets/maps/Map2.json");
+        Maps["Map_2"] = await TR.newLoadMap(MapJSONs["Map_2"],"./assets/maps/Map2.txt");
+        MapCollisions["Map_2"] = await TR.newLoadMap(MapJSONs["Map_2"],"./assets/maps/Map2_C.txt");
+        
+        MapJSONs["Debug"] = await fecthJSON("./assets/maps/Debug1.json");
+        Maps["Debug"] = await TR.newLoadMap(MapJSONs["Debug"],"./assets/maps/Debug1.txt");
+        MapCollisions["Debug"] = await TR.newLoadMap(MapJSONs["Debug"],"./assets/maps/Debug1_C.txt");
+        
+        MapJSONs["Debug2"] = await fecthJSON("./assets/maps/Debug2.json");
+        Maps["Debug2"] = await TR.newLoadMap(MapJSONs["Debug2"],"./assets/maps/Debug2.txt");
+        MapCollisions["Debug2"] = await TR.newLoadMap(MapJSONs["Debug2"],"./assets/maps/Debug2_C.txt");
+        
         
         //画像データたちを読み込む
         await img.AddImg("MapTip_Debug","./assets/tiles/testTiles1.png");
-        await img.AddImg("MapTip_Generic","./assets/tiles/GenericTiles.png");
+        await img.AddImg("MapTip1","./assets/tiles/GenericTiles.png");
+        await img.AddImg("MapTip2","./assets/tiles/RockTile.png");
         await img.AddImg("SwordEffect","./assets/effects/TestEffect.png");
         //タイルチップデータの読み込み
-        TR.newLoadImg(img.imgList["MapTip_Generic"]);
+        TR.newLoadImg(img.imgList["MapTip2"]);
 
 
 
@@ -406,11 +470,17 @@ const promise = new Promise( async function(resolve,reject) {
 
 //ラジアン変換関数
 export function radians(degrees){
-    return (Math.PI/180)*degrees
+    return (Math.PI/180)*degrees;
+}
+export function degrees(radians){
+    return (180/Math.PI)*radians;
 }
 //ランダム整数値マシ～ン
 export function randInt(start,end){
     return Math.floor(Math.random()*(end-start)+start);
+}
+export function randFloat(start,end){
+    return Math.random()*(end-start)+start;
 }
 export function screenSetOffsetRand(maxX,maxY,minX = -maxX,minY = -maxY){
     renderCamera.offX += randInt(minX,maxX);
@@ -423,7 +493,7 @@ export function screenSetOffset(px = 0,py = 0){
 //初期化関数
 async function init (){
 
-    //デバッグステージの呼び出し
+    //ステージの呼び出し
     await mainStage.changeStage("Map_1");
     //player.setPos(9/2*TILESIZE,8/2*TILESIZE);
     //NowBoss.setPos(TR.MapWidth/3*TILESIZE,TR.MapHeight/3*TILESIZE,0)
@@ -452,12 +522,12 @@ function main(){
 
     //プレイヤーの処理
     plyayerAction();
-    //エフェクトの処理
-    EffectAction();
-    //エネミーの処理
-    enemyAction();
     //ボスの処理
     bossAction();
+    //エネミーの処理
+    enemyAction();
+    //エフェクトの処理
+    EffectAction();
     //バッファへ書き込み
     RenderBuffer();
     //バッファの中身描画
@@ -513,11 +583,15 @@ function playerSelect(key){
  */
 async function StageSet(stageName){
 
+    stageClear = 0;
+
     EnM.Disable();
     NowMap = Maps[stageName];
     NowMapCollision = MapCollisions[stageName];
     NowMapJSON = MapJSONs[stageName];
     TR.setMapData(NowMap,NowMapCollision);
+    mapWidth = TR.MapWidth;
+    mapHeight = TR.MapHeight;
     playerSelect("KNIGHT");
     /*
     player.initalize(
@@ -570,6 +644,8 @@ function RenderBuffer(){
     //ドットくっきり～
     ScB.imageSmoothingEnabled = false;
     
+    renderCamera.VibCamera();
+
     //バッファキャンバスのクリア
     //ScB.globalAlpha = 0.5;
     ScB.fillStyle = "rgb(0,0,0)";
@@ -682,7 +758,7 @@ function RenderStage() {
  * @param {Number} speed 変化率（分母の値）
  */
 export function fadeIn(a,b,speed){
-    if (Math.round(b-a) === 0){
+    if (Math.round(b-a) == 0){
         return 0;
     } else {
         return (b-a)/speed;
@@ -777,7 +853,11 @@ function plyayerAction(){
 
     const nowPlaDir = player.direction;
 
-    const spd = 4;
+    let spd = 4;
+
+    if (mainStage.StType == "Map_2"){
+        spd = 14;
+    }
 
     const playerBaseAcs = player.Speed/5;
 
@@ -798,15 +878,19 @@ function plyayerAction(){
             player.direction = 7;
         } else if (playerKey.keyLeft) {
             player.setVector(playerBaseAcs*-1,0,player.vz,true,spd);
+            if (Math.abs(player.vy) < 0.5) player.vy = 0;
             player.direction = 6;
         } else if (playerKey.keyRight) {
             player.setVector(playerBaseAcs,0,player.vz,true,spd);
+            if (Math.abs(player.vy) < 0.5) player.vy = 0;
             player.direction = 2;
         }else if (playerKey.keyUp) {
             player.setVector(0,playerBaseAcs*-1,player.vz,true,spd);
+            if (Math.abs(player.vx) < 0.5) player.vx = 0;
             player.direction = 0;
         } else if (playerKey.keyDown) {
             player.setVector(0,playerBaseAcs,player.vz,true,spd);
+            if (Math.abs(player.vx) < 0.5) player.vx = 0;
             player.direction = 4;
         } else {
             player.slowDown(spd);
@@ -831,11 +915,15 @@ function plyayerAction(){
             }
         }
         
+        //攻撃モーション
         if (playerKey.pulsekeyA_button && player.animationState <= 3) {
-            EfM.spawnNPC(player.px,player.py,32,24,"Sword");
+            EfM.spawnNPC(player.px,player.py,player.pz,32,24,player.sz/4,"sword");
             player.changeAnimState(4);
         }
         /*  アニメーション処理  */
+
+        //グラフィック実装時に書き換え必須！！！
+
         //console.log(`animF : ${player.animFrameClock}`);
         if (player.direction != nowPlaDir && player.animationState <= 2){
             player.clearFrame(0);
@@ -858,10 +946,12 @@ function plyayerAction(){
         } else if (player.animationState == 3) /*Jumping*/ {
 
         } else if (player.animationState == 4) /*attacking*/ {
+            //攻撃判定の設定
             plaAttackAABB.setSize(
-                24+(Math.abs(10*VecDirList[player.direction][1])),
-                24+(Math.abs(8*VecDirList[player.direction][0]))
+                (player.sx*2)+(Math.abs(10*VecDirList[player.direction][1])),
+                (player.sy*2)+(Math.abs(8*VecDirList[player.direction][0]))
             );
+            //1/20周期
             player.setAnimFrameClockDiv(2);
             if (player.animFrameSumByClock >= 1) /* 0.2 sec */ {
                 if (player.animationFrame >= 5) {
@@ -895,26 +985,27 @@ function plyayerAction(){
             player.px+(VecDirList[player.direction][0]*plaAttackAABB.sx/2),
             player.py+(VecDirList[player.direction][1]*plaAttackAABB.sy/2),
             player.pz);
+        plaAttackAABB.direction = player.direction;
     } else {
         plaAttackAABB.setPos(65536,65536,65536);
     }
 
     /*
-    //デバッグ用の機能
-    let debugScaler = 1+3*(Math.random());
-    if (playerKey.keyPause){
+        //デバッグ用の機能
+        let debugScaler = 1+3*(Math.random());
+        if (playerKey.keyPause){
 
-        EnM.spawnNPC(player.px,player.py,
-            TILESIZE*debugScaler,
-            TILESIZE*debugScaler,
-            0xFF,
-            Math.sign(Math.random()-0.5)*8*Math.random(),
-            Math.sign(Math.random()-0.5)*8*Math.random(),
-            -8-8*Math.random()
-        );
-        //StageSet("Debug");
+            EnM.spawnNPC(player.px,player.py,
+                TILESIZE*debugScaler,
+                TILESIZE*debugScaler,
+                0xFF,
+                Math.sign(Math.random()-0.5)*8*Math.random(),
+                Math.sign(Math.random()-0.5)*8*Math.random(),
+                -8-8*Math.random()
+            );
+            //StageSet("Debug");
 
-    }
+        }
     */
 
     
@@ -930,7 +1021,13 @@ function plyayerAction(){
 
 }
 function bossAction(){
-    if (NowBoss != 0) NowBoss.BossAction(NowMapCollision,TILESIZE);
+    if (NowBoss != 0) {
+        NowBoss.BossAction(NowMapCollision,TILESIZE);
+        if (!NowBoss.allive) {
+            NowBoss = 0;
+            stageClear = 1;
+        }
+    }
 }
 function EffectAction(){
     let AcEf = EfM.spriteList.filter(
