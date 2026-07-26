@@ -1,7 +1,8 @@
 {
     "Name" : "Snow",
     "Position" : [512,224],
-    "sizeX" : 48,
-    "sizeY" : 36,
+    "sizeX" : 2,
+    "sizeY" : 2,
+    "sizeZ" : 3,
     "status" : [20,0,56,13,40,40]
 }

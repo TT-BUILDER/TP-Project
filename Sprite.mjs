@@ -17,6 +17,7 @@ import { VecDirList } from "./EngineMain.mjs";
 import { mapWidth } from "./EngineMain.mjs";
 import { mapHeight } from "./EngineMain.mjs";
 import { NowBoss } from "./EngineMain.mjs";
+import { deltaVector } from "./EngineMain.mjs";
 let NowCanvas;
 let NowCTX;
 export let isNowBossAnimation = false;
@@ -150,7 +151,7 @@ export class EnemyManager {
         this.EnFlag = true;
 
         for (let i = 0; i < Max; i++){
-            this.spriteList.push(new Enemy(0,0,0,0,"Enemy"));
+            this.spriteList.push(new Enemy(0,0,0,0,0,"Enemy"));
         }
 
         //this.spriteNameList = [];
@@ -204,7 +205,7 @@ export class EffectManager {
         this.EfFlag = true;
 
         for (let i = 0; i < Max; i++){
-            this.spriteList.push(new Effect(0,0,0,0,"effect"));
+            this.spriteList.push(new Effect(0,0,0,0,0,"effect"));
         }
 
         //this.spriteNameList = [];
@@ -259,11 +260,12 @@ export class sprite {
      * @param {Number} py ポジションｙ　
      * @param {Number} sx サイズｘ
      * @param {Number} sy サイズｙ
+     * @param {Number} sz サイズｚ
      * @param {String} type タイプ
      * @param {Number} MHP マックスＨＰ（デフォルトは１）
      * @param {Number} HP 名の通りＨＰ（デフォルトはMHPHP）
      */
-    constructor(px,py,sx,sy,type,MHP = 1,HP = MHP,MST = 1,ST = MST,SPD = 4){
+    constructor(px,py,sx,sy,sz,type,MHP = 1,HP = MHP,MST = 1,ST = MST,SPD = 4){
         this.px = px;
         this.py = py;
         this.pz = 0;
@@ -271,7 +273,7 @@ export class sprite {
         this.slowDownV = 2;
         this.sx = sx;
         this.sy = sy;
-        this.sz = this.sy;
+        this.sz = sz;
         this.type = type;
         this.MaxHp = MHP;
         this.hp = HP;
@@ -307,10 +309,11 @@ export class sprite {
      * @param {Number} py ポジションｙ　
      * @param {Number} sx サイズｘ
      * @param {Number} sy サイズｙ
+     * @param {Number} sz サイズｚ
      * @param {Number} MHP マックスＨＰ（デフォルトは１）
      * @param {Number} HP 名の通りＨＰ（デフォルトはMHPHP）
      */
-    initalize(px,py,sx,sy,MHP = 1,HP = MHP,MST = 1,ST = MST,SPD = 4){
+    initalize(px,py,sx,sy,sz,MHP = 1,HP = MHP,MST = 1,ST = MST,SPD = 4){
         this.px = px;
         this.py = py;
         this.pz = 0;
@@ -318,7 +321,7 @@ export class sprite {
         this.slowDownV = 2;
         this.sx = sx;
         this.sy = sy;
-        this.sz = this.sy;
+        this.sz = sz;
         this.MaxHp = MHP;
         this.hp = HP;
         this.MaxStamina = MST;
@@ -401,7 +404,7 @@ export class sprite {
      * @param {Number} imgSX 画像の切り取りサイズX
      * @param {Number} imgSY 画像の切り取りサイズY
      */
-    RenderMyself(CamX,CamY,style,ShowHP = false,ShowShadow = true,imgStX = 0,imgStY = 0,imgSX = this.myImg.imageData.width, imgSY = this.myImg.imageData.height){
+    RenderMyself(CamX,CamY,style,ShowHP = false,ShowShadow = true,showImg = true,imgStX = 0,imgStY = 0,imgSX = this.myImg.imageData.width, imgSY = this.myImg.imageData.height){
         if (this.invisilbe){
             this.invisibleTime--;
             if (this.invisibleTime <= 0) this.invisilbe = false;
@@ -432,57 +435,60 @@ export class sprite {
             //NowCTX.arc(32,32,32,0,Math.PI*2,false);
             if (this.invisibleTime % 4 <= 1) {
                 let RestoreAplha = NowCTX.globalAlpha;
-                NowCTX.globalAlpha = 0.3;
+                NowCTX.globalAlpha = 0.7;
                 NowCTX.fillStyle = style;
                 NowCTX.fillRect(
                     (RenSprX-(this.sx/2)),
-                    (RenSprY-(Math.max(this.sy,this.sz)/2)),
+                    (RenSprY-(this.sy/2)),
                     this.sx,
                     this.sy
                 );
                 NowCTX.globalAlpha = RestoreAplha;
             }
-            //HP
-            if (ShowHP) {
-                //NowCTX.fillStyle = "white";
-                NowCTX.fillStyle = "red";
-                NowCTX.font = "14px monospace";
-                NowCTX.fillText(`HP:${this.hp},Dir:${this.direction}`,RenSprX-this.sx*2,RenSprY+this.sy+10);
-                NowCTX.fillText(`vx:${this.vx.toFixed(2)},vy:${this.vy.toFixed(2)},vz:${this.vz.toFixed(2)}`,RenSprX-this.sx*2,RenSprY+this.sy+25);
-                NowCTX.fillRect(
-                    RenSprX-(this.sx*0.6),
-                    RenSprY-this.sy*0.6-12,
-                    this.sx*1.2,
-                    6
-                );
-                NowCTX.fillStyle = "rgb(0, 255, 0)";
-                NowCTX.fillRect(
-                    RenSprX-(this.sx*0.6),
-                    RenSprY-this.sy*0.6-12,
-                    (this.sx*1.2)*(this.hp/this.MaxHp),
-                    6
-                );
-                NowCTX.fillStyle = "red";
-                NowCTX.fillRect(
-                    RenSprX-(this.sx*0.6),
-                    RenSprY-this.sy*0.6-21,
-                    this.sx*1.2,
-                    6
-                );
-                NowCTX.fillStyle = "rgb(0, 128, 255)";
-                NowCTX.fillRect(
-                    RenSprX-(this.sx*0.6),
-                    RenSprY-this.sy*0.6-21,
-                    (this.sx*1.2)*(this.stamina/this.MaxStamina),
-                    6
-                );
-                
+            if(showImg){
+                this.myImg.setTrim(imgStX,imgStY,imgSX,imgSY);
+                this.myImg.setSize(this.sx,this.sz);
+                this.myImg.render(RenSprX,RenSprY);
             }
-            this.myImg.setTrim(imgStX,imgStY,imgSX,imgSY);
-            this.myImg.setSize(this.sx,this.sz);
-            this.myImg.render(RenSprX,RenSprY);
+        }
+        //HP
+        if (ShowHP) {
+            //NowCTX.fillStyle = "white";
+            NowCTX.fillStyle = "red";
+            NowCTX.font = "14px monospace";
+            NowCTX.fillText(`HP:${this.hp},Dir:${this.direction}`,RenSprX-this.sx*2,RenSprY+this.sy+10);
+            NowCTX.fillText(`vx:${this.vx.toFixed(2)},vy:${this.vy.toFixed(2)},vz:${this.vz.toFixed(2)}`,RenSprX-this.sx*2,RenSprY+this.sy+25);
+            NowCTX.fillRect(
+                RenSprX-(this.sx*0.6),
+                RenSprY-this.sy*0.6-12,
+                this.sx*1.2,
+                6
+            );
+            NowCTX.fillStyle = "rgb(0, 255, 0)";
+            NowCTX.fillRect(
+                RenSprX-(this.sx*0.6),
+                RenSprY-this.sy*0.6-12,
+                (this.sx*1.2)*(this.hp/this.MaxHp),
+                6
+            );
+            NowCTX.fillStyle = "red";
+            NowCTX.fillRect(
+                RenSprX-(this.sx*0.6),
+                RenSprY-this.sy*0.6-21,
+                this.sx*1.2,
+                6
+            );
+            NowCTX.fillStyle = "rgb(0, 128, 255)";
+            NowCTX.fillRect(
+                RenSprX-(this.sx*0.6),
+                RenSprY-this.sy*0.6-21,
+                (this.sx*1.2)*(this.stamina/this.MaxStamina),
+                6
+            );
             
         }
+            
+        
     }
 
     setGravity(gravity){
@@ -499,7 +505,7 @@ export class sprite {
 
     ZAxisFall(){
         if ( this.pz+this.vz < 0) {
-            this.pz += this.vz;
+            this.pz += (this.vz*deltaVector);
             this.vz += this.gravity;
         } else {
             this.collisionState = this.collisionState | 0b10000;
@@ -555,7 +561,7 @@ export class sprite {
             this.collisionState = 0;
 
             //ベクトルX分動かす
-            this.px = this.px + vx;
+            this.px = this.px + (vx*deltaVector);
             //コリジョンXチェック
             if (this.collisionFlag) {
                 if (this.doCollision(ColMap,TILESIZE,this.px,this.py)) {
@@ -574,7 +580,7 @@ export class sprite {
             }
 
             //ベクトルY分動かす
-            this.py = this.py + vy;
+            this.py = this.py + (vy*deltaVector);
             //コリジョンYチェック
             if (this.collisionFlag){
                 if (this.doCollision(ColMap,TILESIZE,this.px,this.py)) {
@@ -754,12 +760,13 @@ export class Enemy extends sprite {
      * @param {Number} py ポジションｙ　
      * @param {Number} sx サイズｘ
      * @param {Number} sy サイズｙ
+     * @param {Number} sz サイズｚ
      * @param {String} type タイプ
      * @param {Number} MHP マックスＨＰ（デフォルトは１）
      * @param {Number} HP 名の通りＨＰ（デフォルトはMHP）
      */
-    constructor(px,py,sx,sy,type,MHP = 1,HP = MHP,active = false){
-        super(px,py,sx,sy,type,MHP,HP);
+    constructor(px,py,sx,sy,sz,type,MHP = 1,HP = MHP,active = false){
+        super(px,py,sx,sy,sz,type,MHP,HP);
         this.active = active;
     }
     /**
@@ -1114,12 +1121,13 @@ export class Effect extends sprite {
      * @param {Number} py ポジションｙ　
      * @param {Number} sx サイズｘ
      * @param {Number} sy サイズｙ
+     * @param {Number} sz サイズｚ
      * @param {String} type タイプ
      * @param {Number} MHP マックスＨＰ（デフォルトは１）
      * @param {Number} HP 名の通りＨＰ（デフォルトはMHP）
      */
-    constructor(px,py,sx,sy,type,MHP = 1,HP = MHP,active = false){
-        super(px,py,sx,sy,type,MHP,HP);
+    constructor(px,py,sx,sy,sz,type,MHP = 1,HP = MHP,active = false){
+        super(px,py,sx,sy,sz,type,MHP,HP);
         this.active = active;
     }
     /**
@@ -1286,12 +1294,13 @@ export class Boss extends Enemy {
      * @param {Number} py ポジションｙ　
      * @param {Number} sx サイズｘ
      * @param {Number} sy サイズｙ
+     * @param {Number} sz サイズｚ
      * @param {String} type ボスのタイプ
      * @param {Number} MHP マックスＨＰ（デフォルトは１００）
      * @param {Number} HP 名の通りＨＰ（デフォルトはMHP）
      */
-    constructor(px,py,sx,sy,type,MHP = 100,HP = MHP){
-        super(px,py,sx,sy,type,MHP,HP,true);
+    constructor(px,py,sx,sy,sz,type,MHP = 100,HP = MHP){
+        super(px,py,sx,sy,sz,type,MHP,HP,true);
         this.allive = true;
         this.fallOK = true;
         //waitメソッド用の変数
@@ -1768,7 +1777,7 @@ export class Boss extends Enemy {
                     break;
                 //ダメージ（ノーモーション）
                 case "damage":
-                    this.BossState = this.lastBossState;
+                    this.BossState = 4;
                     break;
                 //死モーション
                 case "died":
@@ -2105,7 +2114,7 @@ export class Boss extends Enemy {
             player.sy,
             player.sz
         );
-        if (hitFlag == 1) {
+        if (hitFlag == 1 && this.allive) {
             player.damage(1,false,true,this.vx,this.vy);
         }
         if (this.hp <= 0){

@@ -313,8 +313,6 @@ let DebugFrameC = 0;
 const Keys = {};
 const lastKeys = {};
 
-const plSize = 16;
-
 export const VecDirList = [
     [0,-1],
     [0.7,-0.7],
@@ -331,33 +329,7 @@ export const IR = new imgRender(ScreenB,ScB);                    //イメージ�
 //なにもない（null）に割り当てる画像の読み込み
 await img.AddImg("null","./assets/tiles/0.png");
 
-//プレイヤーオブジェクト
-export let nowStatus = new status(0,0,0,0,0,0);
-//export const knightStatus =     new status(24,15,18,18,50,60);
-export const archerStatus =     new status(15,20,15,24,38,50);
-export const magicianStatus =   new status(12,42,10,20,32,45);
-export const knightStatus =     new status(5,5,18,18,50,8);
-export let player = new sprite(
-    0,
-    0,
-    plSize,
-    plSize,
-    "player",
-    knightStatus.MHP,
-    knightStatus.MHP,
-    knightStatus.STM,
-    knightStatus.STM,
-    knightStatus.SPD
-);
-/*  0...standing
-    1...walking
-    2...running
-    3...jumping
-    4...attacking
-    5...damaging
-*/
-//ステータス関連
-export const plaAttackAABB = new sprite(player.px,player.py,0,0,"PlaAtAABB");
+
 //export let pla_Anim_
 //player.setCollision(1);
 
@@ -366,7 +338,9 @@ export const EfM = new EffectManager(200);
 
 //メイン関係のオブジェクト
 const TR = new TileRender(ScreenB,ScB);                     //タイルレンダーインスタンス
+//拡大率変更
 TR.TILESIZEUpdate(24,32);
+export let deltaVector = 24/32;
 export let mapWidth = 0;
 export let mapHeight = 0;
 export const keyInput = new key();                                 //キー入力の保持
@@ -381,6 +355,40 @@ let test = 0;
 let stageClear = 0;
 
 let jsonData = undefined;
+
+const plSizeX = TILESIZE;
+const plSizeY = TILESIZE;
+const plSizeZ = TILESIZE*1.5;
+
+//プレイヤーオブジェクト
+export let nowStatus = new status(0,0,0,0,0,0);
+//export const knightStatus =     new status(24,15,18,18,50,60);
+export const archerStatus =     new status(15,20,15,24,38,50);
+export const magicianStatus =   new status(12,42,10,20,32,45);
+export const knightStatus =     new status(5,5,18,18,50,8);
+export let player = new sprite(
+    0,
+    0,
+    plSizeX,
+    plSizeY,
+    plSizeZ,
+    "player",
+    knightStatus.MHP,
+    knightStatus.MHP,
+    knightStatus.STM,
+    knightStatus.STM,
+    knightStatus.SPD
+);
+
+/*  0...standing
+    1...walking
+    2...running
+    3...jumping
+    4...attacking
+    5...damaging
+*/
+//ステータス関連
+export const plaAttackAABB = new sprite(player.px,player.py,0,0,0,"PlaAtAABB");
 
 //              時間がかかる初期化
 
@@ -468,6 +476,10 @@ const promise = new Promise( async function(resolve,reject) {
 
 //                  関数群
 
+export function changeViewMult(mult = 1){
+    TR.TILESIZEUpdate(32*mult,32);
+    deltaVector = 32*mult;
+}
 //ラジアン変換関数
 export function radians(degrees){
     return (Math.PI/180)*degrees;
@@ -569,8 +581,9 @@ function playerSelect(key){
     player.initalize(
         NowMapJSON["Position"][0]*(TILESIZE/showTILESIZE),
         NowMapJSON["Position"][1]*(TILESIZE/showTILESIZE),
-        plSize,
-        plSize,
+        plSizeX,
+        plSizeY,
+        plSizeZ,
         nowStatus.MHP,
         nowStatus.MHP,
         nowStatus.STM,
@@ -610,8 +623,9 @@ async function StageSet(stageName){
         NowBoss = new Boss(
             temp["Position"][0]*(TILESIZE/showTILESIZE),
             temp["Position"][1]*(TILESIZE/showTILESIZE),
-            temp["sizeX"],
-            temp["sizeY"],
+            plSizeX*temp["sizeX"],
+            plSizeY*temp["sizeY"],
+            plSizeZ*temp["sizeZ"],
             temp["Name"],
             temp["status"][5]
         );
@@ -677,7 +691,7 @@ function RenderCanvas(){
 function RenderPlayer(){
 
     player.RenderMyself(renderCamera.camX,renderCamera.camY,"green",DebugMode);
-    plaAttackAABB.RenderMyself(renderCamera.camX,renderCamera.camY,"rgb(255,0,0/50%)",DebugMode);
+    plaAttackAABB.RenderMyself(renderCamera.camX,renderCamera.camY,"rgb(0,255,255)",DebugMode,false,true);
     /*
     ScB.fillStyle = "green";
     ScB.fillRect(
@@ -730,7 +744,13 @@ function RenderEffect(){
     }
 }
 function RenderBoss(){
-    if (NowBoss != 0) NowBoss.RenderMyself(renderCamera.camX,renderCamera.camY,"olive",DebugMode);
+    if (NowBoss != 0) {
+        if (NowBoss.nonDamage) {
+            NowBoss.RenderMyself(renderCamera.camX,renderCamera.camY,"green",DebugMode,true,false);
+        } else {
+            NowBoss.RenderMyself(renderCamera.camX,renderCamera.camY,"yellow",DebugMode,true,false);
+        }
+    }
 }
 function RenderStage() {
 
@@ -917,7 +937,7 @@ function plyayerAction(){
         
         //攻撃モーション
         if (playerKey.pulsekeyA_button && player.animationState <= 3) {
-            EfM.spawnNPC(player.px,player.py,player.pz,32,24,player.sz/4,"sword");
+            EfM.spawnNPC(player.px,player.py,player.pz,32,24,player.sz,"sword");
             player.changeAnimState(4);
         }
         /*  アニメーション処理  */
@@ -949,7 +969,8 @@ function plyayerAction(){
             //攻撃判定の設定
             plaAttackAABB.setSize(
                 (player.sx*2)+(Math.abs(10*VecDirList[player.direction][1])),
-                (player.sy*2)+(Math.abs(8*VecDirList[player.direction][0]))
+                (player.sy*2)+(Math.abs(8*VecDirList[player.direction][0])),
+                player.sz*2
             );
             //1/20周期
             player.setAnimFrameClockDiv(2);

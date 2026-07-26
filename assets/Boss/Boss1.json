@@ -1,7 +1,8 @@
 {
     "Name" : "Rock",
     "Position" : [368,256],
-    "sizeX" : 48,
-    "sizeY" : 36,
+    "sizeX" : 3,
+    "sizeY" : 2,
+    "sizeZ" : 2,
     "status" : [20,0,56,13,40,50]
 }
