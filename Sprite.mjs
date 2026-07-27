@@ -447,7 +447,7 @@ export class sprite {
             }
             if(showImg){
                 this.myImg.setTrim(imgStX,imgStY,imgSX,imgSY);
-                this.myImg.setSize(this.sx,this.sz);
+                this.myImg.setSize(this.sx,Math.max(this.sz,this.sy));
                 this.myImg.render(RenSprX,RenSprY);
             }
         }
@@ -1428,6 +1428,8 @@ export class Boss extends Enemy {
                         this.forList["j"] = 0;
                         //汎用メモリ
                         this.forList["i"] = 0;
+                        //ダメージ回数
+                        this.BossMemory["damageCount"] = 0;
                         this.BossMemory["wallDist"] = 0;
                         this.BossMemory["lastWallDist"] = 0;
                     }
@@ -1489,8 +1491,8 @@ export class Boss extends Enemy {
                                 npcVX = Math.sign(Math.random()-0.5);
                             }
                             let StspX = this.px + npcVX*(TILESIZE/2) , StspY = this.py + npcVY*(TILESIZE/2);
-                            npcVX *= Math.ceil((Math.random()+1)*3);
-                            npcVY *= Math.ceil((Math.random()+1)*3);
+                            npcVX *= Math.ceil((randFloat(3,4.5)));
+                            npcVY *= Math.ceil((randFloat(3,4.5)));
                             //console.log([npcVX,npcVY]);
                             EnM.spawnNPC(
                                 spX,
@@ -1498,7 +1500,7 @@ export class Boss extends Enemy {
                                 0,
                                 2+(Math.random()*2),
                                 2+(Math.random()*2),
-                                TILESIZE,
+                                2+(Math.random()*2),
                                 "rocks",
                                 npcVX,
                                 npcVY,
@@ -1511,7 +1513,7 @@ export class Boss extends Enemy {
                                     0,
                                     TILESIZE/2,
                                     TILESIZE/2,
-                                    TILESIZE,
+                                    TILESIZE/2,
                                     "stone",
                                     npcVX/(2-Math.random()),
                                     npcVY/(2-Math.random()),
@@ -1545,7 +1547,7 @@ export class Boss extends Enemy {
                                 break;
                             } else {
                                 //高速回転
-                                this.BossState = 11;
+                                this.BossState = 8;
                                 this.forList["i"] = 0;
                                 break;
                             }
@@ -1618,7 +1620,13 @@ export class Boss extends Enemy {
                         if (this.forList["i"] < 50){
                             screenSetOffsetRand(3,3);
                         } else {
-                            this.BossState++;
+                            if (hitWallCheck(ColMap,TILESIZE,this.px,this.py,this.sx,this.sy)){
+                                //飛び上がり
+                                this.BossState = 8;
+                                this.forList["i"] = 0;
+                            } else {
+                                this.BossState++;
+                            }
                             this.forList["i"] = 0;
                         }
                         this.forList["i"]++;
@@ -1728,8 +1736,8 @@ export class Boss extends Enemy {
                             } else {
                                 npcVX = Math.sign(Math.random()-0.5);
                             }
-                            npcVX *= Math.ceil((Math.random()+1)*3);
-                            npcVY *= Math.ceil((Math.random()+1)*3);
+                            npcVX *= Math.ceil((randFloat(3,4.5)));
+                            npcVY *= Math.ceil((randFloat(3,4.5)));
                             console.log([npcVX,npcVY]);
                             EnM.spawnNPC(
                                 spX,
@@ -1737,7 +1745,7 @@ export class Boss extends Enemy {
                                 0,
                                 2+(Math.random()*2),
                                 2+(Math.random()*2),
-                                TILESIZE,
+                                2+(Math.random()*2),
                                 "rocks",
                                 npcVX,
                                 npcVY,
@@ -1777,7 +1785,18 @@ export class Boss extends Enemy {
                     break;
                 //ダメージ（ノーモーション）
                 case "damage":
-                    this.BossState = 4;
+                    this.BossMemory["damageCount"]++;
+                    console.log(this.BossMemory["damageCount"]);
+                    if (
+                        this.BossMemory["damageCount"]%
+                        (3 - (this.hp < this.MaxHp/2)) == 0)
+                        {
+                            console.log("go attack");
+                            this.BossState = 4;
+                    } else {
+                        console.log("go last");
+                        this.BossState = this.lastBossState;
+                    }
                     break;
                 //死モーション
                 case "died":
@@ -2101,7 +2120,7 @@ export class Boss extends Enemy {
             plaAttackAABB.sy,
             plaAttackAABB.sz
         );
-        if (hitFlag == 1 && !this.nonDamage) {
+        if (hitFlag == 1 && !this.nonDamage && !this.invisilbe) {
             this.damage(nowStatus.AP,false,false);
             this.lastBossState = this.BossState;
             this.BossState = "damage";

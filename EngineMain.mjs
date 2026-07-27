@@ -937,7 +937,11 @@ function plyayerAction(){
         
         //攻撃モーション
         if (playerKey.pulsekeyA_button && player.animationState <= 3) {
-            EfM.spawnNPC(player.px,player.py,player.pz,32,24,player.sz,"sword");
+            EfM.spawnNPC(
+                player.px+(VecDirList[player.direction][0]*player.sx/2),
+                player.py+(VecDirList[player.direction][1]*player.sy/2),
+                player.pz,
+                32,24,player.sz,"sword");
             player.changeAnimState(4);
         }
         /*  アニメーション処理  */
@@ -967,11 +971,13 @@ function plyayerAction(){
 
         } else if (player.animationState == 4) /*attacking*/ {
             //攻撃判定の設定
+            
             plaAttackAABB.setSize(
-                (player.sx*2)+(Math.abs(10*VecDirList[player.direction][1])),
-                (player.sy*2)+(Math.abs(8*VecDirList[player.direction][0])),
-                player.sz*2
+                TILESIZE*2+(TILESIZE/4)*(Math.abs(VecDirList[player.direction][1])),//+10*(Math.abs(VecDirList[player.direction][1])),
+                TILESIZE*2+(TILESIZE/4)*(Math.abs(VecDirList[player.direction][1])),//+10*(Math.abs(VecDirList[player.direction][0])),
+                TILESIZE*2
             );
+            
             //1/20周期
             player.setAnimFrameClockDiv(2);
             if (player.animFrameSumByClock >= 1) /* 0.2 sec */ {
