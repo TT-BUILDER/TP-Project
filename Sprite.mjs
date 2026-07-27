@@ -1547,7 +1547,7 @@ export class Boss extends Enemy {
                                 break;
                             } else {
                                 //高速回転
-                                this.BossState = 8;
+                                this.BossState = 11;
                                 this.forList["i"] = 0;
                                 break;
                             }
