@@ -1079,8 +1079,11 @@ function enemyAction(){
     for (let i = 0; i < AcEn.length; i++) {
         let npc = AcEn[i];
         //本来はdoEnemyAction()が入る。
-
-        npc.EnemyAction(NowMapCollision,TILESIZE);
+        if (NowBoss != 0 && NowBoss.BossState == "died") {
+            npc.Unactivate();
+        } else {
+            npc.EnemyAction(NowMapCollision,TILESIZE);
+        }
 
         /*
         npc.EnMove(NowMapCollision,TILESIZE);

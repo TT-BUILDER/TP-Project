@@ -906,7 +906,7 @@ export class Enemy extends sprite {
                             0,
                             TILESIZE/2,
                             TILESIZE/2,
-                            TILESIZE,
+                            TILESIZE/2,
                             "rocks",
                             randFloat(-4,4)+Math.sign(this.vx)*Math.random()*Math.abs(this.vx),
                             randFloat(-4,4)+Math.sign(this.vy)*Math.random()*Math.abs(this.vy),
@@ -1540,14 +1540,57 @@ export class Boss extends Enemy {
                         if (this.forList["j"] < this.BossMemory["attackNum"]){
                             this.BossState = 5;
                         } else {
-                            if (Math.round(Math.random()) > 0){
+                            if (randInt(0,1) > 0){
+                                console.log("Body Press!");
                                 //飛び上がり
                                 this.BossState = 8;
                                 this.forList["i"] = 0;
                                 break;
                             } else {
+                                console.log("roll Attack!");
                                 //高速回転
-                                this.BossState = 11;
+                                if (
+                                    //左の空きチェック
+                                    hitWallCheck(
+                                        ColMap,
+                                        TILESIZE,
+                                        this.px-(this.sx/2),
+                                        this.py,
+                                        this.sx,
+                                        this.sy
+                                    ) && 
+                                    //右の空きチェック
+                                    hitWallCheck(
+                                        ColMap,
+                                        TILESIZE,
+                                        this.px+(this.sx/2),
+                                        this.py,
+                                        this.sx,
+                                        this.sy
+                                    ) && 
+                                    //下の空きチェック
+                                    hitWallCheck(
+                                        ColMap,
+                                        TILESIZE,
+                                        this.px,
+                                        this.py+(this.sy/2),
+                                        this.sx,
+                                        this.sy
+                                    ) && 
+                                    //上の空きチェック
+                                    hitWallCheck(
+                                        ColMap,
+                                        TILESIZE,
+                                        this.px,
+                                        this.py-(this.sy/2),
+                                        this.sx,
+                                        this.sy
+                                    )
+                                ) {
+                                    this.BossState = 11;
+                                } else {
+                                    this.BossState = 8;
+                                }
                                 this.forList["i"] = 0;
                                 break;
                             }
@@ -2133,11 +2176,10 @@ export class Boss extends Enemy {
             player.sy,
             player.sz
         );
-        if (hitFlag == 1 && this.allive) {
-            player.damage(1,false,true,this.vx,this.vy);
-        }
         if (this.hp <= 0){
             this.BossState = "died";
+        } else if (hitFlag == 1 && this.allive) {
+            player.damage(1,false,true,this.vx,this.vy);
         }
 
         
