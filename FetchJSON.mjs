@@ -1,4 +1,4 @@
-export async function fecthJSON(filePass) {
+export async function fetchJSON(filePass) {
     // data.jsonを読み込む場合
     /*
     fetch('data.json')
@@ -13,10 +13,11 @@ export async function fecthJSON(filePass) {
 
         const data = await res.json();
 
+        console.log(`success to import JSON : ${filePass}`);
         console.log(data);
         return data;
     } catch (error) {
-        console.error(error);
+        console.error(`JSON import error:${error}`);
         return 0;
     }
 }

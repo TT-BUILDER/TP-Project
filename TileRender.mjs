@@ -164,7 +164,7 @@ export class TileRender {
 	 * @param {Number} CamX カメラ座標X
 	 * @param {Number} CamY カメラ座標Y
 	 */
-	RenderMap(CamX,CamY,ShowCollision = false) {
+	RenderMap(CamX,CamY,ShowCollision = false,frameC = 0) {
 		const ca = this.NowCanvas;
 		const ctx = this.NowCTX;
 		const img = this.tileImg;
@@ -183,16 +183,66 @@ export class TileRender {
 				let NowTile = MapRow[ix];
 				let NowCol = ColMapRow[ix];
 				//console.log(NowTile);
-				ctx.drawImage(
-					img,
-					(NowTile % this.T_width)*showSize,
-					(Math.floor(NowTile / this.T_width))*showSize,
-					showSize,
-					showSize,
-					cx+(ix*size),
-					cy+(iy*size),
-					size,
-					size);
+				if (NowTile == 15) {
+					if (frameC == 0){
+						ctx.drawImage(
+							img,
+							(16 % this.T_width)*showSize,
+							(Math.floor(16 / this.T_width))*showSize,
+							showSize,
+							showSize,
+							cx+(ix*size),
+							cy+(iy*size),
+							size,
+							size);
+					} else 
+					if (frameC == 1){
+						ctx.drawImage(
+							img,
+							(17 % this.T_width)*showSize,
+							(Math.floor(17 / this.T_width))*showSize,
+							showSize,
+							showSize,
+							cx+(ix*size),
+							cy+(iy*size),
+							size,
+							size);
+					} else 
+					if (frameC == 2){
+						ctx.drawImage(
+							img,
+							(16 % this.T_width)*showSize,
+							(Math.floor(16 / this.T_width)+1)*showSize,
+							showSize,
+							showSize,
+							cx+(ix*size),
+							cy+(iy*size),
+							size,
+							size);
+					} else {
+						ctx.drawImage(
+							img,
+							(17 % this.T_width)*showSize,
+							(Math.floor(17 / this.T_width)+1)*showSize,
+							showSize,
+							showSize,
+							cx+(ix*size),
+							cy+(iy*size),
+							size,
+							size);
+					}
+				} else {
+					ctx.drawImage(
+						img,
+						(NowTile % this.T_width)*showSize,
+						(Math.floor(NowTile / this.T_width))*showSize,
+						showSize,
+						showSize,
+						cx+(ix*size),
+						cy+(iy*size),
+						size,
+						size);
+				}
 				if (NowCol >0 && ShowCollision) {
 					ctx.fillStyle = "rgb(255 0 0 / 25%)";
 					ctx.fillRect(

@@ -18,6 +18,7 @@ import { mapWidth } from "./EngineMain.mjs";
 import { mapHeight } from "./EngineMain.mjs";
 import { NowBoss } from "./EngineMain.mjs";
 import { deltaVector } from "./EngineMain.mjs";
+import { showTILESIZE } from "./TileRender.mjs";
 let NowCanvas;
 let NowCTX;
 export let isNowBossAnimation = false;
@@ -269,11 +270,16 @@ export class sprite {
         this.px = px;
         this.py = py;
         this.pz = 0;
+        this.visualPX = 0;
+        this.visualPY = 0;
         this.gravity = 1.5;
         this.slowDownV = 2;
         this.sx = sx;
         this.sy = sy;
         this.sz = sz;
+        this.dafaultSX = this.sx;
+        this.dafaultSY = this.sy;
+        this.defaultSZ = this.sz;
         this.type = type;
         this.MaxHp = MHP;
         this.hp = HP;
@@ -317,11 +323,16 @@ export class sprite {
         this.px = px;
         this.py = py;
         this.pz = 0;
+        this.visualPX = 0;
+        this.visualPY = 0;
         this.gravity = 1.5;
         this.slowDownV = 2;
         this.sx = sx;
         this.sy = sy;
         this.sz = sz;
+        this.dafaultSX = this.sx;
+        this.dafaultSY = this.sy;
+        this.defaultSZ = this.sz;
         this.MaxHp = MHP;
         this.hp = HP;
         this.MaxStamina = MST;
@@ -349,6 +360,12 @@ export class sprite {
         this.animFrameSumByClock = 0;
         
     }
+
+    setVisulaPos(px = 0, py = 0){
+        this.visualPX = px;
+        this.visualPY = py;
+    }
+
     /**
      * animationFrameのクリア
      * @param {Number} num セットしたいanimationFrameの値
@@ -392,6 +409,7 @@ export class sprite {
             this.animFrameSumByClock++;
         }
     }
+
     /**
      * 
      * @param {Number} CamX どのカメラを基準に描くかX
@@ -409,15 +427,15 @@ export class sprite {
             this.invisibleTime--;
             if (this.invisibleTime <= 0) this.invisilbe = false;
         }
-        const RenSprX = this.px + CamX;
-        const RenSprY = this.py + CamY + this.pz;        
+        const RenSprX = this.px + CamX + this.visualPX;
+        const RenSprY = this.py + CamY + this.pz + this.visualPY;
         NowCTX.beginPath();
         //影
         if (ShowShadow) {
             let Alpha = 25;//+this.pz*0.2;
             if (Alpha < 0) Alpha = 0;
-            let cx = (this.sx*0.7)-(this.pz*-0.01);
-            let cy = (this.sy/3)-(this.pz*-0.01);
+            let cx = (this.sx*0.7);//-(this.pz*-0.01);
+            let cy = (this.sy/3);//-(this.pz*-0.01);
             if (cx < 0) cx = 0; if (cy < 0) cy = 0;
             NowCTX.fillStyle = `rgb( 0 0 0 / ${Alpha}%)`;
             NowCTX.ellipse(
@@ -432,10 +450,15 @@ export class sprite {
         }
         //本体を描くかどうか
         if (this.showflag && this.invisibleTime % 4 <= 1) {
+            if(showImg){
+                this.myImg.setTrim(imgStX,imgStY,imgSX,imgSY);
+                this.myImg.setSize(this.sx,Math.max(this.sz,this.sy));
+                this.myImg.render(RenSprX,RenSprY-(this.sz/2)+(this.sy/2));
+            }
             //NowCTX.arc(32,32,32,0,Math.PI*2,false);
             if (this.invisibleTime % 4 <= 1) {
                 let RestoreAplha = NowCTX.globalAlpha;
-                NowCTX.globalAlpha = 0.7;
+                NowCTX.globalAlpha = 0.5;
                 NowCTX.fillStyle = style;
                 NowCTX.fillRect(
                     (RenSprX-(this.sx/2)),
@@ -444,11 +467,6 @@ export class sprite {
                     this.sy
                 );
                 NowCTX.globalAlpha = RestoreAplha;
-            }
-            if(showImg){
-                this.myImg.setTrim(imgStX,imgStY,imgSX,imgSY);
-                this.myImg.setSize(this.sx,Math.max(this.sz,this.sy));
-                this.myImg.render(RenSprX,RenSprY);
             }
         }
         //HP
@@ -494,7 +512,6 @@ export class sprite {
     setGravity(gravity){
         this.gravity = gravity;
     }
-
     /**
      * 上方向（Z軸）へジャンプする
      * @param {Number} jump ジャンプの強さ
@@ -502,7 +519,6 @@ export class sprite {
     ZAxisJump(jump){
         this.vz = jump;
     }
-
     ZAxisFall(){
         if ( this.pz+this.vz < 0) {
             this.pz += (this.vz*deltaVector);
@@ -685,6 +701,7 @@ export class sprite {
         this.sz = sz;
     }
 
+
     setCollision(CF){
         this.collisionFlag = CF;
     }
@@ -745,7 +762,6 @@ export class sprite {
         this.MaxStamina = mst;
         this.stamina = st;
     }
-
     setStaminaRelative(add){
         this.stamina += add;
         this.stamina = Math.min(this.MaxStamina,Math.max(0,this.stamina));
@@ -981,9 +997,32 @@ export class Enemy extends sprite {
                     this.memory.unshift(0);
                     this.memory.unshift(0);
                     this.memory.unshift(0);
+                    this.memory.unshift(0);
+                    this.memory.unshift(0);
                 }
                 this.EnMove(ColMap,TILESIZE);
+                const distX = Math.abs(this.px - player.px);
+                const distY = Math.abs(this.py - player.py);    
+                const nowDist = (distX**2+distY**2)**0.5
+                const lastDist = (this.memory[3]**2+this.memory[4]**2)**0.5;
+
+                if (this.hitCheck(
+                    player.px,
+                    player.py,
+                    player.pz,
+                    player.sx,
+                    player.sy,
+                    player.sz
+                ) && nowDist < lastDist){
+
+                    this.setVector(
+                        player.vx*2,
+                        player.vy*2
+                    );
                 
+                }
+                this.memory[3] = distX;
+                this.memory[4] = distY;
 
                 this.setGravity(0.5)
 
@@ -1077,31 +1116,33 @@ export class Enemy extends sprite {
                             NowBoss.sy,
                             NowBoss.sz
                         )){
-                        NowBoss.damage(nowStatus.AP,false,false);
-                        NowBoss.lastBossState = NowBoss.BossState;
-                        NowBoss.BossState = "damage";
-                        /*
-                        this.setVector(
-                            Math.sign(this.px-NowBoss.px)*Math.abs(this.vx),
-                            Math.sign(this.py-NowBoss.py)*Math.abs(this.vy));
-                        this.memory[1] = this.vx;
-                        this.memory[2] = this.vy;
-                        */
-                        for (let i = 0; i<4; i++){
-                            EfM.spawnNPC(
-                                this.px,
-                                this.py,
-                                0,
-                                TILESIZE/2,
-                                TILESIZE/2,
-                                TILESIZE,
-                                "particle_ice",
-                                randFloat(-4,4)+Math.sign(this.vx)*Math.random()*Math.abs(this.vx),
-                                randFloat(-4,4)+Math.sign(this.vy)*Math.random()*Math.abs(this.vy),
-                                -4-Math.random()*2
-                            )
+                        if (!NowBoss.nonDamage) {
+                            NowBoss.damage(nowStatus.AP,false,false);
+                            NowBoss.lastBossState = NowBoss.BossState;
+                            NowBoss.BossState = "damage";
+                            for (let i = 0; i<4; i++){
+                                EfM.spawnNPC(
+                                    this.px,
+                                    this.py,
+                                    0,
+                                    TILESIZE/2,
+                                    TILESIZE/2,
+                                    TILESIZE,
+                                    "particle_ice",
+                                    randFloat(-4,4)+Math.sign(this.vx)*Math.random()*Math.abs(this.vx),
+                                    randFloat(-4,4)+Math.sign(this.vy)*Math.random()*Math.abs(this.vy),
+                                    -4-Math.random()*2
+                                )
+                            }
+                            this.Unactivate();
+                        } else {
+                            this.setVector(
+                                Math.sign(this.px-NowBoss.px)*Math.abs(this.vx),
+                                Math.sign(this.py-NowBoss.py)*Math.abs(this.vy)
+                            );
+                            this.memory[1] = this.vx;
+                            this.memory[2] = this.vy;
                         }
-                        this.Unactivate();
                     }
                 }
                 break;
@@ -1278,6 +1319,12 @@ export class Effect extends sprite {
                 }
 
                 break;
+            case "particle_leef":
+                break;
+            case "boss_wood_leef":
+                this.fallOK = false;
+                //this.pz = NowBoss.pz+showTILESIZE*8;
+                break;
             default:
                 this.Unactivate();
                 console.error(`Error : Undefined Enemy's property "type": "${this.type}"`)
@@ -1301,6 +1348,9 @@ export class Boss extends Enemy {
      */
     constructor(px,py,sx,sy,sz,type,MHP = 100,HP = MHP){
         super(px,py,sx,sy,sz,type,MHP,HP,true);
+        this.dafaultSX = this.sx;
+        this.dafaultSY = this.sy;
+        this.defaultSZ = this.sz;
         this.allive = true;
         this.fallOK = true;
         //waitメソッド用の変数
@@ -1373,7 +1423,7 @@ export class Boss extends Enemy {
         this.clearMemory();
         this.hp = this.MaxHp;
         isNowBossAnimation = true;
-        this.BossState++;
+        //this.BossState++;
     }
     /**
      * @param {Array} ColMap コリジョンマップ
@@ -1389,6 +1439,7 @@ export class Boss extends Enemy {
                 case 0:
                     this.setPos(this.px,this.py,-360);
                     this.BossInit();
+                    this.BossState++;
                     break;
                 //落下
                 case 1:
@@ -1894,19 +1945,21 @@ export class Boss extends Enemy {
                 //初期化
                 case 0:
                     this.BossInit();
+                    this.BossState++;
                     console.log("Snow Boss Init end");
                     
                     break;
                 //登場アニメーション
                 case 1:
                     console.log("Snow Boss Animation");
-                    this.BossState++;
+                    this.BossState = 4;
                     break;
                 //アニメーション終了
                 case 2:
                     console.log("Snow Boss Animation end");
                     this.BossState++;
                     this.waitFrameReset();
+                    this.animationFrame = 0;
                     this.BossMemory["throwCounter"] = 20 - ((this.hp <= this.MaxHp/2)*5);
                     break;
                 //通常モーション
@@ -1950,33 +2003,39 @@ export class Boss extends Enemy {
                     console.log(tNPC);
                     */
                     this.waitFrame(80);
-                    let cycle = Math.floor(80-((this.hp <= this.MaxHp/2)*20));
+                    let cycle = Math.floor(40-((this.hp <= this.MaxHp/2)*10));
                     let dist = ((this.px-player.px)**2+(this.py-player.py)**2)**0.5;
                     if (this.waitFrameC%(cycle/4) == 0){
-                        if (this.animationFrame >= 4){
+                        if (this.animationFrame < 4){
                             this.animationFrame++;
                         } else {
                             this.animationFrame = 0;
                         }
-                        //console.log(`now animationFrame : ${this.animationFrame}`);
-                    }
-                    if (this.waitFrameC%cycle == cycle/10){
-                        EnM.spawnNPC(
-                            this.px,
-                            this.py,
-                            0,
-                            TILESIZE*2/3,
-                            TILESIZE*2/3,
-                            TILESIZE*2/3,
-                            "throwSnow",
-                            (player.px-this.px+randFloat(-1,1)*4)/dist*6,
-                            (player.py-this.py+randFloat(-1,1)*4)/dist*6,
-                            -randFloat(0.5,1.5)*dist/(TILESIZE*3)
-                        );
+                        console.log(`now animationFrame : ${this.animationFrame}`);
                         
-                        this.BossMemory["throwCounter"]--;
+                        if (this.animationFrame == 4){
+                            EnM.spawnNPC(
+                                this.px,
+                                this.py,
+                                0,
+                                TILESIZE,
+                                TILESIZE,
+                                TILESIZE,
+                                "throwSnow",
+                                (player.px-this.px+randFloat(-1,1)*4)/dist*6,
+                                (player.py-this.py+randFloat(-1,1)*4)/dist*6,
+                                -randFloat(0.5,1.5)*dist/(TILESIZE*3)
+                            );
+                            console.log("throw!");
+                            this.BossMemory["throwCounter"]--;
+                        }
                     }
-                    if (this.BossMemory["throwCounter"] <= 0 || randInt(0,(this.hp <= this.MaxHp/2)*3) >= 1){
+
+                    if (
+                            this.BossMemory["throwCounter"] <= 0 ||
+                            randInt(0,(this.hp < this.MaxHp/2)) > 0 ||
+                            ((player.px-this.px)**2+(player.py-this.py)**2)**0.5 < this.sx*1.3
+                        ){
                         this.BossState = 4;
                         this.waitFrameReset();
                     }
@@ -1994,7 +2053,7 @@ export class Boss extends Enemy {
                     if (this.waitFrameC >= 40){
                         this.vibrate(-1,2);
                     }
-                    console.log(this.waitFrameC);
+                    
                     break;
                 //ジャンプ！
                 case 5:
@@ -2056,7 +2115,10 @@ export class Boss extends Enemy {
                                 0,
                                 [1]
                             );
-                            while (hitWallCheck(ColMap,TILESIZE,tpx,tpy,TILESIZE*1.5,TILESIZE*1.5)){
+                            while (
+                                hitWallCheck(ColMap,TILESIZE,tpx,tpy,TILESIZE*1.5,TILESIZE*1.5) ||
+                                this.hitCheck(tpx,tpy,0,TILESIZE*2,TILESIZE*2,TILESIZE*2)
+                            ){
                                 [tpx,tpy] = [
                                         randInt(0,mapWidth*TILESIZE),
                                         randInt(0,mapHeight*TILESIZE)
@@ -2136,10 +2198,63 @@ export class Boss extends Enemy {
                     this.BossState = 4;
                     this.waitFrameReset();
                     break;
-                case "died":
+                case "died":;
+                    const constantDieC = 200;
+                    const mult = (constantDieC-this.forList["i"])/constantDieC;
+                    this.vibrate(-3*mult,3*mult);
+                    if (this.forList["i"] % 5 == 0){
+                        EfM.spawnNPC(
+                            this.px,
+                            this.py,
+                            this.pz,
+                            TILESIZE*4/5*mult,
+                            TILESIZE*4/5*mult,
+                            TILESIZE*4/5*mult,
+                            "particle_snow",
+                            randFloat(-TILESIZE/3,TILESIZE/3)*(1+mult)/2,
+                            randFloat(-TILESIZE/3,TILESIZE/3)*(1+mult)/2,
+                            randFloat(-TILESIZE/2,0)*(1+mult)/2
+                        );
+                    }
+                    this.setSize(this.dafaultSX*mult,this.dafaultSY*mult,this.defaultSZ*mult);
 
+                    this.forList["i"]++;
+                    if (this.forList["i"] > constantDieC){
+                        this.allive = false;
+                    }
                     break;
                 //異常終了
+                default:
+                    console.error(`Error BossSate is : "${this.BossState}" Unkown State `);
+                    this.BossState = 0;
+                    this.clearForList();
+                    this.clearMemory();
+                    this.setVector(0,0,0);
+                    break;
+            }
+        } else if (this.type == "Wood"){
+            this.nonDamage = true;
+            switch (this.BossState) {
+                //初期化
+                case 0:
+                    this.BossInit();
+                    //console.log("wood Boss Init end");
+                    EfM.spawnNPC(
+                        this.px,
+                        this.py,
+                        -this.sz,
+                        this.sx*4,
+                        this.sy,
+                        this.sz/3,
+                        "boss_wood_leef"
+                    );
+                    this.BossState++;
+                    break;
+                //登場アニメーション
+                case 1:
+                    //console.log("wood Boss Animation");
+                    //this.BossState++;
+                    break;
                 default:
                     console.error(`Error BossSate is : "${this.BossState}" Unkown State `);
                     this.BossState = 0;
