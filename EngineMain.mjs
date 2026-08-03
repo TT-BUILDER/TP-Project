@@ -664,11 +664,15 @@ async function StageSet(stageName){
     player.setSlowDownV(3);
     player.setGravity(0.7);
     EnM.Enable();
-    await AuM.play("Map1_Battle",{
+
+    // AudioContext の resume がユーザー入力待ちになる場合でも、
+    // その間にボス生成やステージ設定を続けられるように非同期処理を待たない。
+    void AuM.play("Map1_Battle", {
         volume : 1,
         pan : 0.0,
         loop: true
     });
+
     if (NowMapJSON["isThereBoss"] == true) {
         const temp = await fetchJSON(NowMapJSON["BossPass"]); 
         NowBoss = new Boss(
