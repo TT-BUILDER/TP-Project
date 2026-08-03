@@ -461,19 +461,21 @@ const promise = new Promise( async function(resolve,reject) {
             //console.log("pressed : "+event.key);
 
         });
-
+        //VS code's AI
         window.addEventListener("pointerdown", () => {
             if (isUserGesture == "yet") {
                 isUserGesture = "action";
             }
         }, { passive: true });
 
+        //VS code's AI
         window.addEventListener("mousedown", () => {
             if (isUserGesture == "yet") {
                 isUserGesture = "action";
             }
         }, { passive: true });
 
+        //VS code's AI
         window.addEventListener("touchstart", () => {
             if (isUserGesture == "yet") {
                 isUserGesture = "action";
@@ -548,7 +550,7 @@ export function screenSetOffset(px = 0,py = 0){
 async function init (){
 
     //ステージの呼び出し
-    await mainStage.changeStage("Map_1");
+    await mainStage.changeStage("Map_2");
     //player.setPos(9/2*TILESIZE,8/2*TILESIZE);
     //NowBoss.setPos(TR.MapWidth/3*TILESIZE,TR.MapHeight/3*TILESIZE,0)
 
@@ -665,6 +667,7 @@ async function StageSet(stageName){
     player.setGravity(0.7);
     EnM.Enable();
 
+    //VS code's AI
     // AudioContext の resume がユーザー入力待ちになる場合でも、
     // その間にボス生成やステージ設定を続けられるように非同期処理を待たない。
     void AuM.play("Map1_Battle", {
@@ -753,7 +756,7 @@ function RenderCanvas(){
     ctx.globalAlpha = 1;
     //バッファの内容を実際のcanvasへ転送
     ctx.drawImage(ScreenB,0,0,ScWidth,ScHeight,0,0,canvas.width,canvas.height);
-
+    
     if (isUserGesture == "yet" || isUserGesture == "action") {
         ctx.save();
         ctx.font = "20px monospace";
@@ -763,6 +766,7 @@ function RenderCanvas(){
         ctx.fillText("Please click screen or Press any key...", canvas.width / 2, canvas.height - 28);
         ctx.restore();
     }
+    
 }
 function RenderPlayer(){
 
