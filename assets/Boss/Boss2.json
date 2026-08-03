@@ -4,5 +4,6 @@
     "sizeX" : 2,
     "sizeY" : 2,
     "sizeZ" : 3,
-    "status" : [20,0,56,13,40,40]
+    "status" : [20,0,56,13,40,50],
+    "BGM" : "Map1_Battle"
 }

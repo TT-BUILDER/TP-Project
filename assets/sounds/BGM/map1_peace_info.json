@@ -1,0 +1,7 @@
+{
+    "intro" : true,
+    "loop" : true,
+    "type" : "BGM",
+    "file" : "map1_peace.wav",
+    "fileIntro" : "map1_peace_intro.wav"
+}

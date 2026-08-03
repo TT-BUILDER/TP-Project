@@ -1,6 +1,6 @@
 //"use strict";
 import { Images } from "./ImgLoader.mjs";                                   //イメージクラス
-import { fecthJSON } from "./FetchJSON.mjs";                                //JSONファイルの読み取り関数
+import { fetchJSON } from "./FetchJSON.mjs";                                //JSONファイルの読み取り関数
 //タイルレンダリング
 import { showTILESIZE, TileRender } from "./TileRender.mjs";                //タイルレンダークラス
 import { TILESIZE } from "./TileRender.mjs";                                //タイルサイズ定数
@@ -13,6 +13,12 @@ import { Effect } from "./Sprite.mjs";                                      //�
 import { EffectManager } from "./Sprite.mjs";                               //エフェクトマネジメントクラス
 import { Boss } from "./Sprite.mjs";                                        //ボスクラス
 import { isNowBossAnimation } from "./Sprite.mjs";                          //ボスアニメーションフラグ
+/*
+import { audio } from "./audioPlayer.mjs";                                 //オーディオクラス
+import { audioCTX } from "./audioPlayer.mjs";                               //オーディオコンテキスト
+*/
+import { audio } from "./AudioPlay.mjs";                                 //オーディオクラス
+
 
 //読み込みフラグオン
 let loading = 1;
@@ -31,6 +37,8 @@ ctx.fillStyle = "rgb(0,0,0)";
 ctx.font = `${TextSize}px monospace`;
 ctx.textBaseline = "hanging";
 ctx.fillText("Now Loading... Please wait a moment.",0,0);
+ctx.textAlign = "left";
+ctx.textBaseline = "alphabetic";
 
 const canvasDefaultMult = 1;                                //デフォルト拡大値
 let canvasMult = canvasDefaultMult;                         //キャンバスの拡大比
@@ -299,6 +307,8 @@ export const Maps = {};
 export const MapCollisions = {};
 export const MapJSONs = {};
 
+//ユーザーがアクションを起こしたかどうか
+export let isUserGesture = "yet";
 
 //今ロードされているマップ、コリジョンデータ
 let NowMap;
@@ -307,7 +317,7 @@ let NowMapJSON;
 export let NowBoss;
 
 //不要。デバッグ用
-let DebugFrameC = 0;
+let frameC = 0;
 
 //キー入力関連
 const Keys = {};
@@ -327,7 +337,7 @@ export const VecDirList = [
 export const img = new Images();                                 //イメージインスタンス
 export const IR = new imgRender(ScreenB,ScB);                    //イメージレンダークラス
 //なにもない（null）に割り当てる画像の読み込み
-await img.AddImg("null","./assets/tiles/0.png");
+await img.AddImg("null","./assets/tiles/nullImage.png");
 
 
 //export let pla_Anim_
@@ -338,9 +348,11 @@ export const EfM = new EffectManager(200);
 
 //メイン関係のオブジェクト
 const TR = new TileRender(ScreenB,ScB);                     //タイルレンダーインスタンス
+export const AuM = new audio();                             //オーディオインスタンス
+const audioInfo = {};
 //拡大率変更
-TR.TILESIZEUpdate(24,32);
-export let deltaVector = 24/32;
+TR.TILESIZEUpdate(32,32);
+export let deltaVector = showTILESIZE/32;
 export let mapWidth = 0;
 export let mapHeight = 0;
 export const keyInput = new key();                                 //キー入力の保持
@@ -398,19 +410,23 @@ const promise = new Promise( async function(resolve,reject) {
 
         //デバッグステージのデータ読み込み（「Debug」として追加）
         //マップデータはJSONファイルから先に読む（TileRenderクラスのnewLoadMapメソッドがJSONファイルを利用するため）
-        MapJSONs["Map_1"] = await fecthJSON("./assets/maps/Map1.json");
+        MapJSONs["Map_1"] = await fetchJSON("./assets/maps/Map1.json");
         Maps["Map_1"] = await TR.newLoadMap(MapJSONs["Map_1"],"./assets/maps/Map1.txt");
         MapCollisions["Map_1"] = await TR.newLoadMap(MapJSONs["Map_1"],"./assets/maps/Map1_C.txt");
         
-        MapJSONs["Map_2"] = await fecthJSON("./assets/maps/Map2.json");
+        MapJSONs["Map_2"] = await fetchJSON("./assets/maps/Map2.json");
         Maps["Map_2"] = await TR.newLoadMap(MapJSONs["Map_2"],"./assets/maps/Map2.txt");
         MapCollisions["Map_2"] = await TR.newLoadMap(MapJSONs["Map_2"],"./assets/maps/Map2_C.txt");
+
+        MapJSONs["Map_3"] = await fetchJSON("./assets/maps/Map3.json");
+        Maps["Map_3"] = await TR.newLoadMap(MapJSONs["Map_3"],"./assets/maps/Map3.txt");
+        MapCollisions["Map_3"] = await TR.newLoadMap(MapJSONs["Map_3"],"./assets/maps/Map3_C.txt");
         
-        MapJSONs["Debug"] = await fecthJSON("./assets/maps/Debug1.json");
+        MapJSONs["Debug"] = await fetchJSON("./assets/maps/Debug1.json");
         Maps["Debug"] = await TR.newLoadMap(MapJSONs["Debug"],"./assets/maps/Debug1.txt");
         MapCollisions["Debug"] = await TR.newLoadMap(MapJSONs["Debug"],"./assets/maps/Debug1_C.txt");
         
-        MapJSONs["Debug2"] = await fecthJSON("./assets/maps/Debug2.json");
+        MapJSONs["Debug2"] = await fetchJSON("./assets/maps/Debug2.json");
         Maps["Debug2"] = await TR.newLoadMap(MapJSONs["Debug2"],"./assets/maps/Debug2.txt");
         MapCollisions["Debug2"] = await TR.newLoadMap(MapJSONs["Debug2"],"./assets/maps/Debug2_C.txt");
         
@@ -423,11 +439,19 @@ const promise = new Promise( async function(resolve,reject) {
         //タイルチップデータの読み込み
         TR.newLoadImg(img.imgList["MapTip2"]);
 
-
+        /*
+        await AuM.importAudio("Map1_Battle",);
+        audioInfo["Map1_Battle"] = await fetchJSON("./assets/sounds/BGM/map1_battle_info.json");
+        */
+        await AuM.AddAudioFromInfo("Map1_Battle","./assets/sounds/BGM/map1_battle_info.json","./assets/sounds/BGM/");
 
         //どちらもKeys[]にキーを収納している。
         //KeyDownイベント時に押されたキーを格納
         document.addEventListener("keydown", (event) => {
+
+            if (isUserGesture == "yet") {
+                isUserGesture = "action";
+            }
 
             Keys[event.key] = true;
 
@@ -437,6 +461,24 @@ const promise = new Promise( async function(resolve,reject) {
             //console.log("pressed : "+event.key);
 
         });
+
+        window.addEventListener("pointerdown", () => {
+            if (isUserGesture == "yet") {
+                isUserGesture = "action";
+            }
+        }, { passive: true });
+
+        window.addEventListener("mousedown", () => {
+            if (isUserGesture == "yet") {
+                isUserGesture = "action";
+            }
+        }, { passive: true });
+
+        window.addEventListener("touchstart", () => {
+            if (isUserGesture == "yet") {
+                isUserGesture = "action";
+            }
+        }, { passive: true });
 
         //KeyUpイベント時に話されたキーを格納
         document.addEventListener("keyup", (event) => {
@@ -525,8 +567,12 @@ async function init (){
     
 }
 //メインループ
-function main(){
+async function main(){
 
+    
+    if (isUserGesture == "action") {
+       isUserGesture = "done";
+    }
     
     screenSetOffset(0,0);
     //キー入力
@@ -618,8 +664,13 @@ async function StageSet(stageName){
     player.setSlowDownV(3);
     player.setGravity(0.7);
     EnM.Enable();
+    await AuM.play("Map1_Battle",{
+        volume : 1,
+        pan : 0.0,
+        loop: true
+    });
     if (NowMapJSON["isThereBoss"] == true) {
-        const temp = await fecthJSON(NowMapJSON["BossPass"]); 
+        const temp = await fetchJSON(NowMapJSON["BossPass"]); 
         NowBoss = new Boss(
             temp["Position"][0]*(TILESIZE/showTILESIZE),
             temp["Position"][1]*(TILESIZE/showTILESIZE),
@@ -668,14 +719,27 @@ function RenderBuffer(){
     //各自描画処理
     //ステージの描画
     RenderStage();
-    //ボスの描画
-    RenderBoss();
     //エネミーの描画；
     RenderEnemy();
     //エフェクトの描画
     RenderEffect();
-    //プレイヤーの描画
-    RenderPlayer();
+    if (NowBoss != 0){
+        console.log("sort!");
+        if (NowBoss.py <= player.py) {
+            //ボスの描画
+            RenderBoss();
+            //プレイヤーの描画
+            RenderPlayer();
+        } else {
+            //プレイヤーの描画
+            RenderPlayer();
+            //ボスの描画
+            RenderBoss();
+        }
+    } else {
+        //プレイヤーの描画
+        RenderPlayer();
+    }
     
 }
 //バッファの内容を転送する関数
@@ -686,7 +750,15 @@ function RenderCanvas(){
     //バッファの内容を実際のcanvasへ転送
     ctx.drawImage(ScreenB,0,0,ScWidth,ScHeight,0,0,canvas.width,canvas.height);
 
-
+    if (isUserGesture == "yet" || isUserGesture == "action") {
+        ctx.save();
+        ctx.font = "20px monospace";
+        ctx.fillStyle = "rgba(255,255,255,0.95)";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText("Please click screen or Press any key...", canvas.width / 2, canvas.height - 28);
+        ctx.restore();
+    }
 }
 function RenderPlayer(){
 
@@ -746,27 +818,27 @@ function RenderEffect(){
 function RenderBoss(){
     if (NowBoss != 0) {
         if (NowBoss.nonDamage) {
-            NowBoss.RenderMyself(renderCamera.camX,renderCamera.camY,"green",DebugMode,true,false);
+            NowBoss.RenderMyself(renderCamera.camX,renderCamera.camY,"green",DebugMode,true);
         } else {
-            NowBoss.RenderMyself(renderCamera.camX,renderCamera.camY,"yellow",DebugMode,true,false);
+            NowBoss.RenderMyself(renderCamera.camX,renderCamera.camY,"yellow",DebugMode,true);
         }
     }
 }
 function RenderStage() {
 
-    DebugFrameC++;
+    frameC++;
 
-    if (DebugFrameC >= 360) {
-        DebugFrameC = 0;
+    if (frameC >= 80) {
+        frameC = 0;
     }
 
-    //cameraSet(DebugFrameC,0);
+    //cameraSet(frameC,0);
     //console.log([player.px,player.py]);
     //if (!keyInput.key["c"]) {
         playerCameraSet(1);
     //}
     RenderCameraSet();
-    TR.RenderMap(renderCamera.camX,renderCamera.camY,DebugMode);
+    TR.RenderMap(renderCamera.camX,renderCamera.camY,DebugMode,Math.floor(frameC/20));
 
     //ScB.drawImage(Image.ImgList.get("tile-0"),0,0)
 
@@ -1053,6 +1125,7 @@ function bossAction(){
         if (!NowBoss.allive) {
             NowBoss = 0;
             stageClear = 1;
+            console.log("Boss Died! YaY!!");
         }
     }
 }
