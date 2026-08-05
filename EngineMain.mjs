@@ -444,6 +444,7 @@ const promise = new Promise( async function(resolve,reject) {
         audioInfo["Map1_Battle"] = await fetchJSON("./assets/sounds/BGM/map1_battle_info.json");
         */
         await AuM.AddAudioFromInfo("Map1_Battle","./assets/sounds/BGM/map1_battle_info.json","./assets/sounds/BGM/");
+        await AuM.AddAudioFromInfo("Map2_Peace","./assets/sounds/BGM/map2_peace_info.json","./assets/sounds/BGM/");
 
         //どちらもKeys[]にキーを収納している。
         //KeyDownイベント時に押されたキーを格納
@@ -667,15 +668,7 @@ async function StageSet(stageName){
     player.setGravity(0.7);
     EnM.Enable();
 
-    //VS code's AI
-    // AudioContext の resume がユーザー入力待ちになる場合でも、
-    // その間にボス生成やステージ設定を続けられるように非同期処理を待たない。
-    void AuM.play("Map1_Battle", {
-        volume : 1,
-        pan : 0.0,
-        loop: true
-    });
-
+    
     if (NowMapJSON["isThereBoss"] == true) {
         const temp = await fetchJSON(NowMapJSON["BossPass"]); 
         NowBoss = new Boss(
@@ -687,9 +680,18 @@ async function StageSet(stageName){
             temp["Name"],
             temp["status"][5]
         );
+        //VS code's AI
+        // AudioContext の resume がユーザー入力待ちになる場合でも、
+        // その間にボス生成やステージ設定を続けられるように非同期処理を待たない。
+        void AuM.play(temp["BGM"], {
+            volume : 1,
+            pan : 0.0,
+            loop: true
+        });
     } else {
         NowBoss = 0;
     }
+    
     //player.setPos(TR.MapWidth/2*TILESIZE,TR.MapHeight/2*TILESIZE);
 }
 //canvasのサイズをウィンドウに合わせて変える関数

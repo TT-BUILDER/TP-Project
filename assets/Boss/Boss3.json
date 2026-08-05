@@ -1,6 +1,6 @@
 {
     "Name" : "Wood",
-    "Position" : [512,224],
+    "Position" : [512,96],
     "sizeX" : 3,
     "sizeY" : 3,
     "sizeZ" : 4,
