@@ -183,7 +183,7 @@ export class TileRender {
 				let NowTile = MapRow[ix];
 				let NowCol = ColMapRow[ix];
 				//console.log(NowTile);
-				if (NowTile == 15) {
+				if (NowTile == 16) {
 					if (frameC == 0){
 						ctx.drawImage(
 							img,

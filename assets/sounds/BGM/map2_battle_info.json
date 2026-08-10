@@ -1,0 +1,7 @@
+{
+    "intro" : false,
+    "loop" : true,
+    "type" : "BGM",
+    "file" : "map2_battle.wav",
+    "fileIntro" : null
+}

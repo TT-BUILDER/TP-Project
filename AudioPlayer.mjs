@@ -1,3 +1,15 @@
+/*
+    使用しないこと
+
+
+
+
+
+
+
+
+
+*/
 import { fetchJSON } from "./FetchJSON.mjs";
 export const audioCTX = new (window.AudioContext || window.webkitAudioContext)();
 

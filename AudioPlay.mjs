@@ -1,5 +1,5 @@
 /*
-    VS code's AI code. It's very good!
+    It's all written by VS code's AI. It's very good!
     wrote in 2026/08/03
 */
 

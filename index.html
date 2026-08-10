@@ -6,26 +6,30 @@
         <link rel="icon" href="data:,">
         <!--上記のアイコンは仮表示。のちに正しいものをセットする-->
         <!--
-        <script type="module" src="ImageLoader.mjs" defer></script>
+            今は亡きImageLoader（開発初期版）
+            <script type="module" src="ImageLoader.mjs" defer></script>
         -->
         <script type="module" src="FetchJSON.mjs"defer></script>
         <script type="module" src="TileRender.mjs" defer></script>
         <script type="module" src="ImgLoader.mjs" defer></script>
         <script type="module" src="ImgRender.mjs" defer></script>
-        <!--AudioPlayer.mjsは機能しない。なぜなら未完成だからである-->
-        <!--<script type="module" src="AudioPlayer.mjs" defer></script>-->
+        <!--
+            AudioPlayer.mjsは機能しない。なぜなら未完成だからである
+            <script type="module" src="AudioPlayer.mjs" defer></script>
+        -->
         <script type="module" src="AudioPlay.mjs" defer></script>
+        <script type="module" src="UI.mjs" defer></script>
         <script type="module" src="EngineMain.mjs" defer></script>
         <script type="module" src="Sprite.mjs" defer></script>
     </head>
     <body>
-        <canvas id = "GameCanvas" width = "640" Height = "480"></canvas>
+        <canvas id = "GameCanvas" width = "720" Height = "540"></canvas>
         <p>
             ＜操作方法＞<br>
-            WASDまたは矢印キーで操作<br>
-            Zキーで攻撃のテスト<br>
-            Xキーでジャンプ<br>
-            Cキーでステップ
+            矢印キー または ＷＡＳＤ で操作<br>
+            Zキー で攻撃<br>
+            Xキー でジャンプ<br>
+            Cキー でステップ
         </p>
         
     </body>

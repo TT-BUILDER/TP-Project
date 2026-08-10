@@ -3,4 +3,4 @@
     "Direction" : 0, 
     "isThereBoss" : true, 
     "BossPass" : "./assets/Boss/Boss2.json", 
-    "Description" : "メッセージ。あとで変えてね。" }
+    "Description" : "雪山のボス。ステージ、ボスともに完成。" }

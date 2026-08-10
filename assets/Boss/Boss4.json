@@ -1,0 +1,9 @@
+{
+    "Name" : "Water",
+    "Position" : [512,96],
+    "sizeX" : 4,
+    "sizeY" : 2,
+    "sizeZ" : 3,
+    "status" : [20,0,56,13,40,45],
+    "BGM" : "Map1_Battle"
+}

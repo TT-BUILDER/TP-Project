@@ -1,4 +1,4 @@
-import { EfM, randInt } from "./EngineMain.mjs";
+import { EfM, randInt, TextSize, toFadeStage } from "./EngineMain.mjs";
 import { randFloat } from "./EngineMain.mjs";
 import { radians } from "./EngineMain.mjs";
 import { degrees } from "./EngineMain.mjs";
@@ -18,7 +18,30 @@ import { mapWidth } from "./EngineMain.mjs";
 import { mapHeight } from "./EngineMain.mjs";
 import { NowBoss } from "./EngineMain.mjs";
 import { deltaVector } from "./EngineMain.mjs";
+import { DebugMode } from "./EngineMain.mjs";
+import { isPause } from "./EngineMain.mjs";
+import { textRenderRequestList } from "./EngineMain.mjs";
+import { BtoCRatioX } from "./EngineMain.mjs";
+import { BtoCRatioY } from "./EngineMain.mjs";
+import { enableGoStageList } from "./EngineMain.mjs";
+import { mapDescriptionList } from "./EngineMain.mjs";
+import { sendSCRequest } from "./EngineMain.mjs";
+import { setContext } from "./UI.mjs";
+import { setTextBuffer } from "./UI.mjs";
+import { setTextStyle } from "./UI.mjs";
+import { setTextSize } from "./UI.mjs";
+import { clearTextBuffer } from "./UI.mjs";
+import { deleteTextBuffer } from "./UI.mjs";
+import { renderUI } from "./UI.mjs";
+import { renderText } from "./UI.mjs";
+import { rendertxtBuffer } from "./UI.mjs";
+import { getStr } from "./UI.mjs";
+import { putStr } from "./UI.mjs";
+import { textWrite } from "./UI.mjs";
+
+import { TILESIZE } from "./TileRender.mjs";
 import { showTILESIZE } from "./TileRender.mjs";
+
 let NowCanvas;
 let NowCTX;
 export let isNowBossAnimation = false;
@@ -274,6 +297,7 @@ export class sprite {
         this.visualPY = 0;
         this.gravity = 1.5;
         this.slowDownV = 2;
+        this.minus = 0;
         this.sx = sx;
         this.sy = sy;
         this.sz = sz;
@@ -295,8 +319,12 @@ export class sprite {
         this.vx = 0;
         this.vy = 0;
         this.vz = 0;
+        this.inWater = false;
+        this.waterRegist = 1;
         this.nonDamage = false;
         this.VLOCK = false;
+        this.OVLOCK = false;
+        this.EVLOCK = false;
         //ダメージ関係
         this.invisilbe = false;
         //フレーム単位
@@ -327,6 +355,7 @@ export class sprite {
         this.visualPY = 0;
         this.gravity = 1.5;
         this.slowDownV = 2;
+        this.minus = 0;
         this.sx = sx;
         this.sy = sy;
         this.sz = sz;
@@ -347,7 +376,12 @@ export class sprite {
         this.vx = 0;
         this.vy = 0;
         this.vz = 0;
+        this.inWater = false;
+        this.waterRegist = 1;
         this.nonDamage = false;
+        this.VLOCK = false;
+        this.OVLOCK = false;
+        this.EVLOCK = false;
         //ダメージ関係
         this.invisilbe = false;
         //フレーム単位
@@ -452,7 +486,8 @@ export class sprite {
         if (this.showflag && this.invisibleTime % 4 <= 1) {
             if(showImg){
                 this.myImg.setTrim(imgStX,imgStY,imgSX,imgSY);
-                this.myImg.setSize(this.sx,Math.max(this.sz,this.sy));
+                //this.myImg.setSize(this.sx,Math.max(this.sz,this.sy));
+                this.myImg.setSize(this.sx,this.sz);
                 this.myImg.render(RenSprX,RenSprY-(this.sz/2)+(this.sy/2));
             }
             //NowCTX.arc(32,32,32,0,Math.PI*2,false);
@@ -469,39 +504,47 @@ export class sprite {
                 NowCTX.globalAlpha = RestoreAplha;
             }
         }
+        
         //HP
         if (ShowHP) {
             //NowCTX.fillStyle = "white";
+            
             NowCTX.fillStyle = "red";
-            NowCTX.font = "14px monospace";
-            NowCTX.fillText(`HP:${this.hp},Dir:${this.direction}`,RenSprX-this.sx*2,RenSprY+this.sy+10);
-            NowCTX.fillText(`vx:${this.vx.toFixed(2)},vy:${this.vy.toFixed(2)},vz:${this.vz.toFixed(2)}`,RenSprX-this.sx*2,RenSprY+this.sy+25);
+            if (DebugMode){
+                NowCTX.textAlign = "center";
+                NowCTX.textBaseline = "middle";
+                NowCTX.font = `${14*deltaVector}px monospace`;
+                NowCTX.fillText(`HP:${this.hp},Dir:${this.direction}`,RenSprX,RenSprY+this.sy+(10*deltaVector));
+                NowCTX.fillText(`vx:${this.vx.toFixed(2)},vy:${this.vy.toFixed(2)},vz:${this.vz.toFixed(2)}`,RenSprX,RenSprY+this.sy+(25*deltaVector));
+                NowCTX.fillText(`px:${this.px.toFixed(2)},py:${this.py.toFixed(2)},pz:${this.pz.toFixed(2)}`,RenSprX,RenSprY+this.sy+(40*deltaVector));
+            }
+            
             NowCTX.fillRect(
                 RenSprX-(this.sx*0.6),
-                RenSprY-this.sy*0.6-12,
+                RenSprY-this.sy*0.6-12*deltaVector,
                 this.sx*1.2,
-                6
+                6*deltaVector
             );
             NowCTX.fillStyle = "rgb(0, 255, 0)";
             NowCTX.fillRect(
                 RenSprX-(this.sx*0.6),
-                RenSprY-this.sy*0.6-12,
+                RenSprY-this.sy*0.6-12*deltaVector,
                 (this.sx*1.2)*(this.hp/this.MaxHp),
-                6
+                6*deltaVector
             );
             NowCTX.fillStyle = "red";
             NowCTX.fillRect(
                 RenSprX-(this.sx*0.6),
-                RenSprY-this.sy*0.6-21,
+                RenSprY-this.sy*0.6-21*deltaVector,
                 this.sx*1.2,
-                6
+                6*deltaVector
             );
             NowCTX.fillStyle = "rgb(0, 128, 255)";
             NowCTX.fillRect(
                 RenSprX-(this.sx*0.6),
-                RenSprY-this.sy*0.6-21,
+                RenSprY-this.sy*0.6-21*deltaVector,
                 (this.sx*1.2)*(this.stamina/this.MaxStamina),
-                6
+                6*deltaVector
             );
             
         }
@@ -521,8 +564,8 @@ export class sprite {
     }
     ZAxisFall(){
         if ( this.pz+this.vz < 0) {
-            this.pz += (this.vz*deltaVector);
-            this.vz += this.gravity;
+            this.pz += (this.vz*deltaVector*this.waterRegist);
+            this.vz += this.gravity*this.waterRegist;
         } else {
             this.collisionState = this.collisionState | 0b10000;
             this.pz = 0; this.vz = 0;
@@ -538,11 +581,12 @@ export class sprite {
      * @param {Number} py ポジションY
      * @returns {Boolean} 当たったかどうかをブール値で返す
      */
-    doCollision(ColMap,TILESIZE,px,py){
-        const ltx = Math.floor((px-(this.sx/2))/TILESIZE);
-        const rtx = Math.floor((px+(this.sx/2)-1)/TILESIZE);
-        const uty = Math.floor((py-(this.sy/2))/TILESIZE);
-        const dty = Math.floor((py+(this.sy/2)-1)/TILESIZE);
+    doCollision(ColMap,TILESIZE,px,py,minus){
+
+        const ltx = Math.floor((px-(this.sx/2)+minus)/TILESIZE);
+        const rtx = Math.floor((px+(this.sx/2)-1-minus)/TILESIZE);
+        const uty = Math.floor((py-(this.sy/2)+minus)/TILESIZE);
+        const dty = Math.floor((py+(this.sy/2)-1-minus)/TILESIZE);
 
         for (let iy = uty; iy <= dty; iy++){
 
@@ -571,24 +615,36 @@ export class sprite {
     move(ColMap,TILESIZE,vx = this.vx,vy = this.vy,fallOK = true){
         
         if (!this.stop) {
+
             //当たり判定ステートの初期化
             //Floor, Top, Left, Right, Bottom
             //F + UDLR
             this.collisionState = 0;
 
+
+            let [advx,advy] = [vx*deltaVector,vy*deltaVector];
+            if (this.inWater){
+                [advx,advy] = [vx*deltaVector*this.waterRegist,vy*deltaVector*this.waterRegist];
+                this.waterRegist = 0.25;
+            } else {
+            this.waterRegist = 1;
+
+            }
+            //this.minus = TILESIZE/4*(this.type == "player" && this.direction%2 == 1);
+
             //ベクトルX分動かす
-            this.px = this.px + (vx*deltaVector);
+            this.px = this.px + advx;
             //コリジョンXチェック
             if (this.collisionFlag) {
-                if (this.doCollision(ColMap,TILESIZE,this.px,this.py)) {
+                if (this.doCollision(ColMap,TILESIZE,this.px,this.py,this.minus)) {
                     if (vx < 0) {
                         const ltx = Math.floor((this.px-(this.sx/2))/TILESIZE);
-                        this.px = (ltx+1)*TILESIZE+(this.sx/2);
+                        this.px = (ltx+1)*TILESIZE+(this.sx/2)-this.minus;
                         this.collisionState = this.collisionState | 0b00010;
                         this.vx = 0;
                     } else if (vx > 0) {
                         const rtx = Math.ceil((this.px+(this.sx/2))/TILESIZE);
-                        this.px = (rtx-1)*TILESIZE-(this.sx/2);
+                        this.px = (rtx-1)*TILESIZE-(this.sx/2)+this.minus;
                         this.collisionState = this.collisionState | 0b00001;
                         this.vx = 0;
                     }
@@ -596,18 +652,18 @@ export class sprite {
             }
 
             //ベクトルY分動かす
-            this.py = this.py + (vy*deltaVector);
+            this.py = this.py + advy;
             //コリジョンYチェック
             if (this.collisionFlag){
-                if (this.doCollision(ColMap,TILESIZE,this.px,this.py)) {
+                if (this.doCollision(ColMap,TILESIZE,this.px,this.py,this.minus)) {
                     if (vy < 0) {
                         const uty = Math.floor((this.py-(this.sy/2))/TILESIZE);
-                        this.py = (uty+1)*TILESIZE+(this.sy/2);
+                        this.py = (uty+1)*TILESIZE+(this.sy/2)-this.minus;
                         this.collisionState = this.collisionState | 0b01000;
                         this.vy = 0;
                     } else if (vy > 0) {
                         const dty = Math.ceil((this.py+(this.sy/2))/TILESIZE);
-                        this.py = (dty-1)*TILESIZE-(this.sy/2);
+                        this.py = (dty-1)*TILESIZE-(this.sy/2)+this.minus;
                         this.collisionState = this.collisionState | 0b00100;
                         this.vy = 0;
                     }
@@ -636,6 +692,22 @@ export class sprite {
     setSlowDownV(vec){
         this.slowDownV = vec;
     }
+
+    setVectorNoLimit(vx,vy,vz = this.vz,smooth = false,smoothSpeed = 2){
+        if (!smooth){
+            this.vx = vx;
+            this.vy = vy;
+            this.vz = vz;
+        } else {
+            this.vx += fadeIn(this.vx,vx,smoothSpeed);
+            this.vy += fadeIn(this.vy,vy,smoothSpeed);
+            //this.vz += fadeIn(this.vz,vz,smoothSpeed);
+            this.vz = vz;
+        }
+        if (Math.round(this.vx*10) == 0) this.vx = 0;
+        if (Math.round(this.vy*10) == 0) this.vy = 0;
+        if (Math.round(this.vz*10) == 0) this.vz = 0;
+    }
     /**
      * @param {Number} vx セットするベクターX
      * @param {Number} vy セットするベクターY
@@ -644,25 +716,13 @@ export class sprite {
      * @param {Number} smoothSpeed スムージング係数(fadein関数の引数)
      */
     setVector(vx,vy,vz = this.vz,smooth = false,smoothSpeed = 2){
-        if (!this.VLOCK) {
-            if (!smooth){
-                this.vx = vx;
-                this.vy = vy;
-                this.vz = vz;
-            } else {
-                this.vx += fadeIn(this.vx,vx,smoothSpeed);
-                this.vy += fadeIn(this.vy,vy,smoothSpeed);
-                //this.vz += fadeIn(this.vz,vz,smoothSpeed);
-                this.vz = vz;
-            }
-            if (Math.round(this.vx*10) == 0) this.vx = 0;
-            if (Math.round(this.vy*10) == 0) this.vy = 0;
-            if (Math.round(this.vz*10) == 0) this.vz = 0;
+        if (!this.VLOCK && !this.EVLOCK) {
+            this.setVectorNoLimit(vx,vy,vz,smooth,smoothSpeed);
         }
     }
     
     slowDown(slowDownSpeed = this.slowDownV){
-        if (!this.VLOCK) {
+        if (!this.VLOCK && !this.EVLOCK) {
             this.vx += fadeIn(this.vx,0,slowDownSpeed);
             this.vy += fadeIn(this.vy,0,slowDownSpeed);
             if (Math.round(this.vx) == 0) this.vx = 0;
@@ -741,16 +801,16 @@ export class sprite {
      * @param {number} tvy ノックバックベクトルY
      */
     damage(di = 1,slip = false,nkockback = true,tvx = 0,tvy = 0){
-        if (!this.invisilbe || slip){
+        if ((!this.invisilbe && !this.nonDamage) || slip){
             this.hp = this.hp - di
             if (this.hp <= 0) this.hp = 0;
             this.invisibleTime = this.maxInvisibleTime;
             this.invisilbe = true;
             if (!slip && nkockback) {
-                let [vx,vy] = VecDirList[this.direction]
-                vx *= -4, vy *= -4;
-                vx += tvx, vy += tvy;
-                this.setVector(vx,vy);
+                this.setVectorNoLimit(
+                    -1*this.vx+tvx,
+                    -1*this.vy+tvy
+                );
                 this.ZAxisJump(-4);
                 this.VLOCK = true;
             }
@@ -846,7 +906,7 @@ export class Enemy extends sprite {
      * @param {Array} ColMap コリジョンマップ
      * @param {Number} TILESIZE 1タイル当たりのピクセル数
      */
-    EnemyAction(ColMap,TILESIZE){
+    EnemyAction(ColMap,TILESIZE,idx = null){
         switch (this.type) {
             //rocks - 小さい岩。飛ぶ向きはspawn関数の引数に持たせよう
             case "rocks":
@@ -1146,6 +1206,92 @@ export class Enemy extends sprite {
                     }
                 }
                 break;
+            //地面から生える根っこ
+            case "root_spear":
+
+                const dist = ((this.px-player.px)**2+(this.py-player.py)**2)**0.5;
+                /*
+                    idx 0 ... 伸び具合
+                    idx 1 ... 縮みフラグ
+                */
+                if (this.memory.length < 1){
+                    this.maxInvisibleTime = 30;
+                    this.MaxHp = 5;
+                    this.hp = this.MaxHp;
+                    this.memory.unshift(this.sy);
+                    this.memory.unshift(-1);
+                    this.memory.unshift(1);
+                } else {
+                
+                    if (this.memory[1] == -1 || (dist < TILESIZE*4/* && this.memory[1] == 0*/)) {
+                        if (this.memory[0] < 12) {
+                            if(this.memory[0] == 0){
+                                for (let i = 0; i<4; i++){
+                                    EfM.spawnNPC(
+                                        this.px,
+                                        this.py,
+                                        this.pz,
+                                        this.sx/2,
+                                        this.sx/2,
+                                        this.sx/2,
+                                        "particle_leef",
+                                        randFloat(-3,3),
+                                        randFloat(-3,3),
+                                        -12
+                                    )
+                                }
+                            }
+                            this.memory[0]++;
+                        } else {
+                            this.memory[1] = 0;
+                        }
+                    } else {
+                        //this.memory[1] = 1;
+                        if (this.memory[0] > 0) {
+                            this.memory[0]--;
+                        } else {
+                            //this.Unactivate();
+                        }
+                    }
+                }
+
+                this.setSize(this.sx,this.sy,TILESIZE/4*this.memory[0]);
+                this.setSize(this.sx,Math.min(this.memory[2],this.sz));
+
+                this.EnMove(ColMap,TILESIZE);
+                if (this.hitCheck(player.px,player.py,player.pz,player.sx,player.sy,player.sz)){
+                    player.damage(1);
+                    if (!player.EVLOCK) {
+                        player.setVectorNoLimit(
+                            Math.sign(player.px-this.px)*Math.abs(player.vx)*2/3,
+                            Math.sign(player.py-this.py)*Math.abs(player.vy)*2/3
+                        );
+                        if(player.pz >= 0) {
+                            player.ZAxisJump(-4);
+                            player.setPos(player.px,player.py,-1);
+                        }
+                    }
+                    player.EVLOCK = true;
+                }
+                if (player.EVLOCK && player.pz >= 0) {
+                    player.EVLOCK = false;
+                }
+                if (this.hitCheck(
+                    plaAttackAABB.px,
+                    plaAttackAABB.py,
+                    plaAttackAABB.pz,
+                    plaAttackAABB.sx,
+                    plaAttackAABB.sy,
+                    plaAttackAABB.sz,
+                )) {
+                    this.damage(1);
+                    if (this.hp <= 0){
+
+                        this.Unactivate();
+                    }
+                }
+
+                break;
             default:
                 this.Unactivate();
                 console.error(`Error : Undefined Enemy's property "type": "${this.type}"`)
@@ -1232,7 +1378,7 @@ export class Effect extends sprite {
      * @param {Array} ColMap コリジョンマップ
      * @param {Number} TILESIZE 1タイル当たりのピクセル数
      */
-    EffectAction(ColMap,TILESIZE){
+    EffectAction(ColMap,TILESIZE,idx = null){
         switch (this.type) {
             case "sword":
                     if (this.state <= 0) {
@@ -1245,6 +1391,9 @@ export class Effect extends sprite {
                             this.setCollision(0);
                             this.state = 2;
                             this.direction = player.direction;
+                            this.setVector(VecDirList[this.direction][0]*12,VecDirList[this.direction][1]*12);
+                            this.myImg.roll = 45*this.direction;
+                            /*
                         switch (player.direction) {
                             case 0:
                                 this.myImg.roll = 0;
@@ -1281,6 +1430,7 @@ export class Effect extends sprite {
                             default:
                             this.state = 0;
                         }
+                        */
                         //console.log("State 1 is done");
                     } else if (this.state == 2) {
                         //消滅するときの速度
@@ -1320,10 +1470,51 @@ export class Effect extends sprite {
 
                 break;
             case "particle_leef":
+                this.slowDown(6);
+                this.vx += randFloat(-1,1);
+                this.vy += randFloat(-1,1);
+                this.EfMove(ColMap,TILESIZE);
+                if (this.pz >= 0){
+                    this.Unactivate();
+                }
+                if (this.vz >= 0.5) this.vz = 1;
                 break;
             case "boss_wood_leef":
                 this.fallOK = false;
                 //this.pz = NowBoss.pz+showTILESIZE*8;
+                break;
+            case "WarpHole":
+                if (this.memory[0] < 10){
+                    console.log(`generate success : ${this.memory[0]}`);
+                    this.memory[0] = this.memory[0]*10;
+                } else {
+                    const myStage = this.memory/10;
+                    const dist = -this.sx + ((player.px-this.px)**2+(player.py-this.py)**2)**0.5;
+                    const alpha = Math.ceil( 255 / Math.max(1, Math.min(255,2*(dist / (this.sx)) ) ) );
+                    if (myStage != 9){
+                        const canGo = enableGoStageList[myStage-1];
+                        textRenderRequestList[`Ef:${this.type},${idx},1`] = [`${myStage}ステージ入口`, this.px-TextSize*4.5, this.py+this.sy, [255,255,255,alpha]];
+                        textRenderRequestList[`Ef:${this.type},${idx},2`] = [mapDescriptionList[`Map_${myStage}`], this.px-TextSize*(mapDescriptionList[`Map_${myStage}`].length*0.6), this.py+this.sy+TextSize, [255,0,0,alpha]];
+                        if (canGo == 1 && this.hitCheck(
+                            player.px,
+                            player.py,
+                            player.pz,
+                            player.sx/2,
+                            player.sy/2,
+                            player.sz/2
+                        )){
+                            //stageChangeRequest = [`Map_${myStage}`,[1,1,1,254],[0,0,6,-6]];
+                            sendSCRequest([`Map_${myStage}`,[1,1,254,1],[0,0,-3,3]]);
+                        }
+                    } else {
+                        const canGo = enableGoStageList[4];
+                        textRenderRequestList[`Ef:${this.type},${idx},1`] = [`ラスボスステージ入口`, this.px-TextSize*7, this.py+this.sy, [255,255,255,alpha]];
+                        if (canGo != 1){
+                            textRenderRequestList[`Ef:${this.type},${idx},2`] = [`未完成`, this.px-TextSize*1.5, this.py+this.sy+TextSize, [255,0,0,alpha]];
+                        }
+                    }
+                    //renderText(`${this.memory/10}ステージ`,this.px-TextSize*4,this.py-this.sy);
+                }
                 break;
             default:
                 this.Unactivate();
@@ -1413,9 +1604,9 @@ export class Boss extends Enemy {
         //ブリモーション
         this.fallOK = false;
         if (this.pz > 0){
-            this.pz = UY;
+            this.pz = UY*deltaVector;
         } else {
-            this.pz = DY;
+            this.pz = DY*deltaVector;
         }
     }
     BossInit(){
@@ -2252,8 +2443,39 @@ export class Boss extends Enemy {
                     break;
                 //登場アニメーション
                 case 1:
+                    const startDeg = -15;
+                    const endDeg = 195;
+                    this.BossMemory["rootC"] = 8;
+                    for (let i = 0; i<this.BossMemory["rootC"]+1; i++){
+                        let rad = radians(startDeg+((endDeg-startDeg)/this.BossMemory["rootC"]*i));
+                        EnM.spawnNPC(
+                            this.px+((this.sx+TILESIZE)*Math.cos(rad)),
+                            this.py+((this.sy+TILESIZE)*Math.sin(rad)),
+                            0,
+                            TILESIZE,
+                            TILESIZE,
+                            TILESIZE/4,
+                            "root_spear"
+                        );
+                    }
                     //console.log("wood Boss Animation");
-                    //this.BossState++;
+                    this.BossState++;
+                    break;
+                case 2:
+                    EnM.spawnNPC(
+                        this.px,
+                        this.py+TILESIZE*14,
+                        0,
+                        TILESIZE,
+                        TILESIZE,
+                        TILESIZE/4,
+                        "root_spear"
+                    );
+
+                    this.BossState++;
+                    break;
+                case 3:
+
                     break;
                 default:
                     console.error(`Error BossSate is : "${this.BossState}" Unkown State `);
@@ -2263,8 +2485,25 @@ export class Boss extends Enemy {
                     this.setVector(0,0,0);
                     break;
             }
+        } else if (this.type == "Water"){
+            this.nonDamage = true;
+            switch (this.BossState) {
+                //初期化
+                case 0:
+                    this.BossInit();
+                    this.BossState++;
+                    console.log("Water Boss Init end");
+                    
+                    break;
+                default:
+                    console.error(`Error BossSate is : "${this.BossState}" Unkown State `);
+                    this.BossState = 0;
+                    this.clearForList();
+                    this.clearMemory();
+                    this.setVector(0,0,0);
+                    break;
+            }     
         }
-
         //console.log(this.BossState);
 
         if (moveOK){
@@ -2293,10 +2532,23 @@ export class Boss extends Enemy {
         );
         if (this.hp <= 0){
             this.BossState = "died";
-        } else if (hitFlag == 1 && this.allive) {
-            player.damage(1,false,true,this.vx,this.vy);
+        } else if (hitFlag){
+            player.damage(1);
+            if (!player.EVLOCK) {
+                player.setVectorNoLimit(
+                    Math.sign(player.px-this.px)*Math.abs(player.vx)*2/3,
+                    Math.sign(player.py-this.py)*Math.abs(player.vy)*2/3
+                );
+                if(player.pz >= 0) {
+                    player.ZAxisJump(-4);
+                    player.setPos(player.px,player.py,-1);
+                }
+            }
+            player.EVLOCK = true;
         }
-
+        if (player.EVLOCK && player.pz >= 0) {
+            player.EVLOCK = false;
+        }
         
     }
 
