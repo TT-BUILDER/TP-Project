@@ -1,4 +1,4 @@
-import { EfM, randInt, TextSize, toFadeStage } from "./EngineMain.mjs";
+import { EfM, fpsdelta, fpsFrameCount, randInt, TextSize, toFadeStage, VisualDeltaVector } from "./EngineMain.mjs";
 import { randFloat } from "./EngineMain.mjs";
 import { radians } from "./EngineMain.mjs";
 import { degrees } from "./EngineMain.mjs";
@@ -563,14 +563,25 @@ export class sprite {
         this.vz = jump;
     }
     ZAxisFall(){
-        if ( this.pz+this.vz < 0) {
-            this.pz += (this.vz*deltaVector*this.waterRegist);
-            this.vz += this.gravity*this.waterRegist;
+
+        this.vz += this.gravity*fpsdelta*this.waterRegist;
+        if (this.vz > maxFallSpeed){
+            this.vz = maxFallSpeed;
+            console.log("Maximam fallSpeed!");
+        }
+        
+        let dvz = this.vz*deltaVector;
+        if (this.inWater){
+            dvz = this.vz*deltaVector*this.waterRegist;
+        }
+
+        if ( this.pz+dvz < 0) {
+            this.pz += dvz;
         } else {
             this.collisionState = this.collisionState | 0b10000;
-            this.pz = 0; this.vz = 0;
+            this.pz = 0;
+            this.vz = 0;
         }
-        if (this.vz > maxFallSpeed) this.vz = maxFallSpeed;
     }
 
     //外部からの呼び出しは想定されていない
@@ -844,6 +855,7 @@ export class Enemy extends sprite {
     constructor(px,py,sx,sy,sz,type,MHP = 1,HP = MHP,active = false){
         super(px,py,sx,sy,sz,type,MHP,HP);
         this.active = active;
+        this.swordHitF = false;
     }
     /**
      * @param {Number} px ポジションｘ
@@ -898,8 +910,29 @@ export class Enemy extends sprite {
      * @param {Array} ColMap コリジョンマップ
      * @param {Number} TILESIZE 1タイル当たりのピクセル数
      */
-    EnMove(ColMap,TILESIZE,fallOK = true){
+    EnMove(ColMap,TILESIZE,fallOK = true,nkockBack = false){
         this.move(ColMap,TILESIZE,this.vx,this.vy,fallOK);
+        
+        if (this.hitCheck(
+            plaAttackAABB.px,
+            plaAttackAABB.py,
+            plaAttackAABB.pz,
+            plaAttackAABB.sx,
+            plaAttackAABB.sy,
+            plaAttackAABB.sz
+        ) && nkockBack) {
+            if (!this.swordHitF){
+                //this.setVectorNoLimit(-this.vx,-this.vy);
+                //this.ZAxisJump(-4);
+                //this.VLOCK = true;
+                this.damage(0);
+                console.log("ouch! hit!");
+            }
+            this.swordHitF = true;
+        } else {
+            this.swordHitF = false;
+        }
+        
         //console.log([this.vx,this.vy]);
     }
     /**
@@ -922,10 +955,13 @@ export class Enemy extends sprite {
                 break;
             //stone - 地を滑る岩。
             case "stone":
-                this.EnMove(ColMap,TILESIZE);
+                this.EnMove(ColMap,TILESIZE,true,true);
 
                 if (this.collisionState & 0b10000 == 0b10000) {
-                    this.ZAxisJump(-4*Math.random());
+                    this.ZAxisJump(randInt(-4,-6));
+                }
+                if (this.vz >= 0){
+                    this.VLOCK = false;
                 }
 
                 if (this.memory.length < 1){
@@ -933,6 +969,7 @@ export class Enemy extends sprite {
                     //0~1をroundで丸めて符号生成、それに0~1に4をかけてベクトルの大きさを決める。
                     this.memory.unshift(Math.round(-Math.random())*Math.random()*5);
                     this.memory.unshift(Math.round(-Math.random())*Math.random()*5);
+                    
                 }
 
                 this.setVector(this.memory[1],this.memory[2]);
@@ -1028,6 +1065,7 @@ export class Enemy extends sprite {
                     this.memory[0] = 0;
                 }
                 this.EnMove(ColMap,TILESIZE);
+                this.setGravity(1);
                 
                 if (this.hitCheck(player.px,player.py,player.pz,player.sx,player.sy,player.sz)){
                     player.damage(1);
@@ -1214,12 +1252,15 @@ export class Enemy extends sprite {
                     idx 0 ... 伸び具合
                     idx 1 ... 縮みフラグ
                 */
-                if (this.memory.length < 1){
+                if (this.memory.length < 3){
                     this.maxInvisibleTime = 30;
                     this.MaxHp = 5;
                     this.hp = this.MaxHp;
+                    //元のサイズ
                     this.memory.unshift(this.sy);
+                    //長さステート
                     this.memory.unshift(-1);
+                    //現状フラグ
                     this.memory.unshift(1);
                 } else {
                 
@@ -1263,10 +1304,10 @@ export class Enemy extends sprite {
                     player.damage(1);
                     if (!player.EVLOCK) {
                         player.setVectorNoLimit(
-                            Math.sign(player.px-this.px)*Math.abs(player.vx)*2/3,
-                            Math.sign(player.py-this.py)*Math.abs(player.vy)*2/3
+                            VecDirList[player.direction][0]*-4,
+                            VecDirList[player.direction][1]*-4
                         );
-                        if(player.pz >= 0) {
+                        if(player.pz >= 0 && player.hp > 0) {
                             player.ZAxisJump(-4);
                             player.setPos(player.px,player.py,-1);
                         }
@@ -1286,7 +1327,23 @@ export class Enemy extends sprite {
                 )) {
                     this.damage(1);
                     if (this.hp <= 0){
-
+                        for (let i = 0; i<4; i++){
+                            EfM.spawnNPC(
+                                this.px,
+                                this.py,
+                                this.pz,
+                                this.sx/2,
+                                this.sx/2,
+                                this.sx/2,
+                                "particle_leef",
+                                randFloat(-3,3),
+                                randFloat(-3,3),
+                                -12
+                            )
+                        }
+                        if (typeof(this.memory[3]) === "string" && typeof(NowBoss.BossMemory["rootC"]) === "number" && NowBoss.BossMemory["rootC"] > 0){
+                            NowBoss.BossMemory["rootC"]--;
+                        }
                         this.Unactivate();
                     }
                 }
@@ -1315,6 +1372,7 @@ export class Effect extends sprite {
      */
     constructor(px,py,sx,sy,sz,type,MHP = 1,HP = MHP,active = false){
         super(px,py,sx,sy,sz,type,MHP,HP);
+        this.myImg = new imgData(img.imgList["null"]);
         this.active = active;
     }
     /**
@@ -1358,6 +1416,7 @@ export class Effect extends sprite {
         this.nonDamage = false;
         //固有の配列を取得
         this.memory = Memory;
+        this.myImg = new imgData(img.imgList["null"]);
         //console.log([this.vx,this.vy]);
 
     }
@@ -1470,14 +1529,15 @@ export class Effect extends sprite {
 
                 break;
             case "particle_leef":
+                this.setCollision(false);
                 this.slowDown(6);
-                this.vx += randFloat(-1,1);
-                this.vy += randFloat(-1,1);
+                this.vx += randFloat(-2,2);
+                this.vy += randFloat(-2,2);
                 this.EfMove(ColMap,TILESIZE);
                 if (this.pz >= 0){
                     this.Unactivate();
                 }
-                if (this.vz >= 0.5) this.vz = 1;
+                if (this.vz > 1) this.vz = 2;
                 break;
             case "boss_wood_leef":
                 this.fallOK = false;
@@ -1602,11 +1662,13 @@ export class Boss extends Enemy {
      */
     vibrate(UY,DY = UY){
         //ブリモーション
-        this.fallOK = false;
-        if (this.pz > 0){
-            this.pz = UY*deltaVector;
-        } else {
-            this.pz = DY*deltaVector;
+        if (fpsFrameCount%2 == 0){
+            this.fallOK = false;
+            if (this.pz > 0){
+                this.pz = UY*VisualDeltaVector;
+            } else {
+                this.pz = DY*VisualDeltaVector;
+            }
         }
     }
     BossInit(){
@@ -1642,14 +1704,14 @@ export class Boss extends Enemy {
                 //落下衝撃
                 case 2:
                     //forループの代替案
-                    if ( this.forList["i"]<20 ) {
+                    if ( this.forList["i"]<30 ) {
                         screenSetOffsetRand(6,6);
-                    } else if (this.forList["i"]<40) {
+                    } else if (this.forList["i"]<60) {
                         screenSetOffsetRand(2,2);
                     } else {
                         screenSetOffset(0,0)
                     }
-                    if (this.forList["i"]>80) {
+                    if (this.forList["i"]>120) {
                         this.BossState++;
                     }
                     this.forList["i"]++;
@@ -1662,7 +1724,7 @@ export class Boss extends Enemy {
                     break;
                 //謎待機＆いろいろ初期化
                 case 4:
-                    if (this.waitFrame(40)){
+                    if (this.waitFrame(60)){
                         this.BossState++;
                         //攻撃する回数
                         this.BossMemory["attackNum"] = 4+Math.round(Math.random()*2);
@@ -1678,7 +1740,7 @@ export class Boss extends Enemy {
                     break;
                 //ブリつけ中＆突進方向の決定
                 case 5:
-                    if (this.forList["i"] < 80){
+                    if (this.forList["i"] < 120){
                         this.vibrate(-1,2);
                         this.forList["i"]++;
                     } else {
@@ -1736,30 +1798,33 @@ export class Boss extends Enemy {
                             npcVX *= Math.ceil((randFloat(3,4.5)));
                             npcVY *= Math.ceil((randFloat(3,4.5)));
                             //console.log([npcVX,npcVY]);
-                            EnM.spawnNPC(
-                                spX,
-                                spY,
-                                0,
-                                2+(Math.random()*2),
-                                2+(Math.random()*2),
-                                2+(Math.random()*2),
-                                "rocks",
-                                npcVX,
-                                npcVY,
-                                -8+(Math.random()*-7)
-                            );
+                            
                             if (i % 3 == 0) {
                                 EnM.spawnNPC(
                                     StspX,
                                     StspY,
                                     0,
-                                    TILESIZE/2,
-                                    TILESIZE/2,
-                                    TILESIZE/2,
+                                    TILESIZE,
+                                    TILESIZE,
+                                    TILESIZE,
                                     "stone",
                                     npcVX/(2-Math.random()),
                                     npcVY/(2-Math.random()),
-                                    -8+(Math.random()*-7),[0,npcVX/(2-Math.random()),npcVY/(2-Math.random())]
+                                    -8+(Math.random()*-7),
+                                    [0,npcVX/(2-Math.random()),npcVY/(2-Math.random())]
+                                );
+                            } else {
+                                EnM.spawnNPC(
+                                    spX,
+                                    spY,
+                                    0,
+                                    randInt(TILESIZE/4,TILESIZE/2),
+                                    randInt(TILESIZE/4,TILESIZE/2),
+                                    randInt(TILESIZE/4,TILESIZE/2),
+                                    "rocks",
+                                    npcVX,
+                                    npcVY,
+                                    -8+(Math.random()*-7)
                                 );
                             }
                         }
@@ -1772,13 +1837,13 @@ export class Boss extends Enemy {
                 //壁にゲキトツ
                 case 7:
                     this.setVector(0,0,0);
-                    if (this.forList["i"] < 20){
+                    if (this.forList["i"] < 30){
                         screenSetOffsetRand(5,5);
                         this.vibrate(-1,2);
                     } else {
                         screenSetOffsetRand(2,2);
                     }
-                    if (this.forList["i"] > 39){
+                    if (this.forList["i"] > 59){
                         if (this.forList["j"] < this.BossMemory["attackNum"]){
                             this.BossState = 5;
                         } else {
@@ -1843,7 +1908,7 @@ export class Boss extends Enemy {
                     break;
                 //上方へと飛び上がる（case 8 ～ case 10）
                 case 8:
-                    if (this.forList["i"] < 20) {
+                    if (this.forList["i"] < 30) {
                         this.vibrate(-1,2);
                     } else {
                         if (this.pz < -1024){
@@ -1896,13 +1961,13 @@ export class Boss extends Enemy {
                                 "fallRock"
                             );
                         } else
-                        if (this.forList["i"] < 15){
+                        if (this.forList["i"] < 22){
                             screenSetOffsetRand(8,8);
                         } else
-                        if (this.forList["i"] < 30){
+                        if (this.forList["i"] < 45){
                             screenSetOffsetRand(6,6);
                         } else
-                        if (this.forList["i"] < 50){
+                        if (this.forList["i"] < 75){
                             screenSetOffsetRand(3,3);
                         } else {
                             if (hitWallCheck(ColMap,TILESIZE,this.px,this.py,this.sx,this.sy)){
@@ -1921,10 +1986,10 @@ export class Boss extends Enemy {
                 case 10:
                     this.nonDamage = false;
                     this.setVector(0,0,0);
-                    if (this.forList["i"]<240){
-                        if (this.forList["i"]<200){
-                            if ((this.forList["i"]%20) >= 10){
-                                this.pz = 3;
+                    if (this.forList["i"]<260){
+                        if (this.forList["i"]<300){
+                            if ((this.forList["i"]%30) >= 15){
+                                this.pz = 3*VisualDeltaVector;
                             } else {
                                 this.pz = 0;
                             }
@@ -1936,13 +2001,13 @@ export class Boss extends Enemy {
                     break;
                 //高速回転（case 11 ～ case 13 ）ブリをかける
                 case 11:
-                    if (this.forList["i"] > 20) {
+                    if (this.forList["i"] > 30) {
                         this.vibrate(-1,2);
-                        if (this.forList["i"] > 40) {
+                        if (this.forList["i"] > 60) {
 
                             //高速回転アニメーション
 
-                            if (this.forList["i"] > 60) {
+                            if (this.forList["i"] > 90) {
                                 let distance = ((player.px - this.px)**2+(player.py - this.py)**2)**0.5;
                                 if (distance <= 0) {
                                     this.vx = Math.random();
@@ -2048,16 +2113,16 @@ export class Boss extends Enemy {
                 case 13:
                     this.setVector(0,0,0,true,8);
                     this.nonDamage = false;
-                    if (this.forList["i"]<240){
+                    if (this.forList["i"]<360){
                         this.pz = 0;
-                        if (this.forList["i"] < 15){
+                        if (this.forList["i"] < 22){
                             screenSetOffsetRand(8,8);
-                        } else if (this.forList["i"] < 30){
+                        } else if (this.forList["i"] < 45){
                             screenSetOffsetRand(6,6);
-                        } else if (this.forList["i"] < 50){
+                        } else if (this.forList["i"] < 75){
                             screenSetOffsetRand(3,3);
-                        } else if (this.forList["i"] < 250){
-                            if ((this.forList["i"]%20) >= 10){
+                        } else if (this.forList["i"] < 375){
+                            if ((this.forList["i"]%30) >= 15){
                                 this.pz = 3;
                             } else {
                                 this.pz = 0;
@@ -2086,7 +2151,7 @@ export class Boss extends Enemy {
                 //死モーション
                 case "died":
                     this.vibrate(-1,2);
-                    if (this.waitFrame(280)){
+                    if (this.waitFrame(420)){
                         renderCamera.setVibCamera(-8,8,80);
                         this.allive = false;
                         for (let i = 0; i<8; i++){
@@ -2104,8 +2169,8 @@ export class Boss extends Enemy {
                             )
                         }
                     }
-                    if (this.waitFrameC > 40) {
-                        if (this.waitFrameC%4 == 0){
+                    if (this.waitFrameC > 60) {
+                        if (this.waitFrameC%6 == 0){
                             EfM.spawnNPC(
                                 this.px,
                                 this.py,
@@ -2193,8 +2258,8 @@ export class Boss extends Enemy {
                     console.log(`friendly_ice found : ${typeof(tNPC)}`);
                     console.log(tNPC);
                     */
-                    this.waitFrame(80);
-                    let cycle = Math.floor(40-((this.hp <= this.MaxHp/2)*10));
+                    this.waitFrame(120);
+                    let cycle = Math.floor(60-((this.hp <= this.MaxHp/2)*10));
                     let dist = ((this.px-player.px)**2+(this.py-player.py)**2)**0.5;
                     if (this.waitFrameC%(cycle/4) == 0){
                         if (this.animationFrame < 4){
@@ -2235,13 +2300,13 @@ export class Boss extends Enemy {
                     break;
                 //地団駄ふむぜ
                 case 4:
-                    if (this.waitFrame(80)) {
+                    if (this.waitFrame(120)) {
                         this.waitFrameReset();
                         this.BossState++;
                         this.setGravity(0.5);
                         this.ZAxisJump(-8);
                     }
-                    if (this.waitFrameC >= 40){
+                    if (this.waitFrameC >= 60){
                         this.vibrate(-1,2);
                     }
                     
@@ -2256,7 +2321,7 @@ export class Boss extends Enemy {
                     break;
                 //ツララシャワー
                 case 6:
-                    if(this.waitFrame(50)){
+                    if(this.waitFrame(75)){
                         if(randInt((this.hp <= this.MaxHp/2)*2,5) == 5){
                             this.waitFrameReset();
                             this.BossState = 7;
@@ -2265,9 +2330,9 @@ export class Boss extends Enemy {
                             this.BossState = 2;
                         }
                     }
-                    if (this.waitFrameC < 20){
+                    if (this.waitFrameC < 30){
                         let [tpx,tpy] = [0,0];
-                        if (this.waitFrameC%(5-((this.hp <= this.MaxHp/2)*2)) == 0){
+                        if (this.waitFrameC%(5-(this.hp <= this.MaxHp/2)) == 0){
                             [tpx,tpy] = [
                                     randFloat(player.px-(TILESIZE*6),player.px+(TILESIZE*6)),
                                     randFloat(player.py-(TILESIZE*6),player.py+(TILESIZE*6))
@@ -2292,7 +2357,7 @@ export class Boss extends Enemy {
                                 [1]
                             );
                         }
-                        if (this.waitFrameC == 19){
+                        if (this.waitFrameC == 0){
                             EnM.spawnNPC(
                                 player.px,
                                 player.py,
@@ -2326,20 +2391,20 @@ export class Boss extends Enemy {
                             );
                         }
                         screenSetOffsetRand(-4,4);
-                    } else if(this.waitFrameC < 40){
+                    } else if(this.waitFrameC < 60){
                         screenSetOffsetRand(-2,2);
                     }
                     break;
                 //雪玉爆裂
                 case 7:
-                    if (this.waitFrame(80)){
+                    if (this.waitFrame(120)){
                         
                         this.waitFrameReset();
                         this.BossState = 2;
                     }
-                    if (this.waitFrameC < 60){
+                    if (this.waitFrameC < 90){
                         this.vibrate(-1,2);
-                    } else if (this.waitFrameC == 60) {
+                    } else if (this.waitFrameC == 90) {
                         let dist = ((this.px-player.px)**2+(this.py-player.py)**2)**0.5;
                         //let deg = degrees(Math.asin((player.py-this.py)/dist));
                         //console.log(deg);
@@ -2390,7 +2455,7 @@ export class Boss extends Enemy {
                     this.waitFrameReset();
                     break;
                 case "died":;
-                    const constantDieC = 200;
+                    const constantDieC = 300;
                     const mult = (constantDieC-this.forList["i"])/constantDieC;
                     this.vibrate(-3*mult,3*mult);
                     if (this.forList["i"] % 5 == 0){
@@ -2425,11 +2490,46 @@ export class Boss extends Enemy {
             }
         } else if (this.type == "Wood"){
             this.nonDamage = true;
+
+            const spawnRootAround = (num,std,edd) => {
+                this.BossMemory["rootN"] = num;
+                this.BossMemory["rootC"] = this.BossMemory["rootN"]+1;
+                for (let i = 0; i<this.BossMemory["rootN"]+1; i++){
+                    let rad = radians(std+((edd-std)/this.BossMemory["rootN"]*i));
+                    EnM.spawnNPC(
+                        this.px+((this.sx+TILESIZE)*Math.cos(rad)),
+                        this.py+((this.sy+TILESIZE)*Math.sin(rad)),
+                        0,
+                        TILESIZE,
+                        TILESIZE,
+                        TILESIZE/4,
+                        "root_spear",
+                        0,
+                        0,
+                        0,
+                        ["Boss"]
+                    );
+                }
+                this.BossMemory["rootN"]++;
+            };
+
+            const spawnRoot = (px,py) => {
+                EnM.spawnNPC(
+                    px,
+                    py,
+                    0,
+                    TILESIZE,
+                    TILESIZE,
+                    TILESIZE/4,
+                    "root_spear"
+                );
+            };
+
             switch (this.BossState) {
                 //初期化
                 case 0:
                     this.BossInit();
-                    //console.log("wood Boss Init end");
+                    this.forList["rt"] = 30;
                     EfM.spawnNPC(
                         this.px,
                         this.py,
@@ -2440,40 +2540,20 @@ export class Boss extends Enemy {
                         "boss_wood_leef"
                     );
                     this.BossState++;
+                    console.log("wood Boss Init end");
                     break;
                 //登場アニメーション
                 case 1:
-                    const startDeg = -15;
-                    const endDeg = 195;
-                    this.BossMemory["rootC"] = 8;
-                    for (let i = 0; i<this.BossMemory["rootC"]+1; i++){
-                        let rad = radians(startDeg+((endDeg-startDeg)/this.BossMemory["rootC"]*i));
-                        EnM.spawnNPC(
-                            this.px+((this.sx+TILESIZE)*Math.cos(rad)),
-                            this.py+((this.sy+TILESIZE)*Math.sin(rad)),
-                            0,
-                            TILESIZE,
-                            TILESIZE,
-                            TILESIZE/4,
-                            "root_spear"
-                        );
-                    }
-                    //console.log("wood Boss Animation");
+                    spawnRootAround(10,-15,195);
+                    spawnRoot(this.px,this.py+TILESIZE*14);
+                    console.log("wood Boss Animation");
                     this.BossState++;
                     break;
+                //
                 case 2:
-                    EnM.spawnNPC(
-                        this.px,
-                        this.py+TILESIZE*14,
-                        0,
-                        TILESIZE,
-                        TILESIZE,
-                        TILESIZE/4,
-                        "root_spear"
-                    );
-
                     this.BossState++;
                     break;
+                //
                 case 3:
 
                     break;
@@ -2484,6 +2564,22 @@ export class Boss extends Enemy {
                     this.clearMemory();
                     this.setVector(0,0,0);
                     break;
+            }
+
+            //根っこが消えたらスポーンしなおす
+            if (typeof(this.BossMemory["rootC"]) === "number" && this.BossMemory["rootC"] <= 0){
+                if (typeof(this.forList["rt"]) != "number" || this.forList["rt"] <= 0){
+                    this.forList["rt"] = 30;
+                }
+                if (this.forList["rt"] > 0){
+                    this.forList["rt"]--;
+                    this.vibrate(-2,2);
+                    console.log(this.forList["rt"]);
+                }
+                if (this.forList["rt"] <= 0) {
+                    spawnRootAround(10,-15,195);
+                    this.forList["rt"] = 30;
+                }
             }
         } else if (this.type == "Water"){
             this.nonDamage = true;

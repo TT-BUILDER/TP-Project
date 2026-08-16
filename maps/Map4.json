@@ -1,0 +1,6 @@
+{ "Position" : [544,928],
+    "MapSize" : [35,31],
+    "Direction" : 0,
+    "isThereBoss" : false,
+    "BossPass" : "./assets/Boss/Boss4.json",
+    "Description" : "ステージの形はできている" }

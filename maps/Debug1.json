@@ -1,0 +1,8 @@
+{
+    "Position" : [72,64],
+    "MapSize" : [9,8],
+    "Direction" : 0,
+    "isThereBoss" : false,
+    "BossPass" : "./assets/Boss/Boss1.json",
+    "Description" : "デバッグ用ステージです！\r\n一番最初にTileRender.mjsのテストを行ったステージです！"
+}

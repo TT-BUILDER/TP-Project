@@ -1,0 +1,6 @@
+{ "Position" : [320,576], 
+    "MapSize" : [25,20], 
+    "Direction" : 0, 
+    "isThereBoss" : true, 
+    "BossPass" : "./assets/Boss/Boss1.json", 
+    "Description" : "岩石のボス。ステージ、ボスともに完成。" }

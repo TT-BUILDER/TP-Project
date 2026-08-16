@@ -1,0 +1,7 @@
+{
+    "Position" : [0,0],
+    "Direction" : 0,
+    "isThereBoss" : false,
+    "BossPass" : "./assets/Boss/Boss1.json",
+    "Description" : "このメッセージがが見えるのはおかしいよ。19250118@gse.okayama-c.ed.jpへ連絡を！"
+}

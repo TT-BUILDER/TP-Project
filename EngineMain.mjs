@@ -27,6 +27,13 @@ import { rendertxtBuffer } from "./UI.mjs";
 import { getStr } from "./UI.mjs";
 import { putStr } from "./UI.mjs";
 import { textWrite } from "./UI.mjs";
+
+//ポリゴン描画関係（めっちゃ不要）
+import { TexRen } from "./TriRender.mjs";
+import { setContextForBuf } from "./TriRender.mjs";
+import { clearZBuffer } from "./TriRender.mjs";
+import { renderZBuffer } from "./TriRender.mjs";
+
 /*
 import { audio } from "./audioPlayer.mjs";                                 //オーディオクラス
 import { audioCTX } from "./audioPlayer.mjs";                               //オーディオコンテキスト
@@ -39,9 +46,19 @@ let loading = 1;
 
 let isJP = true;
 
-let onBGM = true;
+let onBGM = false;
+
+export let fps = 0;
+export let frameDelta = 16.67;
+let lastFrameTime = 0;
+export let fpsFrameCount = 0;
+let fpsElapsed = 0;
+let fpsSampleStart = 0;
+
 
 export const DebugMode = false;
+
+
 export let actionStop = false;
 export let renderStop = false;
 
@@ -652,6 +669,7 @@ let showHP = true;
 
 //不要。デバッグ用
 let frameC = 0;
+let frame = 0;
 
 //キー入力関連
 const Keys = {};
@@ -674,6 +692,11 @@ export const IR = new imgRender(ScreenB,ScB);                    //イメージ�
 await img.AddImg("null","./assets/tiles/nullImage.png");
 
 
+const TexImg = new Images();
+const TrR = new TexRen(TexImg);
+setContextForBuf(canvas,ctx);
+
+
 //export let pla_Anim_
 //player.setCollision(1);
 
@@ -686,7 +709,9 @@ export const AuM = new audio();                             //オーディオイ
 const audioInfo = {};
 //拡大率変更
 TR.TILESIZEUpdate(64,32);
-export let deltaVector = TILESIZE/showTILESIZE;
+export let VisualDeltaVector = TILESIZE/showTILESIZE;
+export let deltaVector = VisualDeltaVector*(16.6/25);
+export let fpsdelta = (16.6/25);
 export let mapWidth = 0;
 export let mapHeight = 0;
 export const keyInput = new key();                                 //キー入力の保持
@@ -701,7 +726,7 @@ let stageChangeRequest = null;
 let test = 0;
 
 let stageClear = 0;
-export let enableGoStageList = [1,1,0,0,0];
+export let enableGoStageList = [1,1,1,1,0];
 let jsonData = undefined;
 
 const plSizeX = TILESIZE;
@@ -775,6 +800,13 @@ const promise = new Promise( async function(resolve,reject) {
         Maps["GrandFloor"] = await TR.newLoadMap(MapJSONs["GrandFloor"],"./assets/maps/Map5.txt");
         MapCollisions["GrandFloor"] = await TR.newLoadMap(MapJSONs["GrandFloor"],"./assets/maps/Map5_C.txt");
         
+        MapJSONs["water_debug"] = await fetchJSON("./assets/maps/Map7.json");
+        mapDescriptionList["water_debug"] = MapJSONs["water_debug"].Description;
+        Maps["water_debug"] = await TR.newLoadMap(MapJSONs["water_debug"],"./assets/maps/Map7.txt");
+        MapCollisions["water_debug"] = await TR.newLoadMap(MapJSONs["water_debug"],"./assets/maps/Map7_C.txt");
+        
+        //water_debug
+
         MapJSONs["Debug"] = await fetchJSON("./assets/maps/Debug1.json");
         Maps["Debug"] = await TR.newLoadMap(MapJSONs["Debug"],"./assets/maps/Debug1.txt");
         MapCollisions["Debug"] = await TR.newLoadMap(MapJSONs["Debug"],"./assets/maps/Debug1_C.txt");
@@ -786,8 +818,12 @@ const promise = new Promise( async function(resolve,reject) {
         //画像データたちを読み込む
         await img.AddImg("MapTip_Debug","./assets/tiles/testTiles1.png");
         await img.AddImg("MapTip1","./assets/tiles/GenericTiles.png");
-        await img.AddImg("MapTip2","./assets/tiles/RockTile.png");
+        //await img.AddImg("MapTip2","./assets/tiles/RockTile.png");
+        await img.AddImg("MapTip2","./assets/tiles/test1.png");
         await img.AddImg("SwordEffect","./assets/effects/TestEffect.png");
+
+        await TexImg.AddImg("testTex","./assets/tiles/nullImage.png");
+
         //タイルチップデータの読み込み
         TR.newLoadImg(img.imgList["MapTip2"]);
 
@@ -876,7 +912,11 @@ const promise = new Promise( async function(resolve,reject) {
 
 export function changeViewMult(mult = 1){
     TR.TILESIZEUpdate(32*mult,32);
-    deltaVector = 32*mult;
+    VisualDeltaVector = TILESIZE/showTILESIZE;
+    applyDeltaVector();
+}
+function applyDeltaVector(deltaTime = frameDelta){
+    deltaVector = VisualDeltaVector*(Math.round(deltaTime)/25);
 }
 /**
  * Cの上にTarCを重ねる
@@ -940,15 +980,15 @@ export function screenSetOffset(px = 0,py = 0){
 //初期化関数
 async function init (){
 
-
     //ステージの呼び出し
     //await mainStage.changeStage("GrandFloor");
-    await mainStage.changeStage("Map_4");
+    //await mainStage.changeStage("water_debug");
+    await mainStage.changeStage("Map_3");
     //player.setPos(9/2*TILESIZE,8/2*TILESIZE);
     //NowBoss.setPos(TR.MapWidth/3*TILESIZE,TR.MapHeight/3*TILESIZE,0)
 
-    //メインループのインターバル設定（40FPS）
-    setInterval( function() { main() } , 25);
+    // requestAnimationFrame による描画ループ
+    requestAnimationFrame(loop);
     console.log("Render Start");
     /*
     EnM.spawnNPC(player.px+TILESIZE*2,player.py,TILESIZE,TILESIZE,0xFF,
@@ -962,22 +1002,50 @@ async function init (){
     
 }
 
-//メインループ
-async function main(){
+//written by VS code's AI
+function loop(timestamp){
+    main(timestamp);
+    requestAnimationFrame(loop);
+}
 
-    
-    if (isUserGesture == "action") {
-       isUserGesture = "done";
-    }
-    
+//メインループ
+async function main(timestamp = performance.now()){
+
+    /* FPS Counting feature was built by VS code's AI */
+
+        if (lastFrameTime === 0) {
+            lastFrameTime = timestamp;
+            fpsSampleStart = timestamp;
+        }
+
+        const elapsed = Math.max(1, timestamp - lastFrameTime);
+        lastFrameTime = timestamp;
+        frameDelta = elapsed;
+
+        fpsFrameCount += 1;
+        fpsElapsed += elapsed;
+        if (timestamp - fpsSampleStart >= 500) {
+            fps = (fpsFrameCount * 1000) / fpsElapsed;
+            fpsFrameCount = 0;
+            fpsElapsed = 0;
+            fpsSampleStart = timestamp;
+        }
+
+        if (isUserGesture == "action") {
+        isUserGesture = "done";
+        }
+        
+    /* Until there */
+
+    //changeViewMult();
+    //applyDeltaVector();
+
     screenSetOffset(0,0);
     //キー入力
     getkey();
 
     if (playerKey.pulsekeyPause){
         isPause = !isPause;
-        
-        
     }
 
     if (!actionStop && !isPause){
@@ -1001,12 +1069,51 @@ async function main(){
         RenderCanvas();
     }
 
+    /*
+    TrR.renTri(
+        [0,0,0,0,0],
+        [50,0,0,1,0],
+        [0,50,0,0,1],
+        "testTex"
+    );
+    */
+
+    /*
+
+    TrR.setParam(canvas.width/1000,canvas.height/1000);
+    //TrR.setRotate(frame%360,frame%360,0);
+    TrR.setRotate(0,0,frame%360);
+
+    let v1 = TrR.viewConvertion([5,5,50000,1]);
+    let v2 = TrR.viewConvertion([10,5,50000,1]);
+    let v3 = TrR.viewConvertion([5,10,50000,1]);
+
+    v1 = TrR.screenProject(v1);
+    v1.concat([0,0]);
+    v2 = TrR.screenProject(v2);
+    v2.concat([1,0]);
+    v3 = TrR.screenProject(v3);
+    v3.concat([0,1]);
+
+
+    //console.log(v1);
+
+    TrR.renTri(
+        v1,
+        v2,
+        v3,
+        "testTex"
+    );
+
+    renderZBuffer();
+    clearZBuffer();
+    */
 }
 
 function StageGimmick(){
     if (mainStage.StType == "Map_3"){
         if ( "Map_3" in mainStage.StageFrameC &&  "Map_3" in mainStage.StageFrameCountingF ){
-            if (mainStage.countFrame(24,"Map_3")){
+            if (mainStage.countFrame(20,"Map_3")){
                 let [x,y] = [randInt(0,TR.MapWidth*TILESIZE),randInt(0,TR.MapHeight*TILESIZE)];
                 while (hitWallCheck(TR.NowCollision,TILESIZE,x,y)){
                     [x,y] = [randInt(0,TR.MapWidth*TILESIZE),randInt(0,TR.MapHeight*TILESIZE)];
@@ -1155,8 +1262,8 @@ async function setStage(stageName){
 
         for (let i = 0; i<warpHolePoint.length; i++){
             EfM.spawnNPC(
-                warpHolePoint[i][0]*deltaVector,
-                warpHolePoint[i][1]*deltaVector,
+                warpHolePoint[i][0]*VisualDeltaVector,
+                warpHolePoint[i][1]*VisualDeltaVector,
                 0,
                 TILESIZE*2,
                 TILESIZE*2,
@@ -1170,8 +1277,8 @@ async function setStage(stageName){
         }
         //ラスボス専用（仮）のワープホール
         EfM.spawnNPC(
-                496*deltaVector,
-                176*deltaVector,
+                496*VisualDeltaVector,
+                176*VisualDeltaVector,
                 0,
                 TILESIZE*3,
                 TILESIZE*3,
@@ -1210,6 +1317,8 @@ async function setStage(stageName){
                         pan : 0.0,
                         loop: true
                     });
+                } else {
+                    void AuM.stopAll();
                 }
             }
         } catch (e) {
@@ -1225,8 +1334,10 @@ async function setStage(stageName){
                 loop: true
             });
             */
-           void AuM.stopAll();
+        } else {
+            void AuM.stopAll();
         }
+        
     }
 
     
@@ -1355,7 +1466,7 @@ function RenderBufferCorrect(){
                 npc.RenderMyself(renderCamera.camX,renderCamera.camY,"red",showHP);
             } else if (column[0] == "Effect"){
                 const npc = AcEf[column[1]];
-                npc.RenderMyself(renderCamera.camX,renderCamera.camY,"red",false);
+                npc.RenderMyself(renderCamera.camX,renderCamera.camY,"blue",false,false);
             } else if (column[0] == "Boss"){
                 if (NowBoss.nonDamage) {
                     NowBoss.RenderMyself(renderCamera.camX,renderCamera.camY,"green",showHP,true);
@@ -1428,8 +1539,12 @@ function RenderCanvas(){
     //ctx.fillText(`This is debug. asyncFadeVRGBA : ${[renderCamera.asyncFadeVR, renderCamera.asyncFadeVG, renderCamera.asyncFadeVB, renderCamera.asyncFadeVA]}`, canvas.width / 2, canvas.height - 84);
     ctx.fillText(`This is debug. BGRay : ${[renderCamera.BGRayColor.R, renderCamera.BGRayColor.G, renderCamera.BGRayColor.B, renderCamera.BGRayColor.A]}`, canvas.width / 2, canvas.height - 84);
     ctx.fillText(`This is debug. RGBA : ${[renderCamera.scR, renderCamera.scG, renderCamera.scB, renderCamera.scA]}`, canvas.width / 2, canvas.height - 110);
-    if ((isUserGesture == "yet" || isUserGesture == "action") && onBGM) {
-        ctx.fillText("Please click screen or Press any key...", canvas.width / 2, canvas.height - 28);
+    if (onBGM) {
+        if (isUserGesture == "yet" || isUserGesture == "action"){
+            ctx.fillText("Please click screen or Press any key...", canvas.width / 2, canvas.height - 28);
+        } else {
+            ctx.fillText("The BGM Program is Enabled.", canvas.width / 2, canvas.height - 28);
+        }
     } else {
         ctx.fillText("The BGM Program is Disabled.", canvas.width / 2, canvas.height - 28);
     }
@@ -1513,6 +1628,17 @@ function RenderCanvas(){
         }
     }
 
+    if (DebugMode){
+        ctx.fillStyle = "black";
+        ctx.fillRect(0,0,TextSize*7,TextSize*3);
+        ctx.font = `${TextSize}px monospace`;
+        ctx.textBaseline = "top";
+        ctx.textAlign = "start";
+        ctx.fillStyle = "rgb(0, 160, 0)";
+        ctx.fillText(`FPS:${Math.round(fps*10)/10}`,0,0);
+        ctx.fillText(`Delta:${Math.round(frameDelta*10)/10}`,0,TextSize);
+        ctx.fillText(`Delta:${fpsFrameCount}`,0,TextSize*2);
+    }
     ctx.restore();
 }
 function executeTextRenRecuest(){
@@ -1569,9 +1695,11 @@ function RenderStage() {
 
     frameC++;
 
-    if (frameC >= 80) {
+    if (frameC >= 120) {
         frameC = 0;
     }
+
+    frame++;
 
     if (!isPause){
         //cameraSet(frameC,0);
@@ -1581,7 +1709,7 @@ function RenderStage() {
         //}
         RenderCameraSet();
     }
-    TR.RenderMap(renderCamera.camX,renderCamera.camY,DebugMode,Math.floor(frameC/20));
+    TR.RenderMap(renderCamera.camX,renderCamera.camY,DebugMode,Math.floor(frameC/30));
 
     //ScB.drawImage(Image.ImgList.get("tile-0"),0,0)
 
@@ -1596,7 +1724,7 @@ export function fadeIn(a,b,speed){
     if (Math.round(b-a) == 0){
         return 0;
     } else {
-        return (b-a)/speed;
+        return (b-a)/(speed/(frameDelta/25));
     }
 }
 /**
@@ -1744,7 +1872,7 @@ function plyayerAction(){
 
         if (playerKey.pulsekeyC_button && player.pz >= -3 && player.stamina >= player.MaxStamina*staminaDecreaseMult) {
             //バックステップ（要修正）
-            console.log("executed");
+            //console.log("executed");
             player.setPos(player.px,player.py,0);
             player.ZAxisJump(-6);
             player.setVector(1.5*playerBaseAcs*VecDirList[player.direction][0],1.5*playerBaseAcs*VecDirList[player.direction][1]);
@@ -1854,9 +1982,17 @@ function plyayerAction(){
         }
         
     } else {
-        renderCamera.setScreenColorRelative(-3,0,0,3);
+        renderCamera.setScreenColorRelative(-3,0,0,2);
         if (renderCamera.scA >= 255){
             mainStage.changeStage("GrandFloor");
+        } else {
+            renderCamera.setCameraEffect(1,
+                1.5+(renderCamera.scA/128),
+                renderCamera.scA/10,
+                1,
+                renderCamera.e_valW,
+                2+(renderCamera.scA/255)
+            );
         }
     }
     if (player.hp <= 0) {

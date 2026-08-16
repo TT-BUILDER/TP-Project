@@ -2,6 +2,22 @@
 export let TILESIZE = 32;
 export let showTILESIZE = 32;
 
+const lakeTileList = [
+	[24,30,36,42],
+	[25,31,37,43],
+	[26,32,38,44],
+	[27,33,39,45],
+	[28,34,40,46],
+	[29,35,41,47],
+	
+	[48,54,60,66],
+	[49,55,61,67],
+	[50,56,62,68],
+	[51,57,63,69],
+	[52,58,64,70],
+	[53,59,65,71]
+];
+
 export class TileRender {
 
 	/**
@@ -183,54 +199,47 @@ export class TileRender {
 				let NowTile = MapRow[ix];
 				let NowCol = ColMapRow[ix];
 				//console.log(NowTile);
-				if (NowTile == 16) {
-					if (frameC == 0){
-						ctx.drawImage(
-							img,
-							(16 % this.T_width)*showSize,
-							(Math.floor(16 / this.T_width))*showSize,
-							showSize,
-							showSize,
-							cx+(ix*size),
-							cy+(iy*size),
-							size,
-							size);
-					} else 
-					if (frameC == 1){
-						ctx.drawImage(
-							img,
-							(17 % this.T_width)*showSize,
-							(Math.floor(17 / this.T_width))*showSize,
-							showSize,
-							showSize,
-							cx+(ix*size),
-							cy+(iy*size),
-							size,
-							size);
-					} else 
-					if (frameC == 2){
-						ctx.drawImage(
-							img,
-							(16 % this.T_width)*showSize,
-							(Math.floor(16 / this.T_width)+1)*showSize,
-							showSize,
-							showSize,
-							cx+(ix*size),
-							cy+(iy*size),
-							size,
-							size);
-					} else {
-						ctx.drawImage(
-							img,
-							(17 % this.T_width)*showSize,
-							(Math.floor(17 / this.T_width)+1)*showSize,
-							showSize,
-							showSize,
-							cx+(ix*size),
-							cy+(iy*size),
-							size,
-							size);
+				if (NowTile >= 24) {
+					let tiles = lakeTileList[NowTile-24][frameC];
+					ctx.drawImage(
+						img,
+						(tiles % this.T_width)*showSize,
+						(Math.floor(tiles / this.T_width))*showSize,
+						showSize,
+						showSize,
+						cx+(ix*size),
+						cy+(iy*size),
+						size,
+						size
+					);
+					/*
+					switch (NowTile){
+						case 24:
+							break;
+						case 25:
+							break;
+						case 26:
+							break;
+						case 27:
+							break;
+						case 28:
+							break;
+						case 29:
+							break;
+						case 30:
+							break;
+						case 31:
+							break;
+						case 32:
+							break;
+						case 33:
+							break;
+						case 34:
+							break;
+						case 35:
+							break;
 					}
+					*/
 				} else {
 					ctx.drawImage(
 						img,
@@ -241,7 +250,8 @@ export class TileRender {
 						cx+(ix*size),
 						cy+(iy*size),
 						size,
-						size);
+						size
+					);
 				}
 				if (NowCol >0 && ShowCollision) {
 					ctx.fillStyle = "rgb(255 0 0 / 25%)";
