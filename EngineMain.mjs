@@ -117,22 +117,28 @@ ctx.imageSmoothingEnabled = false;
 class key {
     constructor(){
         this.key = {
-            "w" : false ,
-            "a" : false ,
-            "s" : false ,
-            "d" : false ,
-            "z" : false ,
-            "x" : false ,
-            "c" : false ,
-            "q" : false ,
-            " " : false ,
+            "KeyW" : false ,
+            "KeyA" : false ,
+            "KeyS" : false ,
+            "KeyD" : false ,
+            "KeyZ" : false ,
+            "KeyX" : false ,
+            "KeyC" : false ,
+            "KeyQ" : false ,
+            "KeyE" : false ,
+            "KeyF" : false ,
+            "KeyV" : false ,
+            "Space" : false ,
+            "ShiftLeft" : false ,
             "ArrowUp" : false ,
             "ArrowDown" : false ,
             "ArrowLeft" : false ,
             "ArrowRight" : false ,
+            "Desision" : false
         }
     }
 }
+//ユーザーのキー情報を更新するクラス
 class usrKey {
     constructor(){
         this.lastkeyLeft = false;
@@ -165,6 +171,10 @@ class usrKey {
         this.lastkeyPause = false;
         this.pulsekeyPause = false;
         this.keyPause = false;
+
+        this.lastDesisionKey = false;
+        this.pulseDesisionKey = false;
+        this.DesisionKey = false;
     }
     pulseSet(){
         if (this.keyA_button && !this.lastkeyA_button){
@@ -186,6 +196,12 @@ class usrKey {
             this.pulsekeyPause = true;
         } else {
             this.pulsekeyPause = false;
+        }
+
+        if (this.DesisionKey && !this.lastDesisionKey){
+            this.pulseDesisionKey = true;
+        } else {
+            this.pulseDesisionKey = false;
         }
 
         if (this.keyLeft && !this.lastkeyLeft){
@@ -218,6 +234,8 @@ class usrKey {
         this.lastkeyB_button = this.keyB_button;
         this.lastkeyC_button = this.keyC_button;
         this.lastkeyPause = this.keyPause;
+
+        this.lastDesisionKey = this.DesisionKey;
     }
 }
 //カメラ座標を保持する構造体
@@ -716,6 +734,14 @@ export let mapWidth = 0;
 export let mapHeight = 0;
 export const keyInput = new key();                                 //キー入力の保持
 const playerKey = new usrKey();                             //ユーザーのキー保持
+
+export let keyConfig = 1;
+export let mouseClick = false;
+export let mouseX = 0;
+export let mouseY = 0;
+
+let setting = false;
+
 export const playerCamera = new camera();                          //プレイヤーカメラ座標の保持
 export const renderCamera = new camera();                          //レンダリング座標
 let DebugStage = new stage("Debug2");                       //ステージオブジェクト
@@ -843,23 +869,25 @@ const promise = new Promise( async function(resolve,reject) {
                 isUserGesture = "action";
             }
 
-            Keys[event.key] = true;
+            Keys[event.code] = true;
 
             //スペースキーによるスクロール防止（めちゃ強制的）
             event.preventDefault();
 
-            //console.log("pressed : "+event.key);
+            console.log("pressed event.key : "+event.key);
+            console.log("pressed event.code : "+event.code);
+
+        });
+        //KeyUpイベント時に話されたキーを格納
+        document.addEventListener("keyup", (event) => {
+
+            Keys[event.code] = false;
+
+            //console.log("Unpressed : "+event.key);
 
         });
         //VS code's AI
         window.addEventListener("pointerdown", () => {
-            if (isUserGesture == "yet") {
-                isUserGesture = "action";
-            }
-        }, { passive: true });
-
-        //VS code's AI
-        window.addEventListener("mousedown", () => {
             if (isUserGesture == "yet") {
                 isUserGesture = "action";
             }
@@ -872,14 +900,29 @@ const promise = new Promise( async function(resolve,reject) {
             }
         }, { passive: true });
 
-        //KeyUpイベント時に話されたキーを格納
-        document.addEventListener("keyup", (event) => {
+        //VS code's AI
+        window.addEventListener("mousedown", () => {
+            if (isUserGesture == "yet") {
+                isUserGesture = "action";
+            }
 
-            Keys[event.key] = false;
+        }, { passive: true });
 
-            //console.log("Unpressed : "+event.key);
+        canvas.addEventListener("mousedown", (e) => {
+
+            const rectP = canvas.getBoundingClientRect();
+            mouseClick = true;
+            mouseX = e.clientX - rectP.left;
+            mouseY = e.clientY - rectP.top;
 
         });
+        canvas.addEventListener("mouseup", () => {
+            mouseClick = false;
+        });
+        canvas.addEventListener("mouseleave", () => {
+            mouseClick = false;
+        });
+
 
         
         //読み込み完了
@@ -1044,7 +1087,7 @@ async function main(timestamp = performance.now()){
     //キー入力
     getkey();
 
-    if (playerKey.pulsekeyPause){
+    if (playerKey.pulsekeyPause && !toFadeStage){
         isPause = !isPause;
     }
 
@@ -1221,6 +1264,8 @@ async function setStage(stageName){
     renderCamera.setAsyncFadeScreenColor(0,0,6,-6);
 
     stageClear = 0;
+
+    void AuM.stopAll();
 
     EnM.Disable();
     EfM.Disable();
@@ -1536,6 +1581,7 @@ function RenderCanvas(){
     ctx.fillStyle = "rgba(255,255,255,0.8)";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
+    ctx.fillText(`This is debug. keyCFG : ${keyConfig}`, canvas.width / 2, canvas.height - 56);
     //ctx.fillText(`This is debug. asyncFadeVRGBA : ${[renderCamera.asyncFadeVR, renderCamera.asyncFadeVG, renderCamera.asyncFadeVB, renderCamera.asyncFadeVA]}`, canvas.width / 2, canvas.height - 84);
     ctx.fillText(`This is debug. BGRay : ${[renderCamera.BGRayColor.R, renderCamera.BGRayColor.G, renderCamera.BGRayColor.B, renderCamera.BGRayColor.A]}`, canvas.width / 2, canvas.height - 84);
     ctx.fillText(`This is debug. RGBA : ${[renderCamera.scR, renderCamera.scG, renderCamera.scB, renderCamera.scA]}`, canvas.width / 2, canvas.height - 110);
@@ -1549,6 +1595,7 @@ function RenderCanvas(){
         ctx.fillText("The BGM Program is Disabled.", canvas.width / 2, canvas.height - 28);
     }
 
+    //ポーズ画面の描画
     executeTextRenRecuest();
     if (isPause || toFadeStage){
         //Unit size of quad of Canvas
@@ -1556,76 +1603,185 @@ function RenderCanvas(){
         const UCY = canvas.height/4;
         const tsx = 3*UCX/(baseTXTBufX);
         const tsy = 2*UCY/(baseTXTBufY);
-        if (mainStage.StType != "GrandFloor"){
-            if (isPause) {
-                renderUI(
-                    UCX/2,
-                    UCY,
-                    UCX*3,
-                    UCY*2,
-                    [0,0,0,192],
-                    true,
-                    TextSize/4,
-                    [255,255,255,255]
-                );
-                clearTextBuffer();
-                const startX = Math.floor(baseTXTBufX/6);
-                const startY = 1;
-                textWrite(startX,startY,"メインホールへもどりますか？");
-                textWrite(startX,startY+1,"もどる");
-                textWrite(startX,startY+2,"たたかう");
-                textWrite(startX,startY+4,"Ｚキーで決定");
+        setTextSize(Math.min(tsx,tsy)); 
+        
+        clearTextBuffer();
+        renderUI(
+            UCX/2,
+            UCY,
+            UCX*3,
+            UCY*2,
+            [0,0,0,192],
+            true,
+            TextSize/4,
+            [255,255,255,255]
+        );
+
+        if (setting == 0){
+            if (isPause){
                 //カーソル移動
-                if (playerKey.pulseKeyDown){
-                    pauseCursorItem--;
-                } else if (playerKey.pulseKeyUp){
+                if (playerKey.pulseKeyDown || playerKey.pulseKeyLeft){
                     pauseCursorItem++;
+                } else if (playerKey.pulseKeyUp || playerKey.pulseKeyRight){
+                    pauseCursorItem--;
                 }
-                pauseCursorItem = mod(pauseCursorItem,2);
-                textWrite(startX-1,startY+1+pauseCursorItem,"▶");
-                setTextSize(Math.min(tsx,tsy));
-                rendertxtBuffer(tsx/4+(UCX/2),tsy/2+UCY,tsx,tsy);    
-                if (playerKey.pulsekeyA_button){
-                    if (pauseCursorItem == 0){
-                        
-                        actionStop = true;
-                        isPause = false;
-                        toFadeStage = true;
-                        
-                        renderCamera.setScreenColor(1,1,254,1);
-                        renderCamera.setAsyncFadeScreenColor(0,0,-3,3);
-                        
-                        //mainStage.changeStage("GrandFloor");
-                    } else {
-                        isPause = false;
+            }
+            if (mainStage.StType != "GrandFloor"){
+                if (isPause) {
+                    const startX = Math.floor(baseTXTBufX/6);
+                    const startY = 1;
+                    textWrite(startX,startY,"メインホールへもどりますか？");
+                    textWrite(startX,startY+1,"もどる");
+                    textWrite(startX,startY+2,"たたかう");
+                    textWrite(startX,startY+4,"Fキーで決定");
+
+                    if (mod(pauseCursorItem,4) < 2) textWrite(startX-1,startY+1+mod(pauseCursorItem,2),"▶");
+
+                    if (playerKey.pulseDesisionKey){
+                        if (mod(pauseCursorItem,4) == 0){
+                            
+                            actionStop = true;
+                            isPause = false;
+                            toFadeStage = true;
+                            
+                            renderCamera.setScreenColor(1,1,254,1);
+                            renderCamera.setAsyncFadeScreenColor(0,0,-3,3);
+                            
+                            //mainStage.changeStage("GrandFloor");
+                        } else if (mod(pauseCursorItem,4) == 1) {
+                            isPause = false;
+                        }
+                    }
+                } else if (toFadeStage){
+                    if (renderCamera.scA >= 255){
+                        actionStop = false;
+                        toFadeStage = false;
+                        mainStage.changeStage("GrandFloor");
                     }
                 }
-            } else if (toFadeStage){
-                if (renderCamera.scA >= 255){
-                    actionStop = false;
-                    mainStage.changeStage("GrandFloor");
+
+            } else {
+                if (isPause) {
+                    const startX = Math.floor(baseTXTBufX/3);
+                    const startY = 3;
+                    if (mod(pauseCursorItem,4) == 1) pauseCursorItem = 3;
+                    if (mod(pauseCursorItem,4) == 0) pauseCursorItem = 2;
+                    textWrite(startX,startY,"ポーズ中……");
                 }
             }
 
-        } else {
-            if (isPause) {
-                renderUI(
-                    UCX/2,
-                    UCY,
-                    UCX*3,
-                    UCY*2,
-                    [0,0,0,192],
-                    true,
-                    TextSize/4,
-                    [255,255,255,255]
-                );
-                clearTextBuffer();
-                const startX = Math.floor(baseTXTBufX/3);
-                const startY = 3;
-                textWrite(startX,startY,"ポーズ中……");
-                rendertxtBuffer(tsx/4+(UCX/2),tsy/2+UCY,tsx,tsy);
+            if (isPause){
+                
+                textWrite(2,6,"キーコンフィグ");
+                textWrite(12,6,"サウンド");
+
+                if (mod(pauseCursorItem,4)-2 == 0) {
+                    textWrite(1,6,"▶");
+                    if (playerKey.pulseDesisionKey){
+                        setting = 1;
+                    }
+                } else if (mod(pauseCursorItem,4)-2 == 1){
+                    textWrite(11,6,"▶");
+                    /*
+                    if (playerKey.pulseDesisionKey){
+                        setting = 2;
+                    }
+                    */
+                    textWrite(8,3,"現在、無効です。");
+                }
+
+            }
+        } else if (setting == 1) {
+            //カーソル移動
+            if (playerKey.pulseKeyDown || playerKey.pulseKeyLeft){
+                pauseCursorItem++;
+            } else if (playerKey.pulseKeyUp || playerKey.pulseKeyRight){
+                pauseCursorItem--;
+            }
+            pauseCursorItem = mod(pauseCursorItem,3);
+            textWrite(2,1,"FPSモード");
+            textWrite(2,3,"ORGモード");
+            textWrite(2,5,"もどる");
+            textWrite(1,6,"Fキーで決定");
+            
+            if (keyConfig == 0){
+                textWrite(10,6,"現在：ORG");
+            } else {
+                textWrite(10,6,"現在：FPS");
+            }
+            if (pauseCursorItem == 0){
+                textWrite(1,1,"▶");
+                
+                textWrite(9,0,"移動………WASD");
+                textWrite(9,1,"攻撃………マウス");
+                //textWrite(9,2,"　　マウスクリック");
+                textWrite(9,3,"ジャンプ…スペース");
+                textWrite(9,4,"ステップ…");
+                textWrite(9,5,"　シフト＋スペース");
+                textWrite(9,6,"ポーズ……P,R");
+
+                if (playerKey.pulseDesisionKey){
+                    keyConfig = 1;
+                }
+            } else if (pauseCursorItem == 1){
+                textWrite(1,3,"▶");
+                
+                textWrite(9,0,"移動………WASD,");
+                textWrite(9,1,"　　　矢印キー");
+                textWrite(9,2,"攻撃………Z");
+                textWrite(9,3,"ジャンプ…X");
+                textWrite(9,4,"ステップ…C");
+                textWrite(9,5,"ポーズ……スペース");
+                
+                if (playerKey.pulseDesisionKey){
+                    keyConfig = 0;
+                }
+            } else if (pauseCursorItem == 2){
+                textWrite(1,5,"▶");
+                if (playerKey.pulseDesisionKey){
+                    setting = 0;
+                }
+            }
+        } else if (setting == 2) {
+            //カーソル移動
+            if (playerKey.pulseKeyDown || playerKey.pulseKeyLeft){
+                pauseCursorItem++;
+            } else if (playerKey.pulseKeyUp || playerKey.pulseKeyRight){
+                pauseCursorItem--;
+            }
+            pauseCursorItem = mod(pauseCursorItem,3);
+            textWrite(6,1,"オン");
+            textWrite(6,3,"オフ");
+            textWrite(6,5,"もどる");
+            textWrite(1,6,"Fキーで決定");
+            
+            if (onBGM){
+                textWrite(10,6,"現在：オン");
+            } else {
+                textWrite(10,6,"現在：オフ");
+            }
+            if (pauseCursorItem == 0){
+                textWrite(1,1,"▶");
+                
+                if (playerKey.pulseDesisionKey){
+                    onBGM = true;
+                }
+            } else if (pauseCursorItem == 1){
+                textWrite(1,3,"▶");
+
+                if (playerKey.pulseDesisionKey){
+                    onBGM = false;
+                }
+            } else if (pauseCursorItem == 2){
+                textWrite(1,5,"▶");
+                if (playerKey.pulseDesisionKey){
+                    setting = 0;
+                }
             }
         }
+        
+        rendertxtBuffer(tsx/4+(UCX/2),tsy/2+UCY,tsx,tsy);
+
     }
 
     if (DebugMode){
@@ -1704,7 +1860,7 @@ function RenderStage() {
     if (!isPause){
         //cameraSet(frameC,0);
         //console.log([player.px,player.py]);
-        //if (!keyInput.key["c"]) {
+        //if (!keyInput.key["KeyC"]) {
         playerCameraSet(1);
         //}
         RenderCameraSet();
@@ -1754,65 +1910,121 @@ function playerCameraSet(smooth = 0){
 }
 //キー入力を受け取る関数　　keyInputオブジェクトのプロパティをいじる。
 function getkey() {
-    if ((Keys["w"] | Keys["ArrowUp"]) == true) {
-        keyInput.key["w"] = true;
+
+    keyInput.key["Desision"] = Keys["KeyF"];
+
+    if (keyConfig == 0){
+        if ((Keys["KeyW"] | Keys["ArrowUp"]) == true) {
+            keyInput.key["KeyW"] = true;
+        } else {
+            keyInput.key["KeyW"] = false;
+        }
+        if ((Keys["KeyA"] | Keys["ArrowLeft"]) == true) {
+            keyInput.key["KeyA"] = true;
+        } else {
+            keyInput.key["KeyA"] = false;
+        }
+        if ((Keys["KeyS"] | Keys["ArrowDown"]) == true) {
+            keyInput.key["KeyS"] = true;
+        } else {
+            keyInput.key["KeyS"] = false;
+        }
+        if ((Keys["KeyD"] | Keys["ArrowRight"]) == true) {
+            keyInput.key["KeyD"] = true;
+        } else {
+            keyInput.key["KeyD"] = false;
+        }
+
+        if (Keys["KeyZ"] == true) {
+            keyInput.key["KeyZ"] = true;
+        } else {
+            keyInput.key["KeyZ"] = false;
+        }
+        if (Keys["KeyX"] == true) {
+            keyInput.key["KeyX"] = true;
+        } else {
+            keyInput.key["KeyX"] = false;
+        }
+        if (Keys["KeyC"] == true) {
+            keyInput.key["KeyC"] = true;
+        } else {
+            keyInput.key["KeyC"] = false;
+        }
+
+        if (Keys["Space"] == true) {
+            keyInput.key["Space"] = true;
+        } else {
+            keyInput.key["Space"] = false;
+        }
+        if (Keys["KeyQ"] == true) {
+            keyInput.key["KeyQ"] = true;
+        } else {
+            keyInput.key["KeyQ"] = false;
+        }
     } else {
-        keyInput.key["w"] = false;
-    }
-    if ((Keys["a"] | Keys["ArrowLeft"]) == true) {
-        keyInput.key["a"] = true;
-    } else {
-        keyInput.key["a"] = false;
-    }
-    if ((Keys["s"] | Keys["ArrowDown"]) == true) {
-        keyInput.key["s"] = true;
-    } else {
-        keyInput.key["s"] = false;
-    }
-    if ((Keys["d"] | Keys["ArrowRight"]) == true) {
-        keyInput.key["d"] = true;
-    } else {
-        keyInput.key["d"] = false;
-    }
-    
-    if (Keys["z"] == true) {
-        keyInput.key["z"] = true;
-    } else {
-        keyInput.key["z"] = false;
-    }
-    if (Keys["x"] == true) {
-        keyInput.key["x"] = true;
-    } else {
-        keyInput.key["x"] = false;
-    }
-    if (Keys["c"] == true) {
-        keyInput.key["c"] = true;
-    } else {
-        keyInput.key["c"] = false;
-    }
-    
-    if (Keys[" "] == true) {
-        keyInput.key[" "] = true;
-    } else {
-        keyInput.key[" "] = false;
-    }
-    if (Keys["q"] == true) {
-        keyInput.key["q"] = true;
-    } else {
-        keyInput.key["q"] = false;
+        if (Keys["KeyW"] == true) {
+            keyInput.key["KeyW"] = true;
+        } else {
+            keyInput.key["KeyW"] = false;
+        }
+        if (Keys["KeyA"] == true) {
+            keyInput.key["KeyA"] = true;
+        } else {
+            keyInput.key["KeyA"] = false;
+        }
+        if (Keys["KeyS"] == true) {
+            keyInput.key["KeyS"] = true;
+        } else {
+            keyInput.key["KeyS"] = false;
+        }
+        if (Keys["KeyD"] == true) {
+            keyInput.key["KeyD"] = true;
+        } else {
+            keyInput.key["KeyD"] = false;
+        }
+
+        if ((mouseClick/* | Keys["KeyV"] | Keys["KeyF"]*/) == true) {
+            keyInput.key["KeyZ"] = true;
+        } else {
+            keyInput.key["KeyZ"] = false;
+        }
+        if (Keys["Space"] == true) {
+            keyInput.key["KeyX"] = true;
+        } else {
+            keyInput.key["KeyX"] = false;
+        }
+        if ((Keys["ShiftLeft"] & Keys["Space"]) == true) {
+            keyInput.key["KeyC"] = true;
+        } else {
+            keyInput.key["KeyC"] = false;
+        }
+
+        if ((Keys["KeyP"] | Keys["KeyR"])== true) {
+            keyInput.key["Space"] = true;
+        } else {
+            keyInput.key["Space"] = false;
+        }
+        /*
+        if (Keys["KeyQ"] == true) {
+            keyInput.key["KeyQ"] = true;
+        } else {
+            keyInput.key["KeyQ"] = false;
+        }
+        */
     }
     keyConvert();
 }
 //プレイヤーのキー入力を更新する
 function keyConvert(){
-    playerKey.keyLeft = keyInput.key["a"];
-    playerKey.keyRight = keyInput.key["d"];
-    playerKey.keyUp = keyInput.key["w"];
-    playerKey.keyDown = keyInput.key["s"];
-    playerKey.keyA_button = keyInput.key["z"];
-    playerKey.keyB_button = keyInput.key["x"];
-    playerKey.keyC_button = keyInput.key["c"];
-    playerKey.keyPause = keyInput.key[" "];
+    playerKey.keyLeft = keyInput.key["KeyA"];
+    playerKey.keyRight = keyInput.key["KeyD"];
+    playerKey.keyUp = keyInput.key["KeyW"];
+    playerKey.keyDown = keyInput.key["KeyS"];
+    playerKey.keyA_button = keyInput.key["KeyZ"];
+    playerKey.keyB_button = keyInput.key["KeyX"];
+    playerKey.keyC_button = keyInput.key["KeyC"];
+    playerKey.keyPause = keyInput.key["Space"];
+    playerKey.DesisionKey = keyInput.key["Desision"];
     playerKey.pulseSet();
     //console.log(Keys);
 }
