@@ -735,7 +735,7 @@ export let mapHeight = 0;
 export const keyInput = new key();                                 //キー入力の保持
 const playerKey = new usrKey();                             //ユーザーのキー保持
 
-export let keyConfig = 1;
+export let keyConfig = 0;
 export let mouseClick = false;
 export let mouseX = 0;
 export let mouseY = 0;
