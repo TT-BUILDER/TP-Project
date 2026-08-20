@@ -26,24 +26,17 @@
 
         <style>
 
-        /*
         #GameCanvas {
             display: block;
             margin-left: auto;
             margin-right: auto;
         }
-        */
 
         div.texts {
             width: max-content;
-            margin-left: 2em;
+            margin-left: auto;
             margin-right: auto;
 
-        }
-
-        body {
-            display: flex;
-            align-items: flex-start;
         }
 
         div.block1,
@@ -51,6 +44,10 @@
             display: inline-block;
             vertical-align: top;
             text-align: left;
+        }
+
+        div.block2 {
+            margin-left: 3em;
         }
 
         </style>
@@ -67,7 +64,8 @@
                 Xキー でジャンプ<br>
                 Cキー でステップ<br>
                 スペースキーでポーズ<br>
-                <br>
+            </div>
+            <div class="block2">
                 ＜FPSモード＞<br>
                 ＷＡＳＤ で操作<br>
                 マウスクリック で攻撃<br>

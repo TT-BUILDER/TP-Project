@@ -297,7 +297,8 @@ export class sprite {
         this.visualPY = 0;
         this.gravity = 1.5;
         this.slowDownV = 2;
-        this.minus = 0;
+        this.collisionHitMinus = 0;
+        if (type === "player") this.collisionHitMinus = TILESIZE/4;
         this.sx = sx;
         this.sy = sy;
         this.sz = sz;
@@ -355,7 +356,8 @@ export class sprite {
         this.visualPY = 0;
         this.gravity = 1.5;
         this.slowDownV = 2;
-        this.minus = 0;
+        this.collisionHitMinus = 0;
+        if (this.type === "player") this.collisionHitMinus = TILESIZE/4;
         this.sx = sx;
         this.sy = sy;
         this.sz = sz;
@@ -641,21 +643,21 @@ export class sprite {
             this.waterRegist = 1;
 
             }
-            //this.minus = TILESIZE/4*(this.type == "player" && this.direction%2 == 1);
+            //this.collisionHitMinus = TILESIZE/4*(this.type == "player" && this.direction%2 == 1);
 
             //ベクトルX分動かす
             this.px = this.px + advx;
             //コリジョンXチェック
             if (this.collisionFlag) {
-                if (this.doCollision(ColMap,TILESIZE,this.px,this.py,this.minus)) {
+                if (this.doCollision(ColMap,TILESIZE,this.px,this.py,this.collisionHitMinus)) {
                     if (vx < 0) {
                         const ltx = Math.floor((this.px-(this.sx/2))/TILESIZE);
-                        this.px = (ltx+1)*TILESIZE+(this.sx/2)-this.minus;
+                        this.px = (ltx+1)*TILESIZE+(this.sx/2)-this.collisionHitMinus;
                         this.collisionState = this.collisionState | 0b00010;
                         this.vx = 0;
                     } else if (vx > 0) {
                         const rtx = Math.ceil((this.px+(this.sx/2))/TILESIZE);
-                        this.px = (rtx-1)*TILESIZE-(this.sx/2)+this.minus;
+                        this.px = (rtx-1)*TILESIZE-(this.sx/2)+this.collisionHitMinus;
                         this.collisionState = this.collisionState | 0b00001;
                         this.vx = 0;
                     }
@@ -666,15 +668,15 @@ export class sprite {
             this.py = this.py + advy;
             //コリジョンYチェック
             if (this.collisionFlag){
-                if (this.doCollision(ColMap,TILESIZE,this.px,this.py,this.minus)) {
+                if (this.doCollision(ColMap,TILESIZE,this.px,this.py,this.collisionHitMinus)) {
                     if (vy < 0) {
                         const uty = Math.floor((this.py-(this.sy/2))/TILESIZE);
-                        this.py = (uty+1)*TILESIZE+(this.sy/2)-this.minus;
+                        this.py = (uty+1)*TILESIZE+(this.sy/2)-this.collisionHitMinus;
                         this.collisionState = this.collisionState | 0b01000;
                         this.vy = 0;
                     } else if (vy > 0) {
                         const dty = Math.ceil((this.py+(this.sy/2))/TILESIZE);
-                        this.py = (dty-1)*TILESIZE-(this.sy/2)+this.minus;
+                        this.py = (dty-1)*TILESIZE-(this.sy/2)+this.collisionHitMinus;
                         this.collisionState = this.collisionState | 0b00100;
                         this.vy = 0;
                     }

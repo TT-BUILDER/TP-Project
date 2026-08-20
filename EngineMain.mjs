@@ -73,9 +73,10 @@ const initCanvasWidth = canvas.width;                       //初期キャンバ
 ctx.fillStyle = "rgb(0,0,0)";
 ctx.font = `${TextSize}px monospace`;
 ctx.textBaseline = "hanging";
-ctx.fillText("Now Loading... Please wait a moment.",0,0);
 ctx.textAlign = "left";
-ctx.textBaseline = "alphabetic";
+ctx.textBaseline = "top";
+ctx.fillText("Now Loading... Please wait a moment.",0,0);
+ctx.fillText("State : getting variable's memory spaces",0,TextSize);
 
 const baseTXTBufX = 19;
 const baseTXTBufY = 7;
@@ -799,6 +800,11 @@ export const plaAttackAABB = new sprite(player.px,player.py,0,0,0,"PlaAtAABB");
 const promise = new Promise( async function(resolve,reject) {
 
     try {
+        ctx.fillStyle = "rgb(255,255,255)";
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = "rgb(0,0,0)";
+        ctx.fillText("Now Loading... Please wait a moment.",0,0);
+        ctx.fillText("State : Loading Map data asstes",0,TextSize);
 
         //デバッグステージのデータ読み込み（「Debug」として追加）
         //マップデータはJSONファイルから先に読む（TileRenderクラスのnewLoadMapメソッドがJSONファイルを利用するため）
@@ -840,7 +846,13 @@ const promise = new Promise( async function(resolve,reject) {
         MapJSONs["Debug2"] = await fetchJSON("./assets/maps/Debug2.json");
         Maps["Debug2"] = await TR.newLoadMap(MapJSONs["Debug2"],"./assets/maps/Debug2.txt");
         MapCollisions["Debug2"] = await TR.newLoadMap(MapJSONs["Debug2"],"./assets/maps/Debug2_C.txt");
-                
+        
+        ctx.fillStyle = "rgb(255,255,255)";
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = "rgb(0,0,0)";
+        ctx.fillText("Now Loading... Please wait a moment.",0,0);
+        ctx.fillText("State : Loading image asstes",0,TextSize);
+
         //画像データたちを読み込む
         await img.AddImg("MapTip_Debug","./assets/tiles/testTiles1.png");
         await img.AddImg("MapTip1","./assets/tiles/GenericTiles.png");
@@ -857,9 +869,22 @@ const promise = new Promise( async function(resolve,reject) {
         await AuM.importAudio("Map1_Battle",);
         audioInfo["Map1_Battle"] = await fetchJSON("./assets/sounds/BGM/map1_battle_info.json");
         */
+
+        ctx.fillStyle = "rgb(255,255,255)";
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = "rgb(0,0,0)";
+        ctx.fillText("Now Loading... Please wait a moment.",0,0);
+        ctx.fillText("State : Loading music asstes",0,TextSize);
+
         await AuM.AddAudioFromInfo("Map1_Battle","./assets/sounds/BGM/map1_battle_info.json","./assets/sounds/BGM/");
         await AuM.AddAudioFromInfo("Map2_Peace","./assets/sounds/BGM/map2_peace_info.json","./assets/sounds/BGM/");
         await AuM.AddAudioFromInfo("Map2_Battle","./assets/sounds/BGM/map2_battle_info.json","./assets/sounds/BGM/");
+
+        ctx.fillStyle = "rgb(255,255,255)";
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = "rgb(0,0,0)";
+        ctx.fillText("Now Loading... Please wait a moment.",0,0);
+        ctx.fillText("State : Adding eventlistener.",0,TextSize);
 
         //どちらもKeys[]にキーを収納している。
         //KeyDownイベント時に押されたキーを格納
@@ -923,7 +948,11 @@ const promise = new Promise( async function(resolve,reject) {
             mouseClick = false;
         });
 
-
+        ctx.fillStyle = "rgb(255,255,255)";
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = "rgb(0,0,0)";
+        ctx.fillText("Now Loading... Please wait a moment.",0,0);
+        ctx.fillText("State : Promise Process End!",0,TextSize);
         
         //読み込み完了
         loading = 0;
@@ -1024,9 +1053,9 @@ export function screenSetOffset(px = 0,py = 0){
 async function init (){
 
     //ステージの呼び出し
-    //await mainStage.changeStage("GrandFloor");
+    await mainStage.changeStage("GrandFloor");
     //await mainStage.changeStage("water_debug");
-    await mainStage.changeStage("Map_3");
+    //await mainStage.changeStage("Map_3");
     //player.setPos(9/2*TILESIZE,8/2*TILESIZE);
     //NowBoss.setPos(TR.MapWidth/3*TILESIZE,TR.MapHeight/3*TILESIZE,0)
 
@@ -1606,16 +1635,18 @@ function RenderCanvas(){
         setTextSize(Math.min(tsx,tsy)); 
         
         clearTextBuffer();
-        renderUI(
-            UCX/2,
-            UCY,
-            UCX*3,
-            UCY*2,
-            [0,0,0,192],
-            true,
-            TextSize/4,
-            [255,255,255,255]
-        );
+        if (isPause){
+            renderUI(
+                UCX/2,
+                UCY,
+                UCX*3,
+                UCY*2,
+                [0,0,0,192],
+                true,
+                TextSize/4,
+                [255,255,255,255]
+            );
+        }
 
         if (setting == 0){
             if (isPause){
@@ -1625,6 +1656,24 @@ function RenderCanvas(){
                 } else if (playerKey.pulseKeyUp || playerKey.pulseKeyRight){
                     pauseCursorItem--;
                 }
+                
+                textWrite(2,6,"キーコンフィグ");
+                textWrite(12,6,"サウンド");
+
+                if (mod(pauseCursorItem,4)-2 == 0) {
+                    textWrite(1,6,"▶");
+                    if (playerKey.pulseDesisionKey){
+                        setting = 1;
+                    }
+                } else if (mod(pauseCursorItem,4)-2 == 1){
+                    textWrite(11,6,"▶");
+                    /*
+                    if (playerKey.pulseDesisionKey){
+                        setting = 2;
+                    }
+                    */
+                }
+                
             }
             if (mainStage.StType != "GrandFloor"){
                 if (isPause) {
@@ -1670,27 +1719,6 @@ function RenderCanvas(){
                 }
             }
 
-            if (isPause){
-                
-                textWrite(2,6,"キーコンフィグ");
-                textWrite(12,6,"サウンド");
-
-                if (mod(pauseCursorItem,4)-2 == 0) {
-                    textWrite(1,6,"▶");
-                    if (playerKey.pulseDesisionKey){
-                        setting = 1;
-                    }
-                } else if (mod(pauseCursorItem,4)-2 == 1){
-                    textWrite(11,6,"▶");
-                    /*
-                    if (playerKey.pulseDesisionKey){
-                        setting = 2;
-                    }
-                    */
-                    textWrite(8,3,"現在、無効です。");
-                }
-
-            }
         } else if (setting == 1) {
             //カーソル移動
             if (playerKey.pulseKeyDown || playerKey.pulseKeyLeft){
