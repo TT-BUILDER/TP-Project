@@ -1606,22 +1606,24 @@ function RenderCanvas(){
     ctx.fillStyle = restore;
 
     //BGM関連のメッセージ
-    ctx.font = "20px monospace";
+    const txtSize = 20*canvasMult;
+    const lineSize = 28*canvasMult;
+    ctx.font = `${txtSize}px monospace`;
     ctx.fillStyle = "rgba(255,255,255,0.8)";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(`This is debug. keyCFG : ${keyConfig}`, canvas.width / 2, canvas.height - 56);
+    ctx.fillText(`This is debug. keyCFG : ${keyConfig}`, canvas.width / 2, canvas.height - lineSize*2);
     //ctx.fillText(`This is debug. asyncFadeVRGBA : ${[renderCamera.asyncFadeVR, renderCamera.asyncFadeVG, renderCamera.asyncFadeVB, renderCamera.asyncFadeVA]}`, canvas.width / 2, canvas.height - 84);
-    ctx.fillText(`This is debug. BGRay : ${[renderCamera.BGRayColor.R, renderCamera.BGRayColor.G, renderCamera.BGRayColor.B, renderCamera.BGRayColor.A]}`, canvas.width / 2, canvas.height - 84);
-    ctx.fillText(`This is debug. RGBA : ${[renderCamera.scR, renderCamera.scG, renderCamera.scB, renderCamera.scA]}`, canvas.width / 2, canvas.height - 110);
+    ctx.fillText(`This is debug. BGRay : ${[renderCamera.BGRayColor.R, renderCamera.BGRayColor.G, renderCamera.BGRayColor.B, renderCamera.BGRayColor.A]}`, canvas.width / 2, canvas.height - lineSize*3);
+    ctx.fillText(`This is debug. RGBA : ${[renderCamera.scR, renderCamera.scG, renderCamera.scB, renderCamera.scA]}`, canvas.width / 2, canvas.height - lineSize*4);
     if (onBGM) {
         if (isUserGesture == "yet" || isUserGesture == "action"){
-            ctx.fillText("Please click screen or Press any key...", canvas.width / 2, canvas.height - 28);
+            ctx.fillText("Please click screen or Press any key...", canvas.width / 2, canvas.height - lineSize);
         } else {
-            ctx.fillText("The BGM Program is Enabled.", canvas.width / 2, canvas.height - 28);
+            ctx.fillText("The BGM Program is Enabled.", canvas.width / 2, canvas.height - lineSize);
         }
     } else {
-        ctx.fillText("The BGM Program is Disabled.", canvas.width / 2, canvas.height - 28);
+        ctx.fillText("The BGM Program is Disabled.", canvas.width / 2, canvas.height - lineSize);
     }
 
     //ポーズ画面の描画
