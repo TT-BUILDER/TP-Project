@@ -46,7 +46,7 @@ let loading = 1;
 
 let isJP = true;
 
-let onBGM = false;
+let onBGM = true;
 
 export let fps = 0;
 export let frameDelta = 16.67;
