@@ -87,6 +87,14 @@ export function hitWallCheck(ColMap,TILESIZE,px,py,sx,sy){
     return 0;
 
 }
+export function vectorNormalizer(vx,vy){
+    const dist = (vx**2+vy**2)**0.5;
+    if (dist <= 0){
+        return [0,0];
+    } else {
+        return [vx/dist,vy/dist];
+    }
+}
 export class imgData {
     /**
      * 画像データの保持をする構造体
@@ -103,8 +111,8 @@ export class imgData {
         this.imageData = imgD;
         this.trimStX = trimSX;
         this.trimStY = trimSY;
-        this.trimEnX = trimEX;
-        this.trimEnY = trimEY;
+        this.trimSizeX = trimEX;
+        this.trimSizeY = trimEY;
         this.sizeX = sizeX;
         this.sizeY = sizeY;
         this.roll = rad;
@@ -136,8 +144,8 @@ export class imgData {
     setTrim(trimSX,trimSY,sizeX,sizeY){
         this.trimStX = trimSX;
         this.trimStY = trimSY;
-        this.trimEnX = trimSX + sizeX;
-        this.trimEnY = trimSY + sizeY;
+        this.trimSizeX = sizeX;
+        this.trimSizeY = sizeY;
     }
     /**
      * 画像描画
@@ -154,8 +162,8 @@ export class imgData {
             this.sizeY,
             this.trimStX,
             this.trimStY,
-            this.trimEnX,
-            this.trimEnY
+            this.trimSizeX,
+            this.trimSizeY
         )
     }
     /**
@@ -302,8 +310,8 @@ export class sprite {
         this.sx = sx;
         this.sy = sy;
         this.sz = sz;
-        this.dafaultSX = this.sx;
-        this.dafaultSY = this.sy;
+        this.defaultSX = this.sx;
+        this.defaultSY = this.sy;
         this.defaultSZ = this.sz;
         this.type = type;
         this.MaxHp = MHP;
@@ -311,8 +319,6 @@ export class sprite {
         this.MaxStamina = MST;
         this.stamina = ST;
         this.Speed = SPD;
-        this.animationFrame = 0;
-        this.animationState = 0;
         this.state = 0;
         this.collisionFlag = 1;
         //U D L R
@@ -326,6 +332,7 @@ export class sprite {
         this.VLOCK = false;
         this.OVLOCK = false;
         this.EVLOCK = false;
+        this.ZVLOCK = false;
         //ダメージ関係
         this.invisilbe = false;
         //フレーム単位
@@ -335,9 +342,12 @@ export class sprite {
         this.showflag = true;
         this.direction = 0;
         this.myImg = new imgData(img.imgList["null"]);
-        this.animFrameClockDiv = 1;
-        this.animFrameClock = 0;
-        this.animFrameSumByClock = 0;
+
+        this.animationTick = 0;
+        this.animationFrame = 0;
+        if (type == "player") this.animationFrame = "standing";
+        this.animationState = null;
+        this.animCountDone = false;
     }
     /**
      * @param {Number} px ポジションｘ
@@ -361,16 +371,14 @@ export class sprite {
         this.sx = sx;
         this.sy = sy;
         this.sz = sz;
-        this.dafaultSX = this.sx;
-        this.dafaultSY = this.sy;
+        this.defaultSX = this.sx;
+        this.defaultSY = this.sy;
         this.defaultSZ = this.sz;
         this.MaxHp = MHP;
         this.hp = HP;
         this.MaxStamina = MST;
         this.stamina = ST;
         this.Speed = SPD;
-        this.animationFrame = 0;
-        this.animationState = 0;
         this.state = 0;
         this.collisionFlag = 1;
         //U D L R
@@ -384,6 +392,7 @@ export class sprite {
         this.VLOCK = false;
         this.OVLOCK = false;
         this.EVLOCK = false;
+        this.ZVLOCK = false;
         //ダメージ関係
         this.invisilbe = false;
         //フレーム単位
@@ -391,9 +400,12 @@ export class sprite {
         this.maxInvisibleTime = 32;
         this.direction = 0;
         this.myImg = new imgData(img.imgList["null"]);
-        this.animFrameClockDiv = 1;
-        this.animFrameClock = 0;
-        this.animFrameSumByClock = 0;
+
+        this.animationTick = 0;
+        this.animationFrame = 0;
+        if (this.type == "player") this.animationFrame = "standing";
+        this.animationState = null;
+        this.animCountDone = false;
         
     }
 
@@ -402,48 +414,29 @@ export class sprite {
         this.visualPY = py;
     }
 
-    /**
-     * animationFrameのクリア
-     * @param {Number} num セットしたいanimationFrameの値
-     */
-    clearFrame(num = 0){
-        this.animationFrame = num;
+
+
+    clearAnimTick(){
+        this.animationTick = 0;
+        this.animCountDone = false;
     }
-    /**
-     * animFrameSumByClockのクリア
-     */
-    clearanimFrameSum(){
-        this.animFrameSumByClock = 0;
-    }
-    /**
-     * animFrameClockDiv（何フレームでanimationFrameのインクリメントを行うか）にセットしたい値
-     * @param {Number} div animFrameClockDivにセットしたい値
-     */
-    setAnimFrameClockDiv(div){
-        this.animFrameClockDiv = div;
-    }
-    /**
-     * 指定したフレーム分待機してから指定ステートへ移行する。
-     * @param {Number} frame 移行にかけるフレーム数
-     * @param {Number} state 移行したいステート番号
-     */
-    incrementAnimFrame(frame,state){
-        this.animationFrame++;
-        if (frame <= this.animationFrame){
-            this.changeAnimState(state);
+    
+    countAnimTick(count){
+        if (this.animCountDone) this.clearAnimTick();
+        if (this.animationTick >= count){
+            this.animCountDone = true;
+            this.animationTick = 0;
+            return true;
+        } else {
+            this.animCountDone = false;
+            this.animationTick++;
+            return false;
         }
     }
+
     changeAnimState(state){
         this.animationFrame = 0;
-        this.clearanimFrameSum();
         this.animationState = state;
-    }
-    updateAnimSumByClock(){
-        this.animFrameClock++;
-        if (this.animFrameClock >= this.animFrameClockDiv) {
-            this.animFrameClock = 0;
-            this.animFrameSumByClock++;
-        }
     }
 
     /**
@@ -493,7 +486,7 @@ export class sprite {
                 this.myImg.render(RenSprX,RenSprY-(this.sz/2)+(this.sy/2));
             }
             //NowCTX.arc(32,32,32,0,Math.PI*2,false);
-            if (this.invisibleTime % 4 <= 1) {
+            if (DebugMode) {
                 let RestoreAplha = NowCTX.globalAlpha;
                 NowCTX.globalAlpha = 0.5;
                 NowCTX.fillStyle = style;
@@ -569,7 +562,7 @@ export class sprite {
         this.vz += this.gravity*fpsdelta*this.waterRegist;
         if (this.vz > maxFallSpeed){
             this.vz = maxFallSpeed;
-            console.log("Maximam fallSpeed!");
+            //console.log("Maximam fallSpeed!");
         }
         
         let dvz = this.vz*deltaVector;
@@ -686,7 +679,7 @@ export class sprite {
             if (fallOK) this.ZAxisFall();
 
             this.setStaminaRelative(0.2);
-            this.updateAnimSumByClock();
+            //this.updateAnimSumByClock();
 
         }
 
@@ -729,13 +722,13 @@ export class sprite {
      * @param {Number} smoothSpeed スムージング係数(fadein関数の引数)
      */
     setVector(vx,vy,vz = this.vz,smooth = false,smoothSpeed = 2){
-        if (!this.VLOCK && !this.EVLOCK) {
+        if (!this.VLOCK && !this.EVLOCK && !this.ZVLOCK) {
             this.setVectorNoLimit(vx,vy,vz,smooth,smoothSpeed);
         }
     }
     
     slowDown(slowDownSpeed = this.slowDownV){
-        if (!this.VLOCK && !this.EVLOCK) {
+        if (!this.VLOCK && !this.EVLOCK && !this.ZVLOCK) {
             this.vx += fadeIn(this.vx,0,slowDownSpeed);
             this.vy += fadeIn(this.vy,0,slowDownSpeed);
             if (Math.round(this.vx) == 0) this.vx = 0;
@@ -813,19 +806,37 @@ export class sprite {
      * @param {number} tvx ノックバックベクトルX
      * @param {number} tvy ノックバックベクトルY
      */
-    damage(di = 1,slip = false,nkockback = true,tvx = 0,tvy = 0){
+    damage(di,tx,ty,slip = false,nkockback = true){
         if ((!this.invisilbe && !this.nonDamage) || slip){
+            //HPを減算
             this.hp = this.hp - di
+            //HPを０以上へ
             if (this.hp <= 0) this.hp = 0;
-            this.invisibleTime = this.maxInvisibleTime;
-            this.invisilbe = true;
-            if (!slip && nkockback) {
-                this.setVectorNoLimit(
-                    -1*this.vx+tvx,
-                    -1*this.vy+tvy
-                );
-                this.ZAxisJump(-4);
-                this.VLOCK = true;
+            
+            let vx = this.px-tx;
+            let vy = this.py-ty;
+
+            const dist = (vx**2+vy**2)**0.5;
+            if (dist <= 0){
+                vx = 0;
+                vy = 0;
+            } else {
+                vx = vx/dist;
+                vy = vy/dist;
+            }
+            if (!slip){
+                //無敵時間初期化
+                this.invisibleTime = this.maxInvisibleTime;
+                this.invisilbe = true;
+                //ノックバック処理
+                if (nkockback) {
+                    this.setVectorNoLimit(
+                        vx*TILESIZE/10,
+                        vy*TILESIZE/10
+                    );
+                    this.ZAxisJump(-4);
+                    this.VLOCK = true;
+                }
             }
         }
     
@@ -927,7 +938,7 @@ export class Enemy extends sprite {
                 //this.setVectorNoLimit(-this.vx,-this.vy);
                 //this.ZAxisJump(-4);
                 //this.VLOCK = true;
-                this.damage(0);
+                this.damage(0,plaAttackAABB.px,plaAttackAABB.py);
                 console.log("ouch! hit!");
             }
             this.swordHitF = true;
@@ -948,7 +959,7 @@ export class Enemy extends sprite {
                 this.EnMove(ColMap,TILESIZE);
 
                 if (this.hitCheck(player.px,player.py,player.pz,player.sx,player.sy,player.sz)){
-                    player.damage(1);
+                    player.damage(1,this.px,this.py);
                 }
 
                 if ( (this.collisionState & 0b10000) === 0b10000 ) {
@@ -991,7 +1002,7 @@ export class Enemy extends sprite {
                 }
                 
                 if (this.hitCheck(player.px,player.py,player.pz,player.sx,player.sy,player.sz)){
-                    player.damage(1);
+                    player.damage(1,this.px,this.py);
                 }
 
                 [this.memory[1],this.memory[2]] = [this.vx,this.vy];
@@ -1010,7 +1021,7 @@ export class Enemy extends sprite {
                 this.EnMove(ColMap,TILESIZE);
                 
                 if (this.hitCheck(player.px,player.py,player.pz,player.sx,player.sy,player.sz)){
-                    player.damage(1);
+                    player.damage(1,this.px,this.py);
                 }
 
                 if ( this.collisionState  > 0 ) {
@@ -1039,7 +1050,7 @@ export class Enemy extends sprite {
                 this.setGravity(0.2);
 
                 if (this.hitCheck(player.px,player.py,player.pz,player.sx,player.sy,player.sz)){
-                    player.damage(1);
+                    player.damage(1,this.px,this.py);
                 }
 
                 if ( this.collisionState > 0 ) {
@@ -1070,7 +1081,7 @@ export class Enemy extends sprite {
                 this.setGravity(1);
                 
                 if (this.hitCheck(player.px,player.py,player.pz,player.sx,player.sy,player.sz)){
-                    player.damage(1);
+                    player.damage(1,this.px,this.py);
                 }
 
                 if ( this.collisionState  > 0 ) {
@@ -1217,9 +1228,11 @@ export class Enemy extends sprite {
                             NowBoss.sz
                         )){
                         if (!NowBoss.nonDamage) {
+                            
                             NowBoss.damage(nowStatus.AP,false,false);
                             NowBoss.lastBossState = NowBoss.BossState;
                             NowBoss.BossState = "damage";
+                            
                             for (let i = 0; i<4; i++){
                                 EfM.spawnNPC(
                                     this.px,
@@ -1249,10 +1262,15 @@ export class Enemy extends sprite {
             //地面から生える根っこ
             case "root_spear":
 
+                const isSpawnByBoss = (typeof(this.memory[3]) === "string" && typeof(NowBoss.BossMemory["rootC"]) === "number" && NowBoss.BossMemory["rootC"] > 0);
+
                 const dist = ((this.px-player.px)**2+(this.py-player.py)**2)**0.5;
+                //メモリ初期化
                 /*
                     idx 0 ... 伸び具合
                     idx 1 ... 縮みフラグ
+                    idx 2 ... 元の大きさ
+                    (idx 3 ... ボス召喚フラグ)
                 */
                 if (this.memory.length < 3){
                     this.maxInvisibleTime = 30;
@@ -1298,12 +1316,14 @@ export class Enemy extends sprite {
                     }
                 }
 
+                //伸び縮み調整
                 this.setSize(this.sx,this.sy,TILESIZE/4*this.memory[0]);
                 this.setSize(this.sx,Math.min(this.memory[2],this.sz));
 
                 this.EnMove(ColMap,TILESIZE);
+
                 if (this.hitCheck(player.px,player.py,player.pz,player.sx,player.sy,player.sz)){
-                    player.damage(1);
+                    player.damage(1,this.px,this.py);
                     if (!player.EVLOCK) {
                         player.setVectorNoLimit(
                             VecDirList[player.direction][0]*-4,
@@ -1327,7 +1347,7 @@ export class Enemy extends sprite {
                     plaAttackAABB.sy,
                     plaAttackAABB.sz,
                 )) {
-                    this.damage(1);
+                    this.damage(1,this.px,this.py);
                     if (this.hp <= 0){
                         for (let i = 0; i<4; i++){
                             EfM.spawnNPC(
@@ -1343,12 +1363,37 @@ export class Enemy extends sprite {
                                 -12
                             )
                         }
-                        if (typeof(this.memory[3]) === "string" && typeof(NowBoss.BossMemory["rootC"]) === "number" && NowBoss.BossMemory["rootC"] > 0){
+                        if (isSpawnByBoss){
                             NowBoss.BossMemory["rootC"]--;
+                            console.log("spawned by Boss!");
                         }
                         this.Unactivate();
                     }
                 }
+                
+                //ボスからの自滅命令受け取り
+                if (isSpawnByBoss && typeof(NowBoss.BossMemory["toDeleteRoot"]) === "boolean" && NowBoss.BossMemory["toDeleteRoot"] == true){
+                    for (let i = 0; i<4; i++){
+                        EfM.spawnNPC(
+                            this.px,
+                            this.py,
+                            this.pz,
+                            this.sx/2,
+                            this.sx/2,
+                            this.sx/2,
+                            "particle_leef",
+                            randFloat(-3,3),
+                            randFloat(-3,3),
+                            -12
+                        )
+                    }
+                    if ( isSpawnByBoss ){
+                        NowBoss.BossMemory["rootC"]--;
+                    }
+                    this.Unactivate();
+
+                }
+                
 
                 break;
             default:
@@ -1542,8 +1587,56 @@ export class Effect extends sprite {
                 if (this.vz > 1) this.vz = 2;
                 break;
             case "boss_wood_leef":
+                if (this.memory.length < 1){
+                    this.memory.unshift(this.sx/NowBoss.sx);
+                    this.memory.unshift(this.sy/NowBoss.sy);
+                    this.memory.unshift(this.sz/NowBoss.sz);
+                    this.memory.unshift(this.pz);
+                }
+                if (typeof(NowBoss) === "object" ){
+                    this.pz = this.memory[0] + NowBoss.pz;
+                    this.setSize(
+                        NowBoss.sx*this.memory[3],
+                        NowBoss.sy*this.memory[2],
+                        NowBoss.sz*this.memory[1]
+                    );
+                } else {
+                    this.Unactivate();
+                }
                 this.fallOK = false;
                 //this.pz = NowBoss.pz+showTILESIZE*8;
+                break;
+            //使用不可（めんどくさい）
+            case "died_wood_boss":
+                const xDist = player.px-this.px;
+                const yDist = player.py-this.py;
+                const xSign = Math.sign(xDist);
+                const ySign = Math.sign(yDist);
+                const xSize = (player.sx + this.sx)/2;
+                const ySize = (player.sy + this.sy)/2;
+                
+                //X,Yどちらも範囲内
+                if (Math.abs(xDist) < xSize && Math.abs(yDist) < ySize){
+                    
+                    player.px -= player.vx
+                    player.vx = 0;
+                    
+                    if (xSign < 0){
+                        player.px -= xSize - Math.abs(xDist);
+                    } else {
+                        player.px += xSize - Math.abs(xDist);
+                    }
+                    
+                    player.py -= player.vy;
+                    player.vy = 0;
+                    
+                    if (ySign < 0){
+                        player.py -= ySize - Math.abs(yDist);
+                    } else {
+                        player.py += ySize - Math.abs(yDist);
+                    }
+                    
+                }
                 break;
             case "WarpHole":
                 if (this.memory[0] < 10){
@@ -1601,8 +1694,8 @@ export class Boss extends Enemy {
      */
     constructor(px,py,sx,sy,sz,type,MHP = 100,HP = MHP){
         super(px,py,sx,sy,sz,type,MHP,HP,true);
-        this.dafaultSX = this.sx;
-        this.dafaultSY = this.sy;
+        this.defaultSX = this.sx;
+        this.defaultSY = this.sy;
         this.defaultSZ = this.sz;
         this.allive = true;
         this.fallOK = true;
@@ -1695,6 +1788,14 @@ export class Boss extends Enemy {
                     this.setPos(this.px,this.py,-360);
                     this.BossInit();
                     this.BossState++;
+                    //ぶつかった回数メモリ
+                    this.forList["j"] = 0;
+                    //汎用メモリ
+                    this.forList["i"] = 0;
+                    //ダメージ回数
+                    this.BossMemory["damageCount"] = 0;
+                    this.BossMemory["wallDist"] = 0;
+                    this.BossMemory["lastWallDist"] = 0;
                     break;
                 //落下
                 case 1:
@@ -1726,10 +1827,12 @@ export class Boss extends Enemy {
                     break;
                 //謎待機＆いろいろ初期化
                 case 4:
+                    //this.nonDamage = false;
                     if (this.waitFrame(60)){
                         this.BossState++;
+                    } else if (this.waitFrameC == 1) {
                         //攻撃する回数
-                        this.BossMemory["attackNum"] = 4+Math.round(Math.random()*2);
+                        this.BossMemory["attackNum"] = randInt(2,6);
                         //ぶつかった回数メモリ
                         this.forList["j"] = 0;
                         //汎用メモリ
@@ -1738,6 +1841,7 @@ export class Boss extends Enemy {
                         this.BossMemory["damageCount"] = 0;
                         this.BossMemory["wallDist"] = 0;
                         this.BossMemory["lastWallDist"] = 0;
+                        console.log(this.BossMemory);
                     }
                     break;
                 //ブリつけ中＆突進方向の決定
@@ -1838,6 +1942,7 @@ export class Boss extends Enemy {
                     break;
                 //壁にゲキトツ
                 case 7:
+                    this.nonDamage = false;
                     this.setVector(0,0,0);
                     if (this.forList["i"] < 30){
                         screenSetOffsetRand(5,5);
@@ -2141,7 +2246,7 @@ export class Boss extends Enemy {
                     console.log(this.BossMemory["damageCount"]);
                     if (
                         this.BossMemory["damageCount"]%
-                        (3 - (this.hp < this.MaxHp/2)) == 0)
+                        (2 - (this.hp < this.MaxHp/2)) == 0)
                         {
                             console.log("go attack");
                             this.BossState = 4;
@@ -2260,18 +2365,18 @@ export class Boss extends Enemy {
                     console.log(`friendly_ice found : ${typeof(tNPC)}`);
                     console.log(tNPC);
                     */
-                    this.waitFrame(120);
-                    let cycle = Math.floor(60-((this.hp <= this.MaxHp/2)*10));
-                    let dist = ((this.px-player.px)**2+(this.py-player.py)**2)**0.5;
+                    this.waitFrame(160);
+                    const cycle = Math.floor(80-((this.hp <= this.MaxHp/2)*10));
+                    const dist = ((this.px-player.px)**2+(this.py-player.py)**2)**0.5;
                     if (this.waitFrameC%(cycle/4) == 0){
-                        if (this.animationFrame < 4){
+                        if (this.animationFrame < 3){
                             this.animationFrame++;
                         } else {
                             this.animationFrame = 0;
                         }
                         console.log(`now animationFrame : ${this.animationFrame}`);
                         
-                        if (this.animationFrame == 4){
+                        if (this.animationFrame == 0){
                             EnM.spawnNPC(
                                 this.px,
                                 this.py,
@@ -2291,7 +2396,6 @@ export class Boss extends Enemy {
 
                     if (
                             this.BossMemory["throwCounter"] <= 0 ||
-                            randInt(0,(this.hp < this.MaxHp/2)) > 0 ||
                             ((player.px-this.px)**2+(player.py-this.py)**2)**0.5 < this.sx*1.3
                         ){
                         this.BossState = 4;
@@ -2336,13 +2440,13 @@ export class Boss extends Enemy {
                         let [tpx,tpy] = [0,0];
                         if (this.waitFrameC%(5-(this.hp <= this.MaxHp/2)) == 0){
                             [tpx,tpy] = [
-                                    randFloat(player.px-(TILESIZE*6),player.px+(TILESIZE*6)),
-                                    randFloat(player.py-(TILESIZE*6),player.py+(TILESIZE*6))
+                                    randInt(player.px-(TILESIZE*8),player.px+(TILESIZE*7)),
+                                    randInt(player.py-(TILESIZE*8),player.py+(TILESIZE*7))
                                 ]
                             while (hitWallCheck(ColMap,TILESIZE,tpx,tpy,TILESIZE*1.5,TILESIZE*1.5)){
                                 [tpx,tpy] = [
-                                        randFloat(player.px-(TILESIZE*6),player.px+(TILESIZE*6)),
-                                        randFloat(player.py-(TILESIZE*6),player.py+(TILESIZE*6))
+                                        randInt(player.px-(TILESIZE*8),player.px+(TILESIZE*7)),
+                                        randInt(player.py-(TILESIZE*8),player.py+(TILESIZE*7))
                                     ]
                             }
                             EnM.spawnNPC(
@@ -2474,7 +2578,7 @@ export class Boss extends Enemy {
                             randFloat(-TILESIZE/2,0)*(1+mult)/2
                         );
                     }
-                    this.setSize(this.dafaultSX*mult,this.dafaultSY*mult,this.defaultSZ*mult);
+                    this.setSize(this.defaultSX*mult,this.defaultSY*mult,this.defaultSZ*mult);
 
                     this.forList["i"]++;
                     if (this.forList["i"] > constantDieC){
@@ -2493,14 +2597,15 @@ export class Boss extends Enemy {
         } else if (this.type == "Wood"){
             this.nonDamage = true;
 
-            const spawnRootAround = (num,std,edd) => {
+            //護衛根っこ召喚関数
+            const spawnRootAround = (num,std,edd,px = this.px,py = this.py,sx = this.sx,sy = this.sy) => {
                 this.BossMemory["rootN"] = num;
                 this.BossMemory["rootC"] = this.BossMemory["rootN"]+1;
                 for (let i = 0; i<this.BossMemory["rootN"]+1; i++){
                     let rad = radians(std+((edd-std)/this.BossMemory["rootN"]*i));
                     EnM.spawnNPC(
-                        this.px+((this.sx+TILESIZE)*Math.cos(rad)),
-                        this.py+((this.sy+TILESIZE)*Math.sin(rad)),
+                        px+((sx+TILESIZE)*Math.cos(rad)),
+                        py+((sy+TILESIZE)*Math.sin(rad)),
                         0,
                         TILESIZE,
                         TILESIZE,
@@ -2515,6 +2620,7 @@ export class Boss extends Enemy {
                 this.BossMemory["rootN"]++;
             };
 
+            //根っこ召喚関数
             const spawnRoot = (px,py) => {
                 EnM.spawnNPC(
                     px,
@@ -2530,6 +2636,7 @@ export class Boss extends Enemy {
             switch (this.BossState) {
                 //初期化
                 case 0:
+                    this.waitFrameReset();
                     this.BossInit();
                     this.forList["rt"] = 30;
                     EfM.spawnNPC(
@@ -2547,16 +2654,97 @@ export class Boss extends Enemy {
                 //登場アニメーション
                 case 1:
                     spawnRootAround(10,-15,195);
+                    this.BossMemory["toDeleteRoot"] = false;
                     spawnRoot(this.px,this.py+TILESIZE*14);
                     console.log("wood Boss Animation");
                     this.BossState++;
                     break;
                 //
                 case 2:
-                    this.BossState++;
+                    if (this.BossMemory["rootC"] >= this.BossMemory["rootN"]){
+                        this.BossState++;
+                    };
                     break;
                 //
                 case 3:
+                    this.nonDamage = false;
+                    break;
+                case "damage":
+                    this.BossMemory["toDeleteRoot"] = true;
+                    this.nonDamage = true;
+                    const [vx,vy] = vectorNormalizer(player.px-this.px,player.py-this.py);
+                    player.setVectorNoLimit(vx*TILESIZE/6,vy*TILESIZE/6,-6);
+                    player.setPos(player.px,player.py,-1);
+                    player.ZVLOCK = true;
+                    this.BossState = 2;
+                    break;
+                case "died":
+                    this.BossMemory["toDeleteRoot"] = true;
+                    this.vibrate(-2,2);
+                    if (this.waitFrame(480)){
+                        this.allive = false;
+                        /*
+                        EfM.spawnNPC(
+                            this.px,
+                            this.py,
+                            this.pz,
+                            this.sx,
+                            this.sy,
+                            this.sz/8,
+                            "died_wood_boss"
+                        );*/
+                        for (let i = 0; i<20; i++){
+                            EfM.spawnNPC(
+                                randInt(this.px-this.defaultSX,this.px+this.defaultSX),
+                                randInt(this.py-this.defaultSY,this.py+this.defaultSY),
+                                0,
+                                TILESIZE/2,
+                                TILESIZE/2,
+                                TILESIZE/2,
+                                "particle_leef",
+                                randFloat(-12,12),
+                                randFloat(-12,12),
+                                -18
+                                
+                            );
+                            EfM.spawnNPC(
+                                randInt(this.px-this.defaultSX*2,this.px+this.defaultSX*2),
+                                randInt(this.py-this.defaultSY,this.py+this.defaultSY),
+                                randInt(-this.sz,-this.sz-this.sz/3),
+                                TILESIZE/2,
+                                TILESIZE/2,
+                                TILESIZE/2,
+                                "particle_leef",
+                                randFloat(-8,8),
+                                randFloat(-8,8),
+                                -16
+                                
+                            );
+                        }
+
+                    } else {
+                        if (this.waitFrameC%5 == 0){
+                            EfM.spawnNPC(
+                                randInt(this.px-this.sx*2,this.px+this.sx*2),
+                                randInt(this.py-this.sy,this.py+this.sy),
+                                -this.sz,
+                                TILESIZE/2,
+                                TILESIZE/2,
+                                TILESIZE/2,
+                                "particle_leef",
+                                randFloat(-3,3),
+                                randFloat(-3,3),
+                                4
+                            );
+                        }
+                        if (this.waitFrameC > 60){
+                            this.setSize(
+                                this.defaultSX*(420-(this.waitFrameC-60))/420,
+                                this.defaultSY*(420-(this.waitFrameC-60))/420,
+                                this.defaultSZ
+                            );
+                        }
+                    }
 
                     break;
                 default:
@@ -2569,7 +2757,7 @@ export class Boss extends Enemy {
             }
 
             //根っこが消えたらスポーンしなおす
-            if (typeof(this.BossMemory["rootC"]) === "number" && this.BossMemory["rootC"] <= 0){
+            if (typeof(this.BossMemory["rootC"]) === "number" && this.BossMemory["rootC"] <= 0 && this.BossState != "died"){
                 if (typeof(this.forList["rt"]) != "number" || this.forList["rt"] <= 0){
                     this.forList["rt"] = 30;
                 }
@@ -2580,6 +2768,7 @@ export class Boss extends Enemy {
                 }
                 if (this.forList["rt"] <= 0) {
                     spawnRootAround(10,-15,195);
+                    this.BossMemory["toDeleteRoot"] = false;
                     this.forList["rt"] = 30;
                 }
             }
@@ -2604,6 +2793,7 @@ export class Boss extends Enemy {
         }
         //console.log(this.BossState);
 
+        //斬撃に当たったか
         if (moveOK){
             this.EnMove(ColMap,TILESIZE,this.fallOK);
         }
@@ -2616,9 +2806,11 @@ export class Boss extends Enemy {
             plaAttackAABB.sz
         );
         if (hitFlag == 1 && !this.nonDamage && !this.invisilbe) {
-            this.damage(nowStatus.AP,false,false);
+            
+            this.damage(nowStatus.AP,0,0,false,false);
             this.lastBossState = this.BossState;
             this.BossState = "damage";
+
         }
         hitFlag = this.hitCheck(
             player.px,
@@ -2631,7 +2823,7 @@ export class Boss extends Enemy {
         if (this.hp <= 0){
             this.BossState = "died";
         } else if (hitFlag){
-            player.damage(1);
+            player.damage(1,this.px,this.py);
             if (!player.EVLOCK) {
                 player.setVectorNoLimit(
                     Math.sign(player.px-this.px)*Math.abs(player.vx)*2/3,

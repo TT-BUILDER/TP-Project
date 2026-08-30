@@ -27,6 +27,7 @@ import { rendertxtBuffer } from "./UI.mjs";
 import { getStr } from "./UI.mjs";
 import { putStr } from "./UI.mjs";
 import { textWrite } from "./UI.mjs";
+import { clearConfig } from "./UI.mjs";
 
 //ポリゴン描画関係（めっちゃ不要）
 import { TexRen } from "./TriRender.mjs";
@@ -46,7 +47,7 @@ let loading = 1;
 
 let isJP = true;
 
-let onBGM = true;
+let onBGM = false;
 
 export let fps = 0;
 export let frameDelta = 16.67;
@@ -727,7 +728,7 @@ const TR = new TileRender(ScreenB,ScB);                     //タイルレンダ
 export const AuM = new audio();                             //オーディオインスタンス
 const audioInfo = {};
 //拡大率変更
-TR.TILESIZEUpdate(64,32);
+TR.TILESIZEUpdate(80,32);
 export let VisualDeltaVector = TILESIZE/showTILESIZE;
 export let deltaVector = VisualDeltaVector*(16.6/25);
 export let fpsdelta = (16.6/25);
@@ -750,7 +751,7 @@ export const mainStage = new stage("Map_1");
 let stageChangeRequest = null;
 
 //DebugStage.setCountEvent("stopPlayer");
-let test = 0;
+//let test = 0;
 
 let stageClear = 0;
 export let enableGoStageList = [1,1,1,1,0];
@@ -770,7 +771,7 @@ export let nowStatus = new status(0,0,0,0,0,0);
 //export const knightStatus =     new status(24,15,18,18,50,60);
 export const archerStatus =     new status(15,20,15,24,38,50);
 export const magicianStatus =   new status(12,42,10,20,32,45);
-export const knightStatus =     new status(5,5,18,18,50,8);
+export const knightStatus =     new status(5,5,18,18,50,12);
 export let player = new sprite(
     0,
     0,
@@ -784,6 +785,17 @@ export let player = new sprite(
     knightStatus.STM,
     knightStatus.SPD
 );
+
+let tempDir = 0;
+
+let playerImgTrimStX = 0;
+let playerImgTrimStY = 0;
+
+let playerLegImgTrimStX = 0;
+let playerLegImgTrimStY = 0;
+
+const UnitPlayerGSizeX = 32;
+const UnitPlayerGSizeY = 48;
 
 /*  0...standing
     1...walking
@@ -860,6 +872,8 @@ const promise = new Promise( async function(resolve,reject) {
         await img.AddImg("MapTip2","./assets/tiles/test1.png");
         await img.AddImg("SwordEffect","./assets/effects/TestEffect.png");
 
+        await img.AddImg("player_assets1","./assets/imgs/player_walk.png");
+
         await TexImg.AddImg("testTex","./assets/tiles/nullImage.png");
 
         //タイルチップデータの読み込み
@@ -899,8 +913,8 @@ const promise = new Promise( async function(resolve,reject) {
             //スペースキーによるスクロール防止（めちゃ強制的）
             event.preventDefault();
 
-            console.log("pressed event.key : "+event.key);
-            console.log("pressed event.code : "+event.code);
+            //console.log("pressed event.key : "+event.key);
+            //console.log("pressed event.code : "+event.code);
 
         });
         //KeyUpイベント時に話されたキーを格納
@@ -926,27 +940,24 @@ const promise = new Promise( async function(resolve,reject) {
         }, { passive: true });
 
         //VS code's AI
-        window.addEventListener("mousedown", () => {
+        window.addEventListener("mousedown", (e) => {
             if (isUserGesture == "yet") {
                 isUserGesture = "action";
             }
-
-        }, { passive: true });
-
-        canvas.addEventListener("mousedown", (e) => {
-
+            
             const rectP = canvas.getBoundingClientRect();
             mouseClick = true;
             mouseX = e.clientX - rectP.left;
             mouseY = e.clientY - rectP.top;
+            
 
-        });
-        canvas.addEventListener("mouseup", () => {
+        }, { passive: true });
+        window.addEventListener("mouseup", () => {
             mouseClick = false;
-        });
-        canvas.addEventListener("mouseleave", () => {
+        }, { passive: true });
+        window.addEventListener("mouseleave", () => {
             mouseClick = false;
-        });
+        }, { passive: true });
 
         ctx.fillStyle = "rgb(255,255,255)";
         ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -998,10 +1009,10 @@ function applyDeltaVector(deltaTime = frameDelta){
  */
 export function colorMerge(C,TarC,div){
     return [
-        C[0] + div*(Tar[0]-C[0]),
-        C[1] + div*(Tar[1]-C[1]),
-        C[2] + div*(Tar[2]-C[2]),
-        C[3] + div*(Tar[3]-C[3])
+        C[0] + div*(TarC[0]-C[0]),
+        C[1] + div*(TarC[1]-C[1]),
+        C[2] + div*(TarC[2]-C[2]),
+        C[3] + div*(TarC[3]-C[3])
     ];
 }
 /**
@@ -1053,9 +1064,9 @@ export function screenSetOffset(px = 0,py = 0){
 async function init (){
 
     //ステージの呼び出し
-    await mainStage.changeStage("GrandFloor");
+    //await mainStage.changeStage("GrandFloor");
     //await mainStage.changeStage("water_debug");
-    //await mainStage.changeStage("Map_3");
+    await mainStage.changeStage("Map_3");
     //player.setPos(9/2*TILESIZE,8/2*TILESIZE);
     //NowBoss.setPos(TR.MapWidth/3*TILESIZE,TR.MapHeight/3*TILESIZE,0)
 
@@ -1252,10 +1263,12 @@ function playerSelect(key){
         nowStatus.STM,
         nowStatus.SPD
     );
+    player.myImg.setImage(img.imgList["player_assets1"]);
+    player.myImg.setTrim(0,0,player.sx,player.sz);
     playerCameraSet();
     //player.nonDamage = true;
     //player.hp = 1;
-    //player.setCollision(false);
+    player.setCollision(false);
     //renderCamera.setCameraEffect(1,4,2,0,0,2);
 }
 export function sendSCRequest(request){
@@ -1294,11 +1307,14 @@ async function setStage(stageName){
 
     stageClear = 0;
 
+    //BGMの強制停止
     void AuM.stopAll();
 
+    //NPCをすべて停止
     EnM.Disable();
     EfM.Disable();
 
+    //マップデータの読み込み
     try {
         NowMap = Maps[stageName];
         NowMapCollision = MapCollisions[stageName];
@@ -1310,6 +1326,7 @@ async function setStage(stageName){
         console.error(`Error : ${error} undefined Map key : ${stageName}`);
     }
     playerSelect("KNIGHT");
+    
     /*
     player.initalize(
         NowMapJSON["Position"][0]*(TILESIZE/showTILESIZE),
@@ -1318,14 +1335,17 @@ async function setStage(stageName){
         plSize,
         45);
     */
-    player.setAnimFrameClockDiv(2);
+    
     player.setSlowDownV(3);
     player.setGravity(0.7);
     EnM.Enable();
     EfM.Enable();
-    
+
+    //カメラエフェクトのリセット
     renderCamera.setCameraEffect(0,0,0,0,0,0);
     renderCamera.setBGRayColor(0,0,0,0);
+
+    //メインホールのみ専用のスプライトを召喚
     if (stageName == "GrandFloor"){
         const warpHolePoint = [
             [160,256],
@@ -1370,6 +1390,7 @@ async function setStage(stageName){
     }
 
     if (NowMapJSON["isThereBoss"] == true) {
+        //ボスのjsonからBGMパスを読んで、BGMの再生を開始する。
         try {
             const temp = await fetchJSON(NowMapJSON["BossPass"]); 
             NowBoss = new Boss(
@@ -1382,6 +1403,7 @@ async function setStage(stageName){
                 temp["status"][5]
             );
             if (temp["BGM"] != null) {
+
                 //VS code's AI
                 // AudioContext の resume がユーザー入力待ちになる場合でも、
                 // その間にボス生成やステージ設定を続けられるように非同期処理を待たない。
@@ -1391,18 +1413,21 @@ async function setStage(stageName){
                         pan : 0.0,
                         loop: true
                     });
+
                 } else {
                     void AuM.stopAll();
+
                 }
             }
         } catch (e) {
-            console.error(`Error : ${e} NotFound Pass : ${NowMapJSON["BossPass"]}`);
+            console.error(`Error : ${e} Not Found Pass : ${NowMapJSON["BossPass"]}`);
         }
     } else {
+        //
         NowBoss = 0;
         if (onBGM) {
             /*
-            void AuM.play(temp["BGM"], {
+            void AuM.play(｛BGMキー｝, {
                 volume : 1,
                 pan : 0.0,
                 loop: true
@@ -1482,6 +1507,33 @@ function ResizeCanvas(){
         
     }
 */
+function playerRendering(){
+    player.RenderMyself(
+        renderCamera.camX,
+        renderCamera.camY,
+        "green",
+        showHP,
+        true,
+        true,
+        playerImgTrimStX+(UnitPlayerGSizeX*4),
+        playerImgTrimStY,
+        UnitPlayerGSizeX,
+        UnitPlayerGSizeY
+    );
+    
+    player.RenderMyself(
+        renderCamera.camX,
+        renderCamera.camY,
+        "green",
+        showHP,
+        true,
+        true,
+        playerImgTrimStX,
+        playerImgTrimStY,
+        UnitPlayerGSizeX,
+        UnitPlayerGSizeY
+    );
+}
 //正しい順番で描くマン
 function RenderBufferCorrect(){
     //ドットくっきり～
@@ -1532,7 +1584,8 @@ function RenderBufferCorrect(){
         for (let i = 0; i<order.length; i++){
             let column = order[i];
             if (column[0] == "Player"){
-                player.RenderMyself(renderCamera.camX,renderCamera.camY,"green",showHP);
+                //player.RenderMyself(renderCamera.camX,renderCamera.camY,"green",showHP);
+                playerRendering();
             } else if (column[0] == "PlayerA"){
                 plaAttackAABB.RenderMyself(renderCamera.camX,renderCamera.camY,"rgb(0,255,255)",false,false,true);
             } else if (column[0] == "Enemy"){
@@ -1612,32 +1665,44 @@ function RenderCanvas(){
     ctx.fillStyle = "rgba(255,255,255,0.8)";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText(`This is debug. keyCFG : ${keyConfig}`, canvas.width / 2, canvas.height - lineSize*2);
-    //ctx.fillText(`This is debug. asyncFadeVRGBA : ${[renderCamera.asyncFadeVR, renderCamera.asyncFadeVG, renderCamera.asyncFadeVB, renderCamera.asyncFadeVA]}`, canvas.width / 2, canvas.height - 84);
-    ctx.fillText(`This is debug. BGRay : ${[renderCamera.BGRayColor.R, renderCamera.BGRayColor.G, renderCamera.BGRayColor.B, renderCamera.BGRayColor.A]}`, canvas.width / 2, canvas.height - lineSize*3);
-    ctx.fillText(`This is debug. RGBA : ${[renderCamera.scR, renderCamera.scG, renderCamera.scB, renderCamera.scA]}`, canvas.width / 2, canvas.height - lineSize*4);
+    //ctx.fillText(`This is debug. keyCFG : ${keyConfig}`, canvas.width / 2, canvas.height - lineSize*3);
+    //ctx.fillText(`This is debug. asyncFadeVRGBA : ${[renderCamera.asyncFadeVR, renderCamera.asyncFadeVG, renderCamera.asyncFadeVB, renderCamera.asyncFadeVA]}`, canvas.width / 2, canvas.height - lineSize*4);
+    //ctx.fillText(`This is debug. BGRay : ${[renderCamera.BGRayColor.R, renderCamera.BGRayColor.G, renderCamera.BGRayColor.B, renderCamera.BGRayColor.A]}`, canvas.width / 2, canvas.height - lineSize*3);
+    //ctx.fillText(`This is debug. RGBA : ${[renderCamera.scR, renderCamera.scG, renderCamera.scB, renderCamera.scA]}`, canvas.width / 2, canvas.height - lineSize*4);
     if (onBGM) {
         if (isUserGesture == "yet" || isUserGesture == "action"){
-            ctx.fillText("Please click screen or Press any key...", canvas.width / 2, canvas.height - lineSize);
+            ctx.fillText("画面をクリックするか、操作をしてください。", canvas.width / 2, canvas.height - lineSize*2);
         } else {
-            ctx.fillText("The BGM Program is Enabled.", canvas.width / 2, canvas.height - lineSize);
+            ctx.fillText("サウンドプログラムは正常動作しています。", canvas.width / 2, canvas.height - lineSize*2);
         }
     } else {
-        ctx.fillText("The BGM Program is Disabled.", canvas.width / 2, canvas.height - lineSize);
+        //ctx.fillText("The BGM Program is Disabled.", canvas.width / 2, canvas.height - lineSize);
+        ctx.fillText("サウンドプログラムが無効になっています。", canvas.width / 2, canvas.height - lineSize*2);
+    }
+    ctx.textBaseline = "top";
+    ctx.textAlign = "start";
+    if (keyConfig == 0){
+        ctx.fillText("キーモード：ORG",0,canvas.height-TextSize);
+    } else {
+        ctx.fillText("キーモード：FPS",0,canvas.height-TextSize);
     }
 
-    //ポーズ画面の描画
+
     executeTextRenRecuest();
+    //ポーズ画面の描画
     if (isPause || toFadeStage){
-        //Unit size of quad of Canvas
+        //Unit size of quad of Canvas（キャンバス四分の一を１単位とする）
         const UCX = canvas.width/4;
         const UCY = canvas.height/4;
         const tsx = 3*UCX/(baseTXTBufX);
         const tsy = 2*UCY/(baseTXTBufY);
         setTextSize(Math.min(tsx,tsy)); 
         
+        //バッファのクリア
         clearTextBuffer();
+        clearConfig();
         if (isPause){
+            //ポーズ中なら外枠を描く
             renderUI(
                 UCX/2,
                 UCY,
@@ -1651,23 +1716,32 @@ function RenderCanvas(){
         }
 
         if (setting == 0){
+            
+            const moddedPCI = mod(pauseCursorItem,4);
+
+            //フツーのポーズメニュー
             if (isPause){
                 //カーソル移動
-                if (playerKey.pulseKeyDown || playerKey.pulseKeyLeft){
+                if (playerKey.pulseKeyDown || playerKey.pulseKeyRight){
                     pauseCursorItem++;
-                } else if (playerKey.pulseKeyUp || playerKey.pulseKeyRight){
+                } else if (playerKey.pulseKeyUp || playerKey.pulseKeyLeft){
                     pauseCursorItem--;
                 }
+
                 
                 textWrite(2,6,"キーコンフィグ");
                 textWrite(12,6,"サウンド");
+                textWrite(1,5,"Fキーで決定");
 
-                if (mod(pauseCursorItem,4)-2 == 0) {
+                //メインホール外ではpauseCursorItemは0~3の間になり、
+                //メインホール内ではpauseCursorItemは2~3の間になるので、
+                //４で割った剰余から２を引いた値（0~1）でキーコンフィグかサウンドメニューか決める。
+                if (moddedPCI-2 == 0) {
                     textWrite(1,6,"▶");
                     if (playerKey.pulseDesisionKey){
                         setting = 1;
                     }
-                } else if (mod(pauseCursorItem,4)-2 == 1){
+                } else if (moddedPCI-2 == 1){
                     textWrite(11,6,"▶");
                     /*
                     if (playerKey.pulseDesisionKey){
@@ -1677,19 +1751,28 @@ function RenderCanvas(){
                 }
                 
             }
-            if (mainStage.StType != "GrandFloor"){
+            if (mainStage.StType == "GrandFloor"){
+                //メインホールのとき
+                if (isPause) {
+                    const startX = Math.floor(baseTXTBufX/3);
+                    const startY = 3;
+                    if (moddedPCI == 1) pauseCursorItem = 3;
+                    if (moddedPCI == 0) pauseCursorItem = 2;
+                    textWrite(startX,startY,"ポーズ中……");
+                }
+            } else {
+                //メインホールでないとき
                 if (isPause) {
                     const startX = Math.floor(baseTXTBufX/6);
                     const startY = 1;
                     textWrite(startX,startY,"メインホールへもどりますか？");
                     textWrite(startX,startY+1,"もどる");
                     textWrite(startX,startY+2,"たたかう");
-                    textWrite(startX,startY+4,"Fキーで決定");
 
-                    if (mod(pauseCursorItem,4) < 2) textWrite(startX-1,startY+1+mod(pauseCursorItem,2),"▶");
+                    if (moddedPCI < 2) textWrite(startX-1,startY+1+(moddedPCI%2),"▶");
 
                     if (playerKey.pulseDesisionKey){
-                        if (mod(pauseCursorItem,4) == 0){
+                        if (moddedPCI == 0){
                             
                             actionStop = true;
                             isPause = false;
@@ -1699,7 +1782,7 @@ function RenderCanvas(){
                             renderCamera.setAsyncFadeScreenColor(0,0,-3,3);
                             
                             //mainStage.changeStage("GrandFloor");
-                        } else if (mod(pauseCursorItem,4) == 1) {
+                        } else if (moddedPCI == 1) {
                             isPause = false;
                         }
                     }
@@ -1711,14 +1794,6 @@ function RenderCanvas(){
                     }
                 }
 
-            } else {
-                if (isPause) {
-                    const startX = Math.floor(baseTXTBufX/3);
-                    const startY = 3;
-                    if (mod(pauseCursorItem,4) == 1) pauseCursorItem = 3;
-                    if (mod(pauseCursorItem,4) == 0) pauseCursorItem = 2;
-                    textWrite(startX,startY,"ポーズ中……");
-                }
             }
 
         } else if (setting == 1) {
@@ -1810,20 +1885,23 @@ function RenderCanvas(){
             }
         }
         
-        rendertxtBuffer(tsx/4+(UCX/2),tsy/2+UCY,tsx,tsy);
+        //バッファのレンダリング
+        //rendertxtBuffer(tsx/4+(UCX/2),tsy/2+UCY,tsx,tsy);
+        rendertxtBuffer(UCX/2,UCY,tsx,tsy);
 
     }
 
     if (DebugMode){
+        //それっぽい見た目のFPSカウンタ
+        const uts = TextSize*2/3;
         ctx.fillStyle = "black";
-        ctx.fillRect(0,0,TextSize*7,TextSize*3);
-        ctx.font = `${TextSize}px monospace`;
+        ctx.fillRect(0,0,uts*7,uts*2);
+        ctx.font = `${uts}px monospace`;
         ctx.textBaseline = "top";
         ctx.textAlign = "start";
         ctx.fillStyle = "rgb(0, 160, 0)";
         ctx.fillText(`FPS:${Math.round(fps*10)/10}`,0,0);
-        ctx.fillText(`Delta:${Math.round(frameDelta*10)/10}`,0,TextSize);
-        ctx.fillText(`Delta:${fpsFrameCount}`,0,TextSize*2);
+        ctx.fillText(`Delta:${Math.round(frameDelta*10)/10}`,0,uts);
     }
     ctx.restore();
 }
@@ -2060,8 +2138,6 @@ function keyConvert(){
 }
 function plyayerAction(){
 
-    let vx = 0; let vy = 0;
-
     const nowPlaDir = player.direction;
 
     let spd = 4;
@@ -2079,6 +2155,7 @@ function plyayerAction(){
 
 
     if (!isNowBossAnimation || true){
+            if (player.animationState == "standing" || player.animationState == "running") player.animationState = "running";
 
         if (playerKey.keyRight && playerKey.keyUp) {
             player.setVector(playerBaseAcs*0.7,playerBaseAcs*-0.7,player.vz,true,spd);
@@ -2109,67 +2186,121 @@ function plyayerAction(){
             if (Math.abs(player.vx) < 0.5) player.vx = 0;
             player.direction = 4;
         } else {
+            if (player.animationState == "standing" || player.animationState == "running") player.animationState = "standing";
             player.slowDown(spd);
         }
+
+        //四方向で返してくれる関数
+        const quadDir = () => {
+            if (Math.abs(player.vx)+Math.abs(player.vy) <= 0.0625) return -1;
+            if (Math.abs(player.vx)<Math.abs(player.vy)){
+                if (player.vy < 0){
+                    return 0;
+                } else {
+                    return 2;
+                }
+            } else {
+                if (player.vx < 0){
+                    return 3;
+                } else {
+                    return 1;
+                }
+            }
+        };
 
         if (playerKey.pulsekeyC_button && player.pz >= -3 && player.stamina >= player.MaxStamina*staminaDecreaseMult) {
             //バックステップ（要修正）
             //console.log("executed");
-            player.setPos(player.px,player.py,0);
+            player.setPos(player.px,player.py,-1);
             player.ZAxisJump(-6);
             player.setVector(1.5*playerBaseAcs*VecDirList[player.direction][0],1.5*playerBaseAcs*VecDirList[player.direction][1]);
             player.setStaminaRelative(-player.MaxStamina*staminaDecreaseMult);
             player.VLOCK = true;
+            player.changeAnimState("jumping");
         } else {
             if (player.vz >= 0) {
                 player.VLOCK = false;
             }
             if (player.pz >= 0) {
-                player.VLOCK = false;
-                //player.OVLOCK = false;
+                player.ZVLOCK = false;
             }
             if (playerKey.pulsekeyB_button && player.pz >= -3) {
                 //ジャンプ
-                player.setPos(player.px,player.py,0);
+                player.setPos(player.px,player.py,-1);
                 player.ZAxisJump(-6);
+                player.changeAnimState("jumping");
             }
         }
         
         //攻撃モーション
-        if (playerKey.pulsekeyA_button && player.animationState <= 3) {
+        if (playerKey.pulsekeyA_button && (
+                    player.animationState == "standing" ||
+                    player.animationState == "running" ||
+                    player.animationState == "jumping"
+                )
+            ) {
             EfM.spawnNPC(
                 player.px+(VecDirList[player.direction][0]*player.sx/2),
                 player.py+(VecDirList[player.direction][1]*player.sy/2),
                 player.pz,
                 player.sx*2,player.sx*3/2,player.sz,"sword");
-            player.changeAnimState(4);
+            player.changeAnimState("attacking");
         }
         /*  アニメーション処理  */
 
         //グラフィック実装時に書き換え必須！！！
-
-        //console.log(`animF : ${player.animFrameClock}`);
-        if (player.direction != nowPlaDir && player.animationState <= 2){
-            player.clearFrame(0);
-            player.clearanimFrameSum();
-            //1/20秒周期（0.05秒周期）でanimFrameSumByClockが1ずつインクリメントする
-            //player.setAnimFrameClockDiv(4);
+        
+        if (quadDir() >= 0 && !player.VLOCK && !player.EVLOCK && !player.OVLOCK && !player.ZVLOCK) tempDir = quadDir();
+        
+        if (player.direction != nowPlaDir){
+            
         }
         plaAttackAABB.setSize(0,0);
-        //Walking or Running
-        if (player.animationState == 1 || player.animationState == 2) {
-            player.setAnimFrameClockDiv(4);
-            if (player.animFrameSumByClock >= 1) /* 0.2 sec */{
-                if (player.animationFrame >= 4) {
+        
+        if (player.animationState == "standing") /*standing*/ {
+            player.animationFrame = 0;
+            player.clearAnimTick();
+            playerImgTrimStX = player.animationFrame*UnitPlayerGSizeX;
+
+            if (tempDir >= 0){
+                playerImgTrimStY = tempDir*UnitPlayerGSizeY;
+            } else {
+                playerImgTrimStY = 0;
+            }
+        } else if (player.animationState == "running") /*Walking or Running*/ {
+            if (player.countAnimTick(6)){
+                if (player.animationFrame >= 3){
                     player.animationFrame = 0;
                 } else {
                     player.animationFrame++;
                 }
-                player.clearanimFrameSum();
             }
-        } else if (player.animationState == 3) /*Jumping*/ {
+            playerImgTrimStX = player.animationFrame*UnitPlayerGSizeX;
 
-        } else if (player.animationState == 4) /*attacking*/ {
+            if (tempDir >= 0){
+                playerImgTrimStY = tempDir*UnitPlayerGSizeY;
+            } else {
+                playerImgTrimStY = 0;
+            }
+        } else if (player.animationState == "jumping") /*Jumping*/ {
+            if (player.pz >= 0){
+                player.clearAnimTick();
+                if (quadDir() <= 0){
+                    player.changeAnimState("standing");
+                } else {
+                    player.changeAnimState("running");
+                }
+            } else {
+                playerImgTrimStX = 0;
+
+                if (tempDir >= 0){
+                    playerImgTrimStY = tempDir*UnitPlayerGSizeY+(UnitPlayerGSizeY*8);
+                } else {
+                    playerImgTrimStY = 0;
+                }
+            }
+
+        } else if (player.animationState == "attacking") /*attacking*/ {
             //攻撃判定の設定
             
             plaAttackAABB.setSize(
@@ -2178,23 +2309,35 @@ function plyayerAction(){
                 TILESIZE*2
             );
             
-            //1/20周期
-            player.setAnimFrameClockDiv(2);
-            if (player.animFrameSumByClock >= 1) /* 0.2 sec */ {
-                if (player.animationFrame >= 5) {
-                    player.changeAnimState(6);
+            if (player.countAnimTick(3)){
+                if (player.animationFrame >= 3){
+                    player.clearAnimTick();
+                    if (quadDir() <= 0){
+                        player.changeAnimState("standing");
+                    } else {
+                        player.changeAnimState("running");
+                    }
                 } else {
                     player.animationFrame++;
                 }
-                player.clearanimFrameSum();
             }
-        } else if (player.animationState == 5) /*Damaging*/ {
 
-        } else if (player.animationState == 6) /*Set to 1 or 2*/ {
-            player.changeAnimState(2);
+            if (tempDir >= 0){
+                playerImgTrimStY = tempDir*UnitPlayerGSizeY+(UnitPlayerGSizeY*4);
+            } else {
+                playerImgTrimStY = 0;
+            }
+            playerImgTrimStX = player.animationFrame*UnitPlayerGSizeX;
+
+        } else if (player.animationState == "damaging") /*Damaging*/ {
+
+        } else if (player.animationState == "toReset") /*Set to 1 or 2*/ {
+            player.changeAnimState("running");
         } else {
-            player.changeAnimState(6);
+            console.error(`Illegal Player Animation State : ${player.animationState}`);
+            player.changeAnimState("toReset");
         }
+        //console.log(`plaAABB size sx : ${plaAttackAABB.sx}, sy : ${plaAttackAABB.sy}`);
         //console.log(`animState : ${player.animationState}`);
         //console.log(`animFrame : ${player.animationFrame}`);
         //console.log(`player's speed : ${((player.vx)**2+(player.vy)**2)**0.5}, vz is ${player.vz}`);
@@ -2213,7 +2356,7 @@ function plyayerAction(){
 
         player.move(NowMapCollision,TILESIZE);
         
-        if (player.animationState == 4) {
+        if (player.animationState == "attacking") {
             plaAttackAABB.setPos(
                 player.px+(VecDirList[player.direction][0]*plaAttackAABB.sx/2),
                 player.py+(VecDirList[player.direction][1]*plaAttackAABB.sy/2),

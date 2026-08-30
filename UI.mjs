@@ -7,6 +7,7 @@ let txtBufSY = 0;
 let txtFont = "monospace";
 let txtAlign = "start";
 let txtBase = "alphabetic";
+const defCFG = ["monospace","start","alphabetic"];
 
 /**
  * 
@@ -55,6 +56,9 @@ export function clearTextBuffer(){
     for (let i = 0; i<txtBufSX*txtBufSY; i++){
         txtBuffer[i] = " ".charCodeAt(0);
     }
+}
+export function clearConfig(){
+    [txtFont,txtAlign,txtBase] = defCFG;
 }
 export function deleteTextBuffer(){
     txtBuffer = null;
