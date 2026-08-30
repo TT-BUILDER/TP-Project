@@ -1268,7 +1268,7 @@ function playerSelect(key){
     playerCameraSet();
     //player.nonDamage = true;
     //player.hp = 1;
-    player.setCollision(false);
+    //player.setCollision(false);
     //renderCamera.setCameraEffect(1,4,2,0,0,2);
 }
 export function sendSCRequest(request){
