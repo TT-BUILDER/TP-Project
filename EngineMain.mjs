@@ -57,7 +57,10 @@ let fpsElapsed = 0;
 let fpsSampleStart = 0;
 
 
-export const DebugMode = false;
+export const DebugMode = true;
+
+const CRT_Effect = false;
+
 
 
 export let actionStop = false;
@@ -67,10 +70,19 @@ export const TextSize = 28;
 
 //固定値、コンストラクタ取得
 
-const canvas = document.getElementById("GameCanvas");       //実際のキャンバスの取得
-const ctx = canvas.getContext("2d");                        //2Dメソッド取得
-const initCanvasHeight = canvas.height;                     //初期キャンバスのサイズ高さ
-const initCanvasWidth = canvas.width;                       //初期キャンバスのサイズ幅
+const FINC = document.getElementById("GameCanvas");
+const fctx = FINC.getContext("2d");
+
+//const canvas = document.createElement("canvas");
+const canvas = document.getElementById("GameCanvas");
+const ctx = canvas.getContext("2d", { willReadFrequently: true });
+
+canvas.width = FINC.width;
+canvas.height = FINC.height;
+const initCanvasHeight = FINC.height;                     //初期キャンバスのサイズ高さ
+const initCanvasWidth = FINC.width;                       //初期キャンバスのサイズ幅
+//FINC.width = FINC.width*2/3;
+//FINC.height = FINC.height*2/3;
 ctx.fillStyle = "rgb(0,0,0)";
 ctx.font = `${TextSize}px monospace`;
 ctx.textBaseline = "hanging";
@@ -785,6 +797,19 @@ export let player = new sprite(
     knightStatus.STM,
     knightStatus.SPD
 );
+let playerUnder = new sprite(
+    0,
+    0,
+    plSizeX,
+    plSizeY,
+    plSizeZ,
+    "player",
+    knightStatus.MHP,
+    knightStatus.MHP,
+    knightStatus.STM,
+    knightStatus.STM,
+    knightStatus.SPD
+);
 
 let tempDir = 0;
 
@@ -1066,7 +1091,7 @@ async function init (){
     //ステージの呼び出し
     //await mainStage.changeStage("GrandFloor");
     //await mainStage.changeStage("water_debug");
-    await mainStage.changeStage("Map_3");
+    await mainStage.changeStage("Map_4");
     //player.setPos(9/2*TILESIZE,8/2*TILESIZE);
     //NowBoss.setPos(TR.MapWidth/3*TILESIZE,TR.MapHeight/3*TILESIZE,0)
 
@@ -1263,12 +1288,24 @@ function playerSelect(key){
         nowStatus.STM,
         nowStatus.SPD
     );
+    playerUnder.initalize(
+        player.px,
+        player.py,
+        player.sx,
+        player.sy,
+        player.sz,
+        1,
+        1,
+        1,
+        1,
+        1
+    );
     player.myImg.setImage(img.imgList["player_assets1"]);
-    player.myImg.setTrim(0,0,player.sx,player.sz);
+    playerUnder.myImg.setImage(img.imgList["player_assets1"]);
     playerCameraSet();
     //player.nonDamage = true;
     //player.hp = 1;
-    //player.setCollision(false);
+    player.setCollision(false);
     //renderCamera.setCameraEffect(1,4,2,0,0,2);
 }
 export function sendSCRequest(request){
@@ -1456,13 +1493,17 @@ function ResizeCanvas(){
         canvasMult = canvasDefaultMult;
     }
 
+    //FINC.width = initCanvasWidth * canvasMult;
+    //FINC.height = initCanvasHeight * canvasMult;
+
     canvas.width = initCanvasWidth * canvasMult;
     canvas.height = initCanvasHeight * canvasMult;
-    
+
     BtoCRatioX = canvas.width/ScWidth;
     BtoCRatioY = canvas.height/ScHeight;
     CtoBRatioX = ScWidth/canvas.width;
     CtoBRatioY = ScHeight/canvas.height;
+    
     //ドットくっきり～
     ctx.imageSmoothingEnabled = false;
 
@@ -1508,15 +1549,15 @@ function ResizeCanvas(){
     }
 */
 function playerRendering(){
-    player.RenderMyself(
+    playerUnder.RenderMyself(
         renderCamera.camX,
         renderCamera.camY,
         "green",
         showHP,
         true,
         true,
-        playerImgTrimStX+(UnitPlayerGSizeX*4),
-        playerImgTrimStY,
+        playerLegImgTrimStX+(UnitPlayerGSizeX*4),
+        playerLegImgTrimStY,
         UnitPlayerGSizeX,
         UnitPlayerGSizeY
     );
@@ -1639,6 +1680,7 @@ function RenderCanvas(){
     } else {
         ctx.drawImage(ScreenB,0,0,ScWidth,ScHeight,0,0,canvas.width,canvas.height);
     }
+
 
     if (!isPause) renderCamera.doCameraEffect();
 
@@ -1904,6 +1946,51 @@ function RenderCanvas(){
         ctx.fillText(`Delta:${Math.round(frameDelta*10)/10}`,0,uts);
     }
     ctx.restore();
+
+    if (CRT_Effect){
+
+        // 2. バッファと出力用のImageDataを取得
+        const srcData = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+        const destImageData = fctx.createImageData(FINC.width, FINC.height);
+        const destData = destImageData.data;
+
+        // パラメータ調整
+        const rgbOffset = 1;      // RGBずらしのピクセル幅（色収差）
+        const scanlineDarkness = 0.6; // 走査線の暗さ（0.0で真っ黒、1.0で変化なし）
+
+        for (let y = 0; y < canvas.height; y++) {
+                // 走査線のエフェクト倍率（1行おき、または2行おきに暗くする）
+                const isScanline = (y % 3 === 0);
+                const intensity = isScanline ? scanlineDarkness : 1.0;
+
+                for (let x = 0; x < canvas.width; x++) {
+                    const destIndex = (y * canvas.width + x) * 4;
+
+                    // --- 加工①: RGBずらし (色収差) ---
+                    // 赤(R)は左から、青(B)は右からピクセルを引っ張ってくる（画面端の境界チェック付き）
+                    const rX = Math.max(0, x - rgbOffset);
+                    const bX = Math.min(canvas.width - 1, x + rgbOffset);
+
+                    const rIndex = (y * canvas.width + rX) * 4;
+                    const gIndex = destIndex; // 緑(G)はそのまま
+                    const bIndex = (y * canvas.width + bX) * 4;
+
+                    // --- 加工②: 走査線の適用とピクセル書き込み ---
+                    destData[destIndex]     = srcData[rIndex] * intensity;     // R
+                    destData[destIndex + 1] = srcData[gIndex + 1] * intensity; // G
+                    destData[destIndex + 2] = srcData[bIndex + 2] * intensity; // B
+                    destData[destIndex + 3] = srcData[destIndex + 3];          // A (アルファはそのまま)
+                }
+            
+
+        }
+        // 3. 加工後のデータを表示用Canvasに書き込む
+        fctx.putImageData(destImageData, 0, 0);
+    
+    } else {
+        fctx.drawImage(canvas,0,0,FINC.width,FINC.height);
+    }
+
 }
 function executeTextRenRecuest(){
     for (const k in textRenderRequestList){
@@ -2140,6 +2227,8 @@ function plyayerAction(){
 
     const nowPlaDir = player.direction;
 
+    let keyPressed = true;
+
     let spd = 4;
     let staminaDecreaseMult = 0.2;
     playerBaseAcs = player.Speed/5;
@@ -2155,7 +2244,7 @@ function plyayerAction(){
 
 
     if (!isNowBossAnimation || true){
-            if (player.animationState == "standing" || player.animationState == "running") player.animationState = "running";
+            
 
         if (playerKey.keyRight && playerKey.keyUp) {
             player.setVector(playerBaseAcs*0.7,playerBaseAcs*-0.7,player.vz,true,spd);
@@ -2186,8 +2275,16 @@ function plyayerAction(){
             if (Math.abs(player.vx) < 0.5) player.vx = 0;
             player.direction = 4;
         } else {
-            if (player.animationState == "standing" || player.animationState == "running") player.animationState = "standing";
+            keyPressed = false;
             player.slowDown(spd);
+        }
+
+        if (player.animationState == "standing" || player.animationState == "running"){
+            if (keyPressed){
+                player.animationState = "running";
+            } else {
+                player.animationState = "standing";
+            }
         }
 
         //四方向で返してくれる関数
@@ -2252,55 +2349,58 @@ function plyayerAction(){
         
         if (quadDir() >= 0 && !player.VLOCK && !player.EVLOCK && !player.OVLOCK && !player.ZVLOCK) tempDir = quadDir();
         
-        if (player.direction != nowPlaDir){
+        if (player.direction != nowPlaDir ){
             
         }
         plaAttackAABB.setSize(0,0);
         
-        if (player.animationState == "standing") /*standing*/ {
-            player.animationFrame = 0;
-            player.clearAnimTick();
-            playerImgTrimStX = player.animationFrame*UnitPlayerGSizeX;
-
-            if (tempDir >= 0){
-                playerImgTrimStY = tempDir*UnitPlayerGSizeY;
-            } else {
-                playerImgTrimStY = 0;
-            }
-        } else if (player.animationState == "running") /*Walking or Running*/ {
-            if (player.countAnimTick(6)){
-                if (player.animationFrame >= 3){
-                    player.animationFrame = 0;
-                } else {
-                    player.animationFrame++;
-                }
-            }
-            playerImgTrimStX = player.animationFrame*UnitPlayerGSizeX;
-
-            if (tempDir >= 0){
-                playerImgTrimStY = tempDir*UnitPlayerGSizeY;
-            } else {
-                playerImgTrimStY = 0;
-            }
-        } else if (player.animationState == "jumping") /*Jumping*/ {
+        if (player.pz < 0){
+            //ジャンプ中
             if (player.pz >= 0){
-                player.clearAnimTick();
+                playerUnder.clearAnimTick();
                 if (quadDir() <= 0){
                     player.changeAnimState("standing");
                 } else {
                     player.changeAnimState("running");
                 }
             } else {
-                playerImgTrimStX = 0;
+                playerLegImgTrimStX = 0;
 
                 if (tempDir >= 0){
-                    playerImgTrimStY = tempDir*UnitPlayerGSizeY+(UnitPlayerGSizeY*8);
+                    playerLegImgTrimStY = tempDir*UnitPlayerGSizeY+(UnitPlayerGSizeY*8);
                 } else {
-                    playerImgTrimStY = 0;
+                    playerLegImgTrimStY = 0;
                 }
             }
+        } else if (keyPressed){
+            //移動キーが押されているか
+            if (playerUnder.countAnimTick(5+(player.inWater*5))){
+                if (playerUnder.animationFrame >= 3){
+                    playerUnder.animationFrame = 0;
+                } else {
+                    playerUnder.animationFrame++;
+                }
+            }
+            playerLegImgTrimStX = playerUnder.animationFrame*UnitPlayerGSizeX;
 
-        } else if (player.animationState == "attacking") /*attacking*/ {
+            if (tempDir >= 0){
+                playerLegImgTrimStY = tempDir*UnitPlayerGSizeY;
+            } else {
+                playerLegImgTrimStY = 0;
+            }
+        } else {
+            playerUnder.animationFrame = 0;
+            playerUnder.clearAnimTick();
+            playerLegImgTrimStX = playerUnder.animationFrame*UnitPlayerGSizeX;
+
+            if (tempDir >= 0){
+                playerLegImgTrimStY = tempDir*UnitPlayerGSizeY;
+            } else {
+                playerLegImgTrimStY = 0;
+            }
+        }
+
+        if (player.animationState == "attacking") /*attacking*/ {
             //攻撃判定の設定
             
             plaAttackAABB.setSize(
@@ -2309,7 +2409,7 @@ function plyayerAction(){
                 TILESIZE*2
             );
             
-            if (player.countAnimTick(3)){
+            if (player.countAnimTick(5+(player.inWater*5))){
                 if (player.animationFrame >= 3){
                     player.clearAnimTick();
                     if (quadDir() <= 0){
@@ -2333,10 +2433,15 @@ function plyayerAction(){
 
         } else if (player.animationState == "toReset") /*Set to 1 or 2*/ {
             player.changeAnimState("running");
+        } else if (player.animationState == "standing" || player.animationState == "running" || player.animationState == "jumping") /*Others*/ {
+            //"sanding","running","jumping"のいずれかのとき
+            playerImgTrimStX = playerLegImgTrimStX;
+            playerImgTrimStY = playerLegImgTrimStY;
         } else {
             console.error(`Illegal Player Animation State : ${player.animationState}`);
             player.changeAnimState("toReset");
         }
+
         //console.log(`plaAABB size sx : ${plaAttackAABB.sx}, sy : ${plaAttackAABB.sy}`);
         //console.log(`animState : ${player.animationState}`);
         //console.log(`animFrame : ${player.animationFrame}`);
@@ -2355,8 +2460,10 @@ function plyayerAction(){
         
 
         player.move(NowMapCollision,TILESIZE);
+        playerUnder.setPos(player.px,player.py,player.pz);
         
         if (player.animationState == "attacking") {
+            plaAttackAABB.setAlpha(0.5);
             plaAttackAABB.setPos(
                 player.px+(VecDirList[player.direction][0]*plaAttackAABB.sx/2),
                 player.py+(VecDirList[player.direction][1]*plaAttackAABB.sy/2),
@@ -2389,7 +2496,7 @@ function plyayerAction(){
         if (!player.invisilbe) {
             player.invisibleTime = player.maxInvisibleTime;
             player.invisilbe = true;
-            console.log(`executed! iT : ${player.invisibleTime}`);
+            console.log(`executed! invisible time : ${player.invisibleTime}`);
         }
 
     }

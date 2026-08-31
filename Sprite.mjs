@@ -152,7 +152,9 @@ export class imgData {
      * @param {Number} px 描画位置X
      * @param {Number} py 描画位置Y
      */
-    render(px,py){
+    render(px,py,alpha = 1.0){
+        const resGA = IR.ctx.globalAlpha;
+        IR.ctx.globalAlpha = alpha;
         IR.renderImg(
             this.imageData,
             px,
@@ -165,6 +167,7 @@ export class imgData {
             this.trimSizeX,
             this.trimSizeY
         )
+        IR.ctx.globalAlpha = resGA;
     }
     /**
      * レンダリングする画像の設定（トリミング位置は自動で全体へと決定）
@@ -342,6 +345,7 @@ export class sprite {
         this.showflag = true;
         this.direction = 0;
         this.myImg = new imgData(img.imgList["null"]);
+        this.imgAlpha = 1.0;
 
         this.animationTick = 0;
         this.animationFrame = 0;
@@ -400,6 +404,7 @@ export class sprite {
         this.maxInvisibleTime = 32;
         this.direction = 0;
         this.myImg = new imgData(img.imgList["null"]);
+        this.imgAlpha = 1.0;
 
         this.animationTick = 0;
         this.animationFrame = 0;
@@ -437,6 +442,10 @@ export class sprite {
     changeAnimState(state){
         this.animationFrame = 0;
         this.animationState = state;
+    }
+
+    setAlpha(aplha){
+        this.imgAlpha = Math.max(0,Math.min(1,aplha));
     }
 
     /**
@@ -483,7 +492,7 @@ export class sprite {
                 this.myImg.setTrim(imgStX,imgStY,imgSX,imgSY);
                 //this.myImg.setSize(this.sx,Math.max(this.sz,this.sy));
                 this.myImg.setSize(this.sx,this.sz);
-                this.myImg.render(RenSprX,RenSprY-(this.sz/2)+(this.sy/2));
+                this.myImg.render(RenSprX,RenSprY-(this.sz/2)+(this.sy/2),this.imgAlpha);
             }
             //NowCTX.arc(32,32,32,0,Math.PI*2,false);
             if (DebugMode) {
