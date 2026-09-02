@@ -954,6 +954,10 @@ export class Enemy extends sprite {
         } else {
             this.swordHitF = false;
         }
+
+        if (nkockBack && this.vz >= 0) {
+            this.VLOCK = false;
+        }
         
         //console.log([this.vx,this.vy]);
     }
@@ -1238,7 +1242,7 @@ export class Enemy extends sprite {
                         )){
                         if (!NowBoss.nonDamage) {
                             
-                            NowBoss.damage(nowStatus.AP,false,false);
+                            NowBoss.damage(nowStatus.AP,0,0,false,false);
                             NowBoss.lastBossState = NowBoss.BossState;
                             NowBoss.BossState = "damage";
                             
@@ -1405,6 +1409,35 @@ export class Enemy extends sprite {
                 
 
                 break;
+            case "wood_fruit":
+                this.EnMove(ColMap,TILESIZE,true,true);
+
+                if (this.hitCheck(player.px,player.py,player.pz,player.sx,player.sy,player.sz)){
+                    player.damage(1,this.px,this.py);
+                }
+
+                if ( (this.collisionState & 0b10000) > 0 ) {
+                    for (let i = 0; i<4; i++){
+                        EfM.spawnNPC(
+                            this.px,
+                            this.py,
+                            this.pz,
+                            this.sx/2,
+                            this.sx/2,
+                            this.sx/2,
+                            "particle_fruit",
+                            randFloat(-4,4),
+                            randFloat(-4,4),
+                            -12
+                        );
+                    }
+                    this.Unactivate();
+                }
+
+                this.slowDown(12);
+
+                break;
+            
             default:
                 this.Unactivate();
                 console.error(`Error : Undefined Enemy's property "type": "${this.type}"`)
@@ -1646,6 +1679,14 @@ export class Effect extends sprite {
                     }
                     
                 }
+                break;
+            case "particle_fruit":
+                this.EfMove(ColMap,TILESIZE);
+
+                if (this.collisionState & 0b10000){
+                    this.Unactivate();
+                }
+
                 break;
             case "WarpHole":
                 if (this.memory[0] < 10){
@@ -2641,6 +2682,21 @@ export class Boss extends Enemy {
                     "root_spear"
                 );
             };
+            
+            //フルーツ召喚関数
+            const spawnFruit = (px,py,pz) => {
+                EnM.spawnNPC(
+                    px,
+                    py,
+                    pz,
+                    TILESIZE,
+                    TILESIZE,
+                    TILESIZE,
+                    "wood_fruit"
+                );
+            };
+
+
 
             switch (this.BossState) {
                 //初期化
@@ -2648,6 +2704,7 @@ export class Boss extends Enemy {
                     this.waitFrameReset();
                     this.BossInit();
                     this.forList["rt"] = 30;
+                    //葉っぱ召喚
                     EfM.spawnNPC(
                         this.px,
                         this.py,
@@ -2657,6 +2714,7 @@ export class Boss extends Enemy {
                         this.sz/3,
                         "boss_wood_leef"
                     );
+
                     this.BossState++;
                     console.log("wood Boss Init end");
                     break;
@@ -2664,19 +2722,65 @@ export class Boss extends Enemy {
                 case 1:
                     spawnRootAround(10,-15,195);
                     this.BossMemory["toDeleteRoot"] = false;
+
+                    //根っこ召喚テスト
                     spawnRoot(this.px,this.py+TILESIZE*14);
+                    //フルーツ召喚テスト
+                    spawnFruit(player.px,player.py+TILESIZE*2,-TILESIZE*8);
+
                     console.log("wood Boss Animation");
                     this.BossState++;
                     break;
                 //
                 case 2:
+                    //以下のコードは完全に謎。消していいかも？
+                    /*
                     if (this.BossMemory["rootC"] >= this.BossMemory["rootN"]){
                         this.BossState++;
                     };
+                    */
+                   this.BossState++;
                     break;
-                //
+                //待機＆たまに攻撃とか…
                 case 3:
                     this.nonDamage = false;
+
+                    if (typeof(this.BossMemory["attackType"]) != "number"){
+                        //もし存在してなかったら0（何もしていない）で初期化する
+                        this.BossMemory["attackType"] = 0;
+                    }
+
+                    if (this.BossMemory["attackType"] == 0){
+
+                        //HPが半分未満なら300（5sec）フレームが180（3sec）フレームに短縮される
+                        if (this.waitFrame(300-((this.hp < this.MaxHp)*120))){
+                            const randNum = randInt(1,100);
+
+                            //より細かくアイデアを練って実装する
+                            /*
+                            if (randNum <= ){
+
+                            } else 
+                            
+                            */
+
+                        }
+
+                    } else {
+                        switch (this.BossMemory["attackType"]) {
+
+                            case 0:
+                                console.log("Why this program was executed?? It's a bug.");
+                                break;
+                            case 1:
+                                break;
+                            default:
+                                console.error(`Error WoodBoss attackType is : "${this.BossMemory["attackType"]}" Unkown Type `);
+                                this.BossMemory["attackType"] = 0;
+                                break;
+                        }
+                    }
+
                     break;
                 case "damage":
                     this.BossMemory["toDeleteRoot"] = true;
@@ -2768,12 +2872,16 @@ export class Boss extends Enemy {
             //根っこが消えたらスポーンしなおす
             if (typeof(this.BossMemory["rootC"]) === "number" && this.BossMemory["rootC"] <= 0 && this.BossState != "died"){
                 if (typeof(this.forList["rt"]) != "number" || this.forList["rt"] <= 0){
+                    //もし「rt」がなかったら生成
                     this.forList["rt"] = 30;
                 }
+
+                //「rt」が0になるまでカウントダウン（すなわち30フレーム後）
+
                 if (this.forList["rt"] > 0){
                     this.forList["rt"]--;
                     this.vibrate(-2,2);
-                    console.log(this.forList["rt"]);
+                    //console.log(`forlist : ${this.forList["rt"]}`);
                 }
                 if (this.forList["rt"] <= 0) {
                     spawnRootAround(10,-15,195);
