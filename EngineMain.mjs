@@ -739,8 +739,11 @@ export const EfM = new EffectManager(200);
 const TR = new TileRender(ScreenB,ScB);                     //タイルレンダーインスタンス
 export const AuM = new audio();                             //オーディオインスタンス
 const audioInfo = {};
+
 //拡大率変更
+//TR.TILESIZEUpdate(80,32);
 TR.TILESIZEUpdate(80,32);
+
 export let VisualDeltaVector = TILESIZE/showTILESIZE;
 export let deltaVector = VisualDeltaVector*(16.6/25);
 export let fpsdelta = (16.6/25);
@@ -842,7 +845,7 @@ const promise = new Promise( async function(resolve,reject) {
         ctx.fillStyle = "rgb(0,0,0)";
         ctx.fillText("Now Loading... Please wait a moment.",0,0);
         ctx.fillText("State : Loading Map data asstes",0,TextSize);
-
+        
         //デバッグステージのデータ読み込み（「Debug」として追加）
         //マップデータはJSONファイルから先に読む（TileRenderクラスのnewLoadMapメソッドがJSONファイルを利用するため）
         MapJSONs["Map_1"] = await fetchJSON("./assets/maps/Map1.json");
@@ -914,11 +917,13 @@ const promise = new Promise( async function(resolve,reject) {
         ctx.fillStyle = "rgb(0,0,0)";
         ctx.fillText("Now Loading... Please wait a moment.",0,0);
         ctx.fillText("State : Loading music asstes",0,TextSize);
-
+        
+        /*
         await AuM.AddAudioFromInfo("Map1_Battle","./assets/sounds/BGM/map1_battle_info.json","./assets/sounds/BGM/");
         await AuM.AddAudioFromInfo("Map2_Peace","./assets/sounds/BGM/map2_peace_info.json","./assets/sounds/BGM/");
         await AuM.AddAudioFromInfo("Map2_Battle","./assets/sounds/BGM/map2_battle_info.json","./assets/sounds/BGM/");
-
+        */
+        
         ctx.fillStyle = "rgb(255,255,255)";
         ctx.fillRect(0,0,canvas.width,canvas.height);
         ctx.fillStyle = "rgb(0,0,0)";
@@ -1013,6 +1018,10 @@ const promise = new Promise( async function(resolve,reject) {
 })
 //失敗時(reject)の処理
 .catch((value) => {
+    ctx.fillStyle = "rgb(255,255,255)";
+    ctx.fillRect(0,0,canvas.width,TextSize);
+    ctx.fillStyle = "rgb(255,0,0)";
+    ctx.fillText("Loading is falid.",0,0);
     console.error(value);
 })
 
@@ -1089,9 +1098,9 @@ export function screenSetOffset(px = 0,py = 0){
 async function init (){
 
     //ステージの呼び出し
-    await mainStage.changeStage("GrandFloor");
+    //await mainStage.changeStage("GrandFloor");
     //await mainStage.changeStage("water_debug");
-    //await mainStage.changeStage("Map_3");
+    await mainStage.changeStage("Map_4");
     //player.setPos(9/2*TILESIZE,8/2*TILESIZE);
     //NowBoss.setPos(TR.MapWidth/3*TILESIZE,TR.MapHeight/3*TILESIZE,0)
 
@@ -1126,7 +1135,7 @@ async function main(timestamp = performance.now()){
             fpsSampleStart = timestamp;
         }
 
-        const elapsed = Math.max(1, timestamp - lastFrameTime);
+        const elapsed = Math.max(0.03, timestamp - lastFrameTime);
         lastFrameTime = timestamp;
         frameDelta = elapsed;
 
@@ -2236,9 +2245,9 @@ function plyayerAction(){
     if (mainStage.StType == "Map_2"){
         spd = 14;
     } else if (mainStage.StType == "Map_4"){
-        spd = 15;
+        spd = 10;
         player.inWater = true;
-        playerBaseAcs = playerBaseAcs*2;
+        //playerBaseAcs = playerBaseAcs*2;
         staminaDecreaseMult = 0.25;
     }
 
