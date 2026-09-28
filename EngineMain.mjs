@@ -1446,7 +1446,8 @@ async function setStage(stageName){
                 plSizeY*temp["sizeY"],
                 plSizeZ*temp["sizeZ"],
                 temp["Name"],
-                temp["status"][5]
+                //temp["status"][5]
+                temp["HP"]
             );
             if (temp["BGM"] != null) {
 
@@ -1953,6 +1954,7 @@ function RenderCanvas(){
         ctx.fillStyle = "rgb(0, 160, 0)";
         ctx.fillText(`FPS:${Math.round(fps*10)/10}`,0,0);
         ctx.fillText(`Delta:${Math.round(frameDelta*10)/10}`,0,uts);
+        ctx.fillText(`FrmCo:${Math.round(fpsFrameCount*10)/10}`,0,uts*2);
     }
     ctx.restore();
 

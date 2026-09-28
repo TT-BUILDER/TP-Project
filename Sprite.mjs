@@ -26,6 +26,7 @@ import { BtoCRatioY } from "./EngineMain.mjs";
 import { enableGoStageList } from "./EngineMain.mjs";
 import { mapDescriptionList } from "./EngineMain.mjs";
 import { sendSCRequest } from "./EngineMain.mjs";
+import { mod } from "./EngineMain.mjs";
 
 import { setContext } from "./UI.mjs";
 import { setTextBuffer } from "./UI.mjs";
@@ -96,6 +97,52 @@ export function vectorNormalizer(vx,vy){
         return [vx/dist,vy/dist];
     }
 }
+
+/*
+                                            多分この辺の幾何学系関数に問題あり？なぜかSIN()とCOS()のリターンがNaN
+*/
+
+export const SIN = (deg) => {
+    return Math.sin(deg*Math.pi/180);
+};
+export const COS = (deg) => {
+    return Math.cos(deg*Math.pi/180);
+};
+/**
+ * @param {Array} vec 回転させたいベクトル
+ * @param {Number} degree 回転させたい角度
+ */
+export function vectorRotation(vec,degree){
+    const sinVal = SIN(degree);
+    const cosVal = COS(degree);
+    console.log(`sin value : ${sinVal}`);
+    console.log(`cos value : ${cosVal}`);
+    return [
+        vec[0]*cosVal-vec[1]*sinVal,
+        vec[0]*sinVal+vec[1]*cosVal
+    ];
+}
+
+
+
+/**
+ * @param {Object} tar 相手となるSpriteオブジェクト
+ * @param {Object} me 自分のSpriteオブジェクト
+ * @returns 
+ */
+function hitCheck(tar,me){
+    if (
+        Math.abs(tar.px-me.px) < (me.sx+tar.sx)/2 && 
+        Math.abs(tar.py-me.py) < (me.sy+tar.sy)/2 && 
+        //Math.abs(tpz-pz) < (sz+tsz)/2
+        (tar.pz-tar.sz <= me.pz && me.pz-me.sz <= tar.pz)
+    ){
+        return 1
+    } else { 
+        return 0
+    }
+}
+
 export class imgData {
     /**
      * 画像データの保持をする構造体
@@ -331,6 +378,9 @@ export class sprite {
         this.vx = 0;
         this.vy = 0;
         this.vz = 0;
+        this.ovx = 0;
+        this.ovy = 0;
+        this.ovz = 0;
         this.inWater = false;
         this.waterRegist = 1;
         this.nonDamage = false;
@@ -395,6 +445,9 @@ export class sprite {
         this.vx = 0;
         this.vy = 0;
         this.vz = 0;
+        this.ovx = 0;
+        this.ovy = 0;
+        this.ovz = 0;
         this.inWater = false;
         this.waterRegist = 1;
         this.nonDamage = false;
@@ -472,9 +525,10 @@ export class sprite {
         }
         const RenSprX = this.px + CamX + this.visualPX;
         const RenSprY = this.py + CamY + this.pz + this.visualPY;
-        NowCTX.beginPath();
+        
         //影
         if (ShowShadow) {
+            NowCTX.beginPath();
             let Alpha = 25;//+this.pz*0.2;
             if (Alpha < 0) Alpha = 0;
             let cx = (this.sx*0.7);//-(this.pz*-0.01);
@@ -490,6 +544,7 @@ export class sprite {
                 0,
                 Math.PI*2);
             NowCTX.fill();
+            NowCTX.closePath();
         }
         //本体を描くかどうか
         if (this.showflag && this.invincibleTime % 4 <= 1 && !this.invisible) {
@@ -502,13 +557,20 @@ export class sprite {
             //NowCTX.arc(32,32,32,0,Math.PI*2,false);
             if (DebugMode) {
                 let RestoreAplha = NowCTX.globalAlpha;
-                NowCTX.globalAlpha = 0.5;
+                NowCTX.globalAlpha = 0.25;
                 NowCTX.fillStyle = style;
                 NowCTX.fillRect(
                     (RenSprX-(this.sx/2)),
-                    (RenSprY-(this.sy/2)),
+                    (RenSprY-(this.sy/2))-this.pz,
                     this.sx,
                     this.sy
+                );
+                NowCTX.fillStyle = "cyan";
+                NowCTX.fillRect(
+                    (RenSprX-(this.sx/2)),
+                    (RenSprY-this.sz+(this.sy/2)),
+                    this.sx,
+                    this.sz
                 );
                 NowCTX.globalAlpha = RestoreAplha;
             }
@@ -646,6 +708,15 @@ export class sprite {
         
         if (!this.stop) {
 
+            this.vx += this.ovx;
+            this.vy += this.ovy;
+            this.vz += this.ovz;
+
+            //外部強制ベクトルの初期化
+            this.ovx = 0;
+            this.ovy = 0;
+            this.ovz = 0;
+
             //当たり判定ステートの初期化
             //Floor, Top, Left, Right, Bottom
             //F + UDLR
@@ -750,6 +821,12 @@ export class sprite {
             this.setVectorNoLimit(vx,vy,vz,smooth,smoothSpeed);
         }
     }
+
+    setOtherVector(vx,vy,vz = 0){
+        this.ovx = vx;
+        this.ovy = vy;
+        this.ovz = vz;
+    }
     
     slowDown(slowDownSpeed = this.slowDownV){
         if (!this.VLOCK && !this.EVLOCK && !this.ZVLOCK) {
@@ -815,7 +892,8 @@ export class sprite {
         if (
             Math.abs(tpx-px) < (sx+tsx)/2 && 
             Math.abs(tpy-py) < (sy+tsy)/2 && 
-            Math.abs(tpz-pz) < (sz+tsz)/2
+            //Math.abs(tpz-pz) < (sz+tsz)/2
+            (tpz-tsz <= pz && pz-sz <= tpz)
         ){
             return 1
         } else { 
@@ -849,9 +927,11 @@ export class sprite {
                 vy = vy/dist;
             }
             if (!slip){
-                //無敵時間初期化
-                this.invincibleTime = this.maxInvincibleTime;
-                this.invincible = true;
+                if (di > 0){
+                    //無敵時間初期化
+                    this.invincibleTime = this.maxInvincibleTime;
+                    this.invincible = true;
+                }
                 //ノックバック処理
                 if (nkockback) {
                     this.setVectorNoLimit(
@@ -1254,7 +1334,7 @@ export class Enemy extends sprite {
                             NowBoss.sx,
                             NowBoss.sy,
                             NowBoss.sz
-                        )){
+                        ) && !NowBoss.invisible){
                         if (!NowBoss.nonDamage) {
                             
                             NowBoss.damage(nowStatus.AP,0,0,false,false);
@@ -1484,48 +1564,34 @@ export class Enemy extends sprite {
 
                 this.setVector(this.memory[0],this.memory[1]);
 
-                //ボスにダメージを与える
-                if (typeof(NowBoss) == "object"){
-                    if (this.hitCheck(
-                            NowBoss.px,
-                            NowBoss.py,
-                            NowBoss.pz,
-                            NowBoss.sx,
-                            NowBoss.sy,
-                            NowBoss.sz
-                        )){
-                        if (!NowBoss.nonDamage) {
-                            
-                            NowBoss.damage(nowStatus.AP,0,0,false,false);
-                            NowBoss.lastBossState = NowBoss.BossState;
-                            NowBoss.BossState = "damage";
-                            /*
-                            for (let i = 0; i<4; i++){
-                                EfM.spawnNPC(
-                                    this.px,
-                                    this.py,
-                                    0,
-                                    TILESIZE/2,
-                                    TILESIZE/2,
-                                    TILESIZE,
-                                    "particle_ice",
-                                    randFloat(-4,4)+Math.sign(this.vx)*Math.random()*Math.abs(this.vx),
-                                    randFloat(-4,4)+Math.sign(this.vy)*Math.random()*Math.abs(this.vy),
-                                    -4-Math.random()*2
-                                )
+                /*
+                    //ボスにダメージを与える
+                    if (typeof(NowBoss) == "object"){
+                        if (this.hitCheck(
+                                NowBoss.px,
+                                NowBoss.py,
+                                NowBoss.pz,
+                                NowBoss.sx,
+                                NowBoss.sy,
+                                NowBoss.sz
+                            ) && !NowBoss.invisible){
+                            if (!NowBoss.nonDamage) {
+                                
+                                NowBoss.damage(nowStatus.AP,0,0,false,false);
+                                NowBoss.lastBossState = NowBoss.BossState;
+                                NowBoss.BossState = "damage";
+                                this.Unactivate();
+                            } else {
+                                this.setVector(
+                                    Math.sign(this.px-NowBoss.px)*Math.abs(this.vx),
+                                    Math.sign(this.py-NowBoss.py)*Math.abs(this.vy)
+                                );
+                                this.memory[1] = this.vx;
+                                this.memory[2] = this.vy;
                             }
-                            */
-                            this.Unactivate();
-                        } else {
-                            this.setVector(
-                                Math.sign(this.px-NowBoss.px)*Math.abs(this.vx),
-                                Math.sign(this.py-NowBoss.py)*Math.abs(this.vy)
-                            );
-                            this.memory[1] = this.vx;
-                            this.memory[2] = this.vy;
                         }
                     }
-                }
+                */
 
                 break;
             default:
@@ -1838,6 +1904,7 @@ export class Boss extends Enemy {
      */
     constructor(px,py,sx,sy,sz,type,MHP = 100,HP = MHP){
         super(px,py,sx,sy,sz,type,MHP,HP,true);
+        this.maxInvincibleTime = 30;
         this.defaultSX = this.sx;
         this.defaultSY = this.sy;
         this.defaultSZ = this.sz;
@@ -2990,7 +3057,22 @@ export class Boss extends Enemy {
         } else if (this.type == "Water"){
             this.nonDamage = true;
             this.inWater = true;
+            this.BossMemory["autoDirSetter"] = true;
+
+            if (!("autoDirSetter" in this.BossMemory)){
+                this.BossMemory["autoDirSetter"] = true;
+            }
             
+            if (!("sectorMoveTo" in this.BossMemory)){
+                this.BossMemory["sectorMoveTo"] = -1;
+            }
+
+            if (!("rollSpeed" in this.BossMemory) || !("rollDir" in this.BossMemory) || !("rollingTime" in this.BossMemory)) {
+                this.BossMemory["rollSpeed"] = 0;
+                this.BossMemory["rollDir"] = 0;
+                this.BossMemory["rollingTime"] = 0;
+            }
+
             if ("degree" in this.BossMemory && "pos" in this.BossMemory) {
                 this.BossMemory["degree"] += 0.5;
                 this.BossMemory["pos"][0] = (mapWidth*TILESIZE/2)+((mapWidth-3)*TILESIZE/2)*Math.cos(radians(this.BossMemory["degree"]));
@@ -3016,6 +3098,14 @@ export class Boss extends Enemy {
 
             };
 
+            const getSector = (px,py) => {
+                //セクター分け
+                // 0 | 1
+                // --+--
+                // 2 | 3
+                return 2*(py>mapHeight*TILESIZE/2) + (px>mapWidth*TILESIZE/2);
+            };
+
             switch (this.BossState) {
                 //初期化
                 case 0:
@@ -3031,32 +3121,55 @@ export class Boss extends Enemy {
                     this.BossInit();
                     this.BossState++;
                     console.log("Water Boss Init end");
-                    
+                    this.BossMemory["SneezeC"] = 0;
                     break;
                 //謎
                 case 1:
                     console.log("Water Boss Animation");
-                    spawnPufferFish(player.px+(6*TILESIZE),player.py,-2,0);
+                    //ハリセンボンのテスト
+                    //spawnPufferFish(player.px+(6*TILESIZE),player.py+(2*TILESIZE),-2,0);
                     this.BossState++;
-                    this.BossState = "damage";
+                    //this.BossState = "damage";
                     break;
                 //基本待機モーション
                 case 2:
                     this.nonDamage = false;
-                    this.invisible = !this.invisible;
+                    //this.invisible = !this.invisible;
 
-                    /*
-                        ここに
-                        「くしゃみをするようにハリセンボンをプレイヤーの方向へ3wayか4wayショットで飛ばす」
-                        別の技として
-                        「回転して渦巻きを起こし、プレイヤーを寄せ付け、終わった後スタンして攻撃が通る」
-                        をかく。
-                    */
+                    //120フレーム(2sec)たったらくしゃみモーションへ
+                    if (this.waitFrame(120)){
+                        //HPが半分以上なら4回、半分以下なら5回くしゃみをする。風邪か？
+                        if (this.BossMemory["SneezeC"] <= (4 + (this.hp <= this.MaxHp/2)) ){
+                            //くしゃみ
 
+                            this.forList.i = 0;
+
+                            this.BossState = 10;
+                            this.BossMemory["SneezeC"]++;
+                        } else {
+
+                            this.forList.i = 0;
+
+                            //特殊攻撃
+                            if (randInt(0,10) <= 7){
+                                //地面からドーン！
+                                this.BossState = 3;
+                            } else {
+                                //うおお吸い込むぜぇぇぇ！
+                                this.BossState = 11;
+                            }
+                            this.BossMemory["SneezeC"] = 0;
+                        }
+                    } else {
+                        this.vibrate(-1,1);
+                    }
 
                     break;
+                
                 //ジャンプ！
                 case 3:
+                    this.BossMemory["autoDirSetter"] = false;
+                    this.direction = 2;
                     this.ZAxisJump(-12);
                     this.BossState++;
                     break;
@@ -3124,6 +3237,7 @@ export class Boss extends Enemy {
                             //60フレーム(1秒)後に出現
                             this.ZAxisJump(-14);
                             this.invisible = false;
+                            this.forList.i = 0;
                             this.BossState++;
                         } else {
                             this.setVectorNoLimit(0,0,0);
@@ -3148,6 +3262,8 @@ export class Boss extends Enemy {
                     break;
                 //ジャンプして出現するモーション
                 case 8:
+                    this.BossMemory["autoDirSetter"] = false;
+                    this.direction = 2;
                     //地に着いたら次へ
                     this.fallOK = true;
                     if (this.collisionState & 0b10000) this.BossState++;
@@ -3155,6 +3271,9 @@ export class Boss extends Enemy {
                     break;
                 //微待機、壁に埋まってたらもう一回飛べ
                 case 9:
+                    this.nonDamage = false;
+                    this.BossMemory["autoDirSetter"] = false;
+                    this.direction = 2;
                     if (this.waitFrame(120)){
                         if (hitWallCheck(ColMap,TILESIZE,this.px,this.py,this.sx,this.sy)){
                             //壁に埋まっているので再トライ
@@ -3166,14 +3285,287 @@ export class Boss extends Enemy {
                         //if (this.waitFrameC < 60) this.vibrate(-2,2);
                     }
                     break;
-                //回転、竜巻を起こす処理
+                
+                //くしゃみモーション
                 case 10:
 
+                    if (this.forList.i == 0){
+                        /*
+                            '3 way' basics vector list
+                            -> [-0.5,-0.86] , [0,-1] , [0.5,-0.86]
+
+                            '4 way' basics vector list
+                            -> [-0.71,-0.71] , [-0.38,-0.92] , [0.38,-0.92] , [0.71,-0.71]
+                        
+                        const TwayShotVecList = [
+                            [-0.5,-0.86],
+                            [0,-1],
+                            [0.5,-0.86]
+                        ];
+                        const FwayShotVecList = [
+                            [-0.71,-0.71],
+                            [-0.38,-0.92],
+                            [0.38,-0.92],
+                            [0.71,-0.71]
+                        ];
+
+                        */
+
+                        const [nvx,nvy] = vectorNormalizer(player.px-this.px,player.py-this.py);
+                        
+                        console.log(`vec${[nvx,nvy]}`);
+
+                        //HPが半分未満なら
+                        if (this.hp < this.MaxHp/2){
+
+                            for(let deg = -20; deg<=40; deg+=10){
+                                const [vx,vy] = vectorRotation([nvx,nvy],deg);
+                                console.log(`tar vector: ${[vx,vy]}`);
+                                spawnPufferFish(
+                                    this.px,
+                                    this.py,
+                                    vx,
+                                    vy
+                                );
+                            }
+
+                        } else {
+
+                            for(let deg = -15; deg<=30; deg+=15){
+                                const [vx,vy] = vectorRotation([nvx,nvy],deg);
+                                console.log(`tar vector: ${[vx,vy]}`);
+                                spawnPufferFish(
+                                    this.px,
+                                    this.py,
+                                    vx,
+                                    vy
+                                );
+                            }
+
+                        }
+                        
+                    }
+
+                    //30フレーム(0.5sec)たったらちょっと待つ
+                    if (this.forList.i >= 90){
+                        this.forList.i = 0;
+                        this.BossState = 2;
+                    } else if (this.forList.i < 30)  {
+                        
+                        if (this.forList.i<15){
+                            this.vibrate(-4,3);
+                        } else {
+                            this.vibrate(-2,2);
+                        }
+
+                    }
+                    this.forList.i++;
+
+                    break;
+                
+                //回転、竜巻を起こす処理
+                case 11:
+                    const plaSector = getSector(player.px,player.py);
+                    const mySector = getSector(this.px,this.py);
+
+                    console.log(`mySector:${mySector},plaSector:${plaSector}`);
+
+                    this.BossMemory["sectorMoveTo"] = plaSector;
+                    if (plaSector == mySector) {
+                        this.BossState = 16;
+                    } else {
+                        this.BossState++;
+                    }
+                    break;
+                //ジャンプ！
+                case 12:
+                    this.BossMemory["autoDirSetter"] = false;
+                    this.direction = 2;
+                    this.ZAxisJump(-12);
+                    this.BossState++;
+                    break;
+                //着地と同時に透明化
+                case 13:
+                    this.BossMemory["autoDirSetter"] = false;
+                    this.direction = 2;
+                    this.fallOK = true;
+                    if ((this.collisionState & 0b10000) > 0){
+                        
+                        //X座標の指定の剰余演算は、getSector関数の戻り値0~3のうち右にいるときのみ奇数IDを出力するためである。
+                        //Y座標の指定の比較演算は、getSector関数の戻り値0~3のうち下にいるときのみ2以上のIDを出力するためである。
+                        this.setPos(
+                            (mapWidth*TILESIZE/4) + ( (this.BossMemory["sectorMoveTo"]%2) *mapWidth*TILESIZE/2),
+                            (mapHeight*TILESIZE/4) + ( (this.BossMemory["sectorMoveTo"]>=2) *mapHeight*TILESIZE/2)
+                        );
+
+                        this.BossState++;
+                    }
+                    break;
+                //ジャンプ！
+                case 14:
+                    this.BossMemory["autoDirSetter"] = false;
+                    this.direction = 2;
+                    this.giveDamage = false;
+                    this.ZAxisJump(-12);
+                    this.BossState++;
+                    break;
+                //ジャンプして出現するモーション
+                case 15:
+                    this.BossMemory["autoDirSetter"] = false;
+                    this.direction = 2;
+                    //地に着いたら次へ
+                    this.fallOK = true;
+                    this.giveDamage = false;
+                    //console.log(this.collisionState.toString(2));
+                    if (this.collisionState & 0b10000) this.BossState++;
+
+                    break;
+                //微待機
+                case 15:
+                    this.BossMemory["autoDirSetter"] = false;
+                    this.direction = 2;
+                    this.nonDamage = false;
+                    //15フレーム(0.5sec)
+                    if (this.waitFrame(30)){
+                        this.BossState++;
+                    }
+                    break;
+                //吸引メインプログラム
+                case 16:
+                    //console.log("end");
+                    //自動向き調整君をオフ
+                    this.BossMemory["autoDirSetter"] = false;
+
+                    //660フレーム(11sec)経つまでは回転！それ以後は減速
+                    if (this.BossMemory["rollingTime"] < 660){
+                        //6フレーム(0.1sec)ごとにロールスピードが36未満なら速度アップ
+                        if (this.BossMemory["rollSpeed"] < 36 && fpsFrameCount%15 == 0){
+                            //console.log("roll.");
+                            this.BossMemory["rollSpeed"]++;
+                        }
+                    } else {
+                        //6フレーム(0.1sec)ごとにロールスピードが36未満なら速度ダウン
+                        if (this.BossMemory["rollSpeed"] > 0 && fpsFrameCount%15 == 0){
+                            //console.log("roll.");
+                            this.BossMemory["rollSpeed"]--;
+                            //減速しきったら次へ
+                            if (this.BossMemory["rollSpeed"] <= 0){
+                                this.BossMemory["rollSpeed"] = 0;
+                                this.BossMemory["rollDir"] = 0;
+                                this.BossMemory["rollingTime"] = 0;
+                                this.forList.i = 0;
+                                this.BossState++;
+                            }
+                        }
+                    }
+                    this.BossMemory["rollingTime"]++;
+                    
+                    if (this.BossMemory["rollSpeed"] < 6){
+                        this.nonDamage = false;
+                    }
+
+                    //しょうもない最適化
+                    let tempRD = this.BossMemory["rollDir"];
+
+                    tempRD += this.BossMemory["rollSpeed"];
+                    tempRD = mod(tempRD,360);
+
+                    if (tempRD < 45 || tempRD >= 315){
+                        
+                        //U
+                        this.direction = 0;
+
+                    } else if (tempRD >= 45 && tempRD < 135){
+                        
+                        //R
+                        this.direction = 1;
+
+                    } else if (tempRD >= 135 && tempRD < 225){
+                        
+                        //D
+                        this.direction = 2;
+
+                    } else /*if (tempRD >= 225 && tempRD < 315)*/{
+                        
+                        //L
+                        this.direction = 3;
+
+                    }
+
+                    this.BossMemory["rollDir"] = tempRD;
+
+                    //吸引強度
+                    const suctionMult = 0.45 + 0.1*Math.ceil(this.BossMemory["rollSpeed"]/6);
+                    console.log(suctionMult);
+                    
+                    //6フレーム(0.1sec)毎程度でよい
+                    if (fpsFrameCount%6 == 0){
+                        
+                        //相手から自分への正規化ベクトル君
+                        //[nx , ny , dist]の配列を返す。distが0ならすべての値が0になる
+                        const getNormVec = (tarpx,tarpy) => {
+                        
+                            const distX = this.px-tarpx;
+                            const distY = this.py-tarpy;
+                            //const dist = ((distX)**2+(distY)**2)**0.5;
+                            const dist = Math.hypot(distX,distY);
+                            
+                            if (dist > 0) {
+                                return [distX/dist,distY/dist,dist];
+                            } else {
+                                return [0,0,0];
+                            }
+
+                        }
+
+                        const [nvx,nvy] = getNormVec(player.px,player.py);
+
+                        //敵を自分のもとへｼｭｳｰｰｰｰｯｯ!!　超！！エキサイティン！！
+                        player.setOtherVector(nvx*suctionMult,nvy*suctionMult);
+
+                    }
+
+                    break;
+                //スタン
+                case 17:
+                    this.nonDamage = false;
+                    //480フレーム(8sec)ほどスタン
+                    if (this.forList.i < 480){
+                        
+                        //呼吸を切らしたようなモーション
+                        if (this.forList.i%60 < 30){
+                            this.pz = -2;
+                        } else {
+                            this.pz = 2;
+                        }
+
+                    } else {
+                        this.BossState = 2;
+                    }
+                    this.forList.i++;
                     break;
                 case "damage":
-                    if (this.waitFrame(this.maxInvincibleTime+15)){
-                        this.BossState = 3;
+                    if (this.lastBossState != 2){
+                        console.log(`last:${this.lastBossState}`);
+                        this.BossState = this.lastBossState;
+                        
+                        break;
                     }
+                    if (this.waitFrame(this.maxInvincibleTime+15)){
+                            this.forList.i = 0;
+                            //特殊攻撃
+                            if (randInt(0,10) <= 7){
+                                //地面からドーン！
+                                this.BossState = 3;
+                            } else {
+                                //うおお吸い込むぜぇぇぇ！
+                                this.BossState = 11;
+                            }
+                            this.BossMemory["SneezeC"] = 0;
+                    }
+                    break;
+                case "died":
+
                     break;
                 default:
                     console.error(`Error BossSate is : "${this.BossState}" Unkown State `);
@@ -3182,9 +3574,52 @@ export class Boss extends Enemy {
                     this.clearMemory();
                     this.setVector(0,0,0);
                     break;
-            }     
+            }
+
+            //フルオートディレクション設定マン
+            if (this.BossMemory["autoDirSetter"]){
+                //vx,vy = 0,0のときは自然とDになる
+                //横ベクトルのほうが勢いあるか？
+                if (Math.abs(this.vx) > Math.abs(this.vy)) {
+                    if (Math.sign(this.vx) < 0){
+                        
+                        //L
+                        this.direction = 3;
+
+                    } else {
+                        
+                        //R
+                        this.direction = 1;
+
+                    }
+                } else {
+                    if (Math.sign(this.vy) < 0){
+                        
+                        //U
+                        this.direction = 0;
+
+                    } else {
+                        
+                        //D
+                        this.direction = 2;
+
+                    }
+                }
+            }
+
+            //directionを2で割った余りが0（すなわち0か2）なら縦方向
+            if (this.direction%2 == 0){
+                this.sx = this.defaultSY;
+                this.sy = this.defaultSX;
+            } else {
+                this.sx = this.defaultSX;
+                this.sy = this.defaultSY;
+            }
+
         }
         //console.log(this.BossState);
+
+
 
         if (moveOK){
             this.EnMove(ColMap,TILESIZE,this.fallOK);
@@ -3203,8 +3638,8 @@ export class Boss extends Enemy {
         //斬撃に当たったか
         if (hitFlag == 1 && !this.nonDamage && !this.invincible) {
             
-            this.damage(nowStatus.AP,0,0,false,false);
             this.lastBossState = this.BossState;
+            this.damage(nowStatus.AP,0,0,false,false);
             this.BossState = "damage";
 
         }
