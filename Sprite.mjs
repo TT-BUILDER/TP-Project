@@ -103,10 +103,10 @@ export function vectorNormalizer(vx,vy){
 */
 
 export const SIN = (deg) => {
-    return Math.sin(deg*Math.pi/180);
+    return Math.sin(deg*Math.PI/180);
 };
 export const COS = (deg) => {
-    return Math.cos(deg*Math.pi/180);
+    return Math.cos(deg*Math.PI/180);
 };
 /**
  * @param {Array} vec 回転させたいベクトル
@@ -115,8 +115,8 @@ export const COS = (deg) => {
 export function vectorRotation(vec,degree){
     const sinVal = SIN(degree);
     const cosVal = COS(degree);
-    console.log(`sin value : ${sinVal}`);
-    console.log(`cos value : ${cosVal}`);
+    //console.log(`sin value : ${sinVal}`);
+    //console.log(`cos value : ${cosVal}`);
     return [
         vec[0]*cosVal-vec[1]*sinVal,
         vec[0]*sinVal+vec[1]*cosVal
@@ -502,6 +502,11 @@ export class sprite {
         this.animationState = state;
     }
 
+    clearAnimState(){
+        this.animationFrame = 0;
+        this.animationState = null;
+    }
+
     setAlpha(aplha){
         this.imgAlpha = Math.max(0,Math.min(1,aplha));
     }
@@ -651,9 +656,9 @@ export class sprite {
             //console.log("Maximam fallSpeed!");
         }
         
-        let dvz = this.vz*deltaVector;
+        let dvz = (this.vz+this.ovz)*deltaVector;
         if (this.inWater){
-            dvz = this.vz*deltaVector*this.waterRegist;
+            dvz = dvz*this.waterRegist;
         }
 
         if ( this.pz+dvz < 0) {
@@ -708,14 +713,6 @@ export class sprite {
         
         if (!this.stop) {
 
-            this.vx += this.ovx;
-            this.vy += this.ovy;
-            this.vz += this.ovz;
-
-            //外部強制ベクトルの初期化
-            this.ovx = 0;
-            this.ovy = 0;
-            this.ovz = 0;
 
             //当たり判定ステートの初期化
             //Floor, Top, Left, Right, Bottom
@@ -723,10 +720,11 @@ export class sprite {
             this.collisionState = 0;
 
 
-            let [advx,advy] = [vx*deltaVector,vy*deltaVector];
+            let [advx,advy] = [(vx+this.ovx)*deltaVector,(vy+this.ovy)*deltaVector];
+            //if (this.type == "player") console.log(`MyVec : ${[Math.floor(vx*100)/100,Math.floor(vy*100)/100]} , OtherVec : ${[Math.floor(this.ovx*100)/100,Math.floor(this.ovy*100)/100]}`);
             if (this.inWater){
                 this.waterRegist = 0.5;
-                [advx,advy] = [vx*deltaVector*this.waterRegist,vy*deltaVector*this.waterRegist];
+                [advx,advy] = [advx*this.waterRegist,advy*this.waterRegist];
             } else {
             this.waterRegist = 1;
 
@@ -738,12 +736,12 @@ export class sprite {
             //コリジョンXチェック
             if (this.collisionFlag) {
                 if (this.doCollision(ColMap,TILESIZE,this.px,this.py,this.collisionHitMinus)) {
-                    if (vx < 0) {
+                    if ((vx+this.ovx) < 0) {
                         const ltx = Math.floor((this.px-(this.sx/2))/TILESIZE);
                         this.px = (ltx+1)*TILESIZE+(this.sx/2)-this.collisionHitMinus;
                         this.collisionState = this.collisionState | 0b00010;
                         this.vx = 0;
-                    } else if (vx > 0) {
+                    } else if ((vx+this.ovx) > 0) {
                         const rtx = Math.ceil((this.px+(this.sx/2))/TILESIZE);
                         this.px = (rtx-1)*TILESIZE-(this.sx/2)+this.collisionHitMinus;
                         this.collisionState = this.collisionState | 0b00001;
@@ -757,12 +755,12 @@ export class sprite {
             //コリジョンYチェック
             if (this.collisionFlag){
                 if (this.doCollision(ColMap,TILESIZE,this.px,this.py,this.collisionHitMinus)) {
-                    if (vy < 0) {
+                    if ((vy+this.ovy) < 0) {
                         const uty = Math.floor((this.py-(this.sy/2))/TILESIZE);
                         this.py = (uty+1)*TILESIZE+(this.sy/2)-this.collisionHitMinus;
                         this.collisionState = this.collisionState | 0b01000;
                         this.vy = 0;
-                    } else if (vy > 0) {
+                    } else if ((vy+this.ovy) > 0) {
                         const dty = Math.ceil((this.py+(this.sy/2))/TILESIZE);
                         this.py = (dty-1)*TILESIZE-(this.sy/2)+this.collisionHitMinus;
                         this.collisionState = this.collisionState | 0b00100;
@@ -776,6 +774,11 @@ export class sprite {
             this.setStaminaRelative(0.2);
             //this.updateAnimSumByClock();
 
+            //外部強制ベクトルの初期化
+            this.ovx = 0;
+            this.ovy = 0;
+            this.ovz = 0;
+            
         }
 
     }
@@ -918,14 +921,8 @@ export class sprite {
             let vx = this.px-tx;
             let vy = this.py-ty;
 
-            const dist = (vx**2+vy**2)**0.5;
-            if (dist <= 0){
-                vx = 0;
-                vy = 0;
-            } else {
-                vx = vx/dist;
-                vy = vy/dist;
-            }
+            const dist = Math.hypot(vx,vy);
+
             if (!slip){
                 if (di > 0){
                     //無敵時間初期化
@@ -934,6 +931,15 @@ export class sprite {
                 }
                 //ノックバック処理
                 if (nkockback) {
+                    
+                    if (dist <= 0){
+                        vx = 0;
+                        vy = 0;
+                    } else {
+                        vx = vx/dist;
+                        vy = vy/dist;
+                    }
+
                     this.setVectorNoLimit(
                         vx*TILESIZE/10,
                         vy*TILESIZE/10
@@ -1535,14 +1541,17 @@ export class Enemy extends sprite {
                 break;
             //ハリセンボン
             case "water_pufferfish":
-                this.EnMove(ColMap,TILESIZE,true,true);
+                this.EnMove(ColMap,TILESIZE,true,false);
+
+                if (this.hp <= 0 && (this.collisionState & 0b10000) > 0){
+                    this.Unactivate();
+                }
 
                 if (this.memory.length < 1){
-                    this.memory.unshift((this.vx**2+this.vy**2)**0.5);
+                    this.inWater = true;
+                    this.memory.unshift(Math.hypot(this.vx,this.vy));
                     this.memory.unshift(this.vy);
                     this.memory.unshift(this.vx);
-                    this.setVectorNoLimit(this.memory[0],this.memory[1]);
-                    console.log(`vec : ${this.vx},${this.vy}, speed : ${this.memory[2]}`);
                 }
 
                 if (this.hitCheck(player.px,player.py,player.pz,player.sx,player.sy,player.sz)){
@@ -1550,16 +1559,23 @@ export class Enemy extends sprite {
                 }
 
                 if (this.hitCheck(plaAttackAABB.px,plaAttackAABB.py,plaAttackAABB.pz,plaAttackAABB.sx,plaAttackAABB.sy,plaAttackAABB.sz)){
-                    const dist = ((this.px-player.px)**2+(this.py-player.py)**2)**0.5;
-                    this.memory[0] = ((this.px-player.px)/dist)*this.memory[2];
-                    this.memory[1] = ((this.py-player.py)/dist)*this.memory[2];
+                    
+                    const dist = Math.hypot(this.px-player.px,this.py-player.py);
+
+                    this.damage(1,this.px,this.py,false,false);
+                    this.ZAxisJump(-2);
+
+                    this.setVectorNoLimit(this.memory[2]*(this.px-player.px)/dist , this.memory[2]*(this.py-player.py)/dist);
+                    [this.memory[0],this.memory[1]] = [this.vx,this.vy];
                 }
 
                 if ((this.collisionState & 0b1100) > 0) /* Up or Down */ {
                     this.memory[1] = -1*this.memory[1];
+                    //this.setVector(this.vx,-1*this.vy);
                 }
                 if ((this.collisionState & 0b0011) > 0) /* Left or Right */ {
                     this.memory[0] = -1*this.memory[0];
+                    //this.setVector(-1*this.vx,this.vy);
                 }
 
                 this.setVector(this.memory[0],this.memory[1]);
@@ -3059,20 +3075,24 @@ export class Boss extends Enemy {
             this.inWater = true;
             this.BossMemory["autoDirSetter"] = true;
 
+            //フルオートディレクション設定マンを動かすフラグ
             if (!("autoDirSetter" in this.BossMemory)){
                 this.BossMemory["autoDirSetter"] = true;
             }
             
+            //「どこ行けばええねん」を保存する
             if (!("sectorMoveTo" in this.BossMemory)){
                 this.BossMemory["sectorMoveTo"] = -1;
             }
 
+            //回転系統の保持
             if (!("rollSpeed" in this.BossMemory) || !("rollDir" in this.BossMemory) || !("rollingTime" in this.BossMemory)) {
                 this.BossMemory["rollSpeed"] = 0;
                 this.BossMemory["rollDir"] = 0;
                 this.BossMemory["rollingTime"] = 0;
             }
 
+            //未使用
             if ("degree" in this.BossMemory && "pos" in this.BossMemory) {
                 this.BossMemory["degree"] += 0.5;
                 this.BossMemory["pos"][0] = (mapWidth*TILESIZE/2)+((mapWidth-3)*TILESIZE/2)*Math.cos(radians(this.BossMemory["degree"]));
@@ -3082,6 +3102,12 @@ export class Boss extends Enemy {
                 this.BossMemory["pos"] = [0,0];
             }
 
+            //ダメージカウンタ
+            if (!("damageC" in this.BossMemory)){
+                this.BossMemory["damageC"] = 0;
+            }
+
+            //ハリセンボンよいでよ
             const spawnPufferFish = (px,py,vx,vy) => {
                 EnM.spawnNPC(
                     px,
@@ -3093,11 +3119,14 @@ export class Boss extends Enemy {
                     "water_pufferfish",
                     vx,
                     vy,
-                    0
+                    0,
+                    [],
+                    randInt(2,3)
                 );
 
             };
 
+            //セクターげっちゅ
             const getSector = (px,py) => {
                 //セクター分け
                 // 0 | 1
@@ -3153,7 +3182,8 @@ export class Boss extends Enemy {
                             //特殊攻撃
                             if (randInt(0,10) <= 7){
                                 //地面からドーン！
-                                this.BossState = 3;
+                                //this.BossState = 3;
+                                this.BossState = 11;
                             } else {
                                 //うおお吸い込むぜぇぇぇ！
                                 this.BossState = 11;
@@ -3318,27 +3348,27 @@ export class Boss extends Enemy {
                         //HPが半分未満なら
                         if (this.hp < this.MaxHp/2){
 
-                            for(let deg = -20; deg<=40; deg+=10){
+                            for(let deg = -45; deg<=45; deg+=30){
                                 const [vx,vy] = vectorRotation([nvx,nvy],deg);
-                                console.log(`tar vector: ${[vx,vy]}`);
+                                //console.log(`tar vector: ${[vx,vy]}`);
                                 spawnPufferFish(
                                     this.px,
                                     this.py,
-                                    vx,
-                                    vy
+                                    2*vx,
+                                    2*vy
                                 );
                             }
 
                         } else {
 
-                            for(let deg = -15; deg<=30; deg+=15){
+                            for(let deg = -40; deg<=40; deg+=40){
                                 const [vx,vy] = vectorRotation([nvx,nvy],deg);
-                                console.log(`tar vector: ${[vx,vy]}`);
+                                //console.log(`tar vector: ${[vx,vy]}`);
                                 spawnPufferFish(
                                     this.px,
                                     this.py,
-                                    vx,
-                                    vy
+                                    2*vx,
+                                    2*vy
                                 );
                             }
 
@@ -3346,8 +3376,8 @@ export class Boss extends Enemy {
                         
                     }
 
-                    //30フレーム(0.5sec)たったらちょっと待つ
-                    if (this.forList.i >= 90){
+                    //30フレーム(0.5sec)たったらちょっと(120フレーム：2sec)待つ
+                    if (this.forList.i >= 150){
                         this.forList.i = 0;
                         this.BossState = 2;
                     } else if (this.forList.i < 30)  {
@@ -3436,8 +3466,8 @@ export class Boss extends Enemy {
                     //自動向き調整君をオフ
                     this.BossMemory["autoDirSetter"] = false;
 
-                    //660フレーム(11sec)経つまでは回転！それ以後は減速
-                    if (this.BossMemory["rollingTime"] < 660){
+                    //660フレーム(11sec)経つまでは回転！（HPが半分以下の時は300フレーム(5sec)追加）それ以後は減速
+                    if (this.BossMemory["rollingTime"] < ( 660 + 300*(this.hp < this.MaxHp/2) )){
                         //6フレーム(0.1sec)ごとにロールスピードが36未満なら速度アップ
                         if (this.BossMemory["rollSpeed"] < 36 && fpsFrameCount%15 == 0){
                             //console.log("roll.");
@@ -3495,34 +3525,38 @@ export class Boss extends Enemy {
                     this.BossMemory["rollDir"] = tempRD;
 
                     //吸引強度
-                    const suctionMult = 0.45 + 0.1*Math.ceil(this.BossMemory["rollSpeed"]/6);
+                    const suctionMult = 0.5*Math.ceil(this.BossMemory["rollSpeed"]/6);
                     console.log(suctionMult);
+                        
                     
-                    //6フレーム(0.1sec)毎程度でよい
-                    if (fpsFrameCount%6 == 0){
+                    //相手から自分への正規化ベクトル君
+                    //[nx , ny , dist]の配列を返す。distが0ならすべての値が0になる
+                    const getNormVec = (tarpx,tarpy) => {
+                    
+                        const distX = this.px-tarpx;
+                        const distY = this.py-tarpy;
+                        //const dist = ((distX)**2+(distY)**2)**0.5;
+                        const dist = Math.hypot(distX,distY);
                         
-                        //相手から自分への正規化ベクトル君
-                        //[nx , ny , dist]の配列を返す。distが0ならすべての値が0になる
-                        const getNormVec = (tarpx,tarpy) => {
-                        
-                            const distX = this.px-tarpx;
-                            const distY = this.py-tarpy;
-                            //const dist = ((distX)**2+(distY)**2)**0.5;
-                            const dist = Math.hypot(distX,distY);
-                            
-                            if (dist > 0) {
-                                return [distX/dist,distY/dist,dist];
-                            } else {
-                                return [0,0,0];
-                            }
-
+                        if (dist > 0) {
+                            return [distX/dist,distY/dist,dist];
+                        } else {
+                            return [0,0,0];
                         }
 
-                        const [nvx,nvy] = getNormVec(player.px,player.py);
+                    }
 
-                        //敵を自分のもとへｼｭｳｰｰｰｰｯｯ!!　超！！エキサイティン！！
-                        player.setOtherVector(nvx*suctionMult,nvy*suctionMult);
+                    let [nvx,nvy] = getNormVec(player.px,player.py);
 
+
+                    //敵を自分のもとへｼｭｳｰｰｰｰｯｯ!!　超！！エキサイティン！！
+                    player.setOtherVector(nvx*suctionMult,nvy*suctionMult);
+
+                    const activeNPC = EnM.spriteList.filter( (npc) => {return npc.active === true;} );
+
+                    for(let i = 0; i<activeNPC.length; i++){
+                        [nvx,nvy] = getNormVec(activeNPC[i].px,activeNPC[i].py);
+                        activeNPC[i].setOtherVector(nvx*suctionMult,nvy*suctionMult);
                     }
 
                     break;
@@ -3545,26 +3579,36 @@ export class Boss extends Enemy {
                     this.forList.i++;
                     break;
                 case "damage":
-                    if (this.lastBossState != 2){
-                        console.log(`last:${this.lastBossState}`);
+                    if (this.lastBossState != 2 && this.BossMemory["damageC"] < 3){
+                        this.BossMemory["damageC"]++;
+                        console.log(`damageC : ${this.BossMemory["damageC"]}`);
+                        //console.log(`last:${this.lastBossState}`);
                         this.BossState = this.lastBossState;
-                        
                         break;
                     }
                     if (this.waitFrame(this.maxInvincibleTime+15)){
-                            this.forList.i = 0;
-                            //特殊攻撃
-                            if (randInt(0,10) <= 7){
-                                //地面からドーン！
-                                this.BossState = 3;
-                            } else {
-                                //うおお吸い込むぜぇぇぇ！
-                                this.BossState = 11;
-                            }
-                            this.BossMemory["SneezeC"] = 0;
+                        
+                        this.forList.i = 0;
+                        
+                        this.BossMemory["damageC"] = 0;
+
+                        //特殊攻撃
+                        if (randInt(0,10) <= 7){
+                            //地面からドーン！
+                            this.BossState = 11;
+                        } else {
+                            //うおお吸い込むぜぇぇぇ！
+                            this.BossState = 11;
+                        }
+                        this.BossMemory["SneezeC"] = 0;
+                        
                     }
                     break;
                 case "died":
+
+                    //脂肪モーションがないためしかたなく点滅する。
+
+                    this.invisible = !this.invisible;
 
                     break;
                 default:

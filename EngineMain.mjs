@@ -1285,6 +1285,8 @@ function playerSelect(key){
             archerStatus.MHP
         )
     }
+    
+    //初期化
     player.initalize(
         NowMapJSON["Position"][0]*(TILESIZE/showTILESIZE),
         NowMapJSON["Position"][1]*(TILESIZE/showTILESIZE),
@@ -1297,6 +1299,9 @@ function playerSelect(key){
         nowStatus.STM,
         nowStatus.SPD
     );
+    player.clearAnimTick();
+    player.clearAnimState();
+    
     playerUnder.initalize(
         player.px,
         player.py,
@@ -1309,8 +1314,12 @@ function playerSelect(key){
         1,
         1
     );
+    playerUnder.clearAnimTick();
+    playerUnder.clearAnimState();
+    
     player.myImg.setImage(img.imgList["player_assets1"]);
     playerUnder.myImg.setImage(img.imgList["player_assets1"]);
+    
     playerCameraSet();
     //player.nonDamage = true;
     //player.hp = 1;
@@ -2290,7 +2299,15 @@ function plyayerAction(){
             player.slowDown(spd);
         }
 
-        if (player.animationState == "standing" || player.animationState == "running"){
+        //playerのアニメーション関連のデバッグ用
+        //console.log(`player.animationState : ${player.animationState}`);
+        //console.log(`trimSX : ${playerImgTrimStX}, trimSY : ${playerImgTrimStY}`);
+        
+        //playerUnderのアニメーション関連のデバッグ用
+        //console.log(`playerUnder.animationState : ${playerUnder.animationState}`);
+        //console.log(`trimSX : ${playerLegImgTrimStX}, trimSY : ${playerLegImgTrimStY}`);
+        
+        if (player.animationState == "standing" || player.animationState == "running" || player.animationState == null){
             if (keyPressed){
                 player.animationState = "running";
             } else {
@@ -2300,6 +2317,7 @@ function plyayerAction(){
 
         //四方向で返してくれる関数
         const quadDir = () => {
+            //X,Y成分両方とも0.0625以下なら-1を返す。
             if (Math.abs(player.vx)+Math.abs(player.vy) <= 0.0625) return -1;
             if (Math.abs(player.vx)<Math.abs(player.vy)){
                 if (player.vy < 0){
@@ -2351,13 +2369,16 @@ function plyayerAction(){
                 player.px+(VecDirList[player.direction][0]*player.sx/2),
                 player.py+(VecDirList[player.direction][1]*player.sy/2),
                 player.pz,
-                player.sx*2,player.sx*3/2,player.sz,"sword");
+                player.sx*2,player.sx*3/2,player.sz,"sword"
+            );
             player.changeAnimState("attacking");
         }
+
         /*  アニメーション処理  */
 
         //グラフィック実装時に書き換え必須！！！
         
+        //tempDirに何もベクトル制限がなければquadDirの戻り値を入れる。
         if (quadDir() >= 0 && !player.VLOCK && !player.EVLOCK && !player.OVLOCK && !player.ZVLOCK) tempDir = quadDir();
         
         if (player.direction != nowPlaDir ){
@@ -2365,26 +2386,41 @@ function plyayerAction(){
         }
         plaAttackAABB.setSize(0,0);
         
+        //playerUnderのアニメーション処理
         if (player.pz < 0){
             //ジャンプ中
-            if (player.pz >= 0){
-                playerUnder.clearAnimTick();
-                if (quadDir() <= 0){
-                    player.changeAnimState("standing");
+            /*
+                if (player.pz >= 0){
+                    playerUnder.clearAnimTick();
+                    if (tempDir <= 0){
+                        player.changeAnimState("standing");
+                    } else {
+                        player.changeAnimState("running");
+                    }
                 } else {
-                    player.changeAnimState("running");
-                }
-            } else {
-                playerLegImgTrimStX = 0;
+                    playerLegImgTrimStX = 0;
 
-                if (tempDir >= 0){
-                    playerLegImgTrimStY = tempDir*UnitPlayerGSizeY+(UnitPlayerGSizeY*8);
-                } else {
-                    playerLegImgTrimStY = 0;
+                    if (tempDir >= 0){
+                        playerLegImgTrimStY = tempDir*UnitPlayerGSizeY+(UnitPlayerGSizeY*8);
+                    } else {
+                        playerLegImgTrimStY = 0;
+                    }
                 }
+            */
+
+            //U方向はアセットの先頭を指す
+            playerLegImgTrimStX = 0;
+
+            if (tempDir >= 0){
+                //V方向は8枚分だけ下のアセットの向きの合うやつを指す
+                playerLegImgTrimStY = tempDir*UnitPlayerGSizeY+(UnitPlayerGSizeY*8);
+            } else {
+                //WHAT
+                playerLegImgTrimStY = 0;
             }
+
         } else if (keyPressed){
-            //移動キーが押されているか
+            //移動キーが押されている
             if (playerUnder.countAnimTick(5+(player.inWater*5))){
                 if (playerUnder.animationFrame >= 3){
                     playerUnder.animationFrame = 0;
@@ -2392,19 +2428,24 @@ function plyayerAction(){
                     playerUnder.animationFrame++;
                 }
             }
+
+            //U方向はアセットの先頭からanimationFrameだけずらしたものを指す
             playerLegImgTrimStX = playerUnder.animationFrame*UnitPlayerGSizeX;
 
             if (tempDir >= 0){
+                //V方向はアセットの向きの合うやつを指す
                 playerLegImgTrimStY = tempDir*UnitPlayerGSizeY;
             } else {
                 playerLegImgTrimStY = 0;
             }
         } else {
+            //移動キーが押されていない
             playerUnder.animationFrame = 0;
             playerUnder.clearAnimTick();
             playerLegImgTrimStX = playerUnder.animationFrame*UnitPlayerGSizeX;
 
             if (tempDir >= 0){
+                //V方向はアセットの向きの合うやつを指す
                 playerLegImgTrimStY = tempDir*UnitPlayerGSizeY;
             } else {
                 playerLegImgTrimStY = 0;
@@ -2414,12 +2455,15 @@ function plyayerAction(){
         if (player.animationState == "attacking") /*attacking*/ {
             //攻撃判定の設定
             
-            plaAttackAABB.setSize(
-                TILESIZE*2+(TILESIZE/4)*(Math.abs(VecDirList[player.direction][1])),//+10*(Math.abs(VecDirList[player.direction][1])),
-                TILESIZE*2+(TILESIZE/4)*(Math.abs(VecDirList[player.direction][1])),//+10*(Math.abs(VecDirList[player.direction][0])),
-                TILESIZE*2
-            );
-            
+            if (player.animationFrame < 2){
+                plaAttackAABB.setSize(
+                    TILESIZE*2+(TILESIZE/4)*(Math.abs(VecDirList[player.direction][1])),//+10*(Math.abs(VecDirList[player.direction][1])),
+                    TILESIZE*2+(TILESIZE/4)*(Math.abs(VecDirList[player.direction][1])),//+10*(Math.abs(VecDirList[player.direction][0])),
+                    TILESIZE*2
+                );
+            }
+
+            //基本は5フレームごとにアニメーションする。
             if (player.countAnimTick(5+(player.inWater*5))){
                 if (player.animationFrame >= 3){
                     player.clearAnimTick();
@@ -2429,16 +2473,18 @@ function plyayerAction(){
                         player.changeAnimState("running");
                     }
                 } else {
+                    //グラフィック更新
                     player.animationFrame++;
                 }
             }
+
+            playerImgTrimStX = player.animationFrame*UnitPlayerGSizeX;
 
             if (tempDir >= 0){
                 playerImgTrimStY = tempDir*UnitPlayerGSizeY+(UnitPlayerGSizeY*4);
             } else {
                 playerImgTrimStY = 0;
             }
-            playerImgTrimStX = player.animationFrame*UnitPlayerGSizeX;
 
         } else if (player.animationState == "damaging") /*Damaging*/ {
 
@@ -2504,10 +2550,10 @@ function plyayerAction(){
         }
         player.OVLOCK = true;
 
-        if (!player.invisilbe) {
-            player.invisibleTime = player.maxInvisibleTime;
-            player.invisilbe = true;
-            console.log(`executed! invisible time : ${player.invisibleTime}`);
+        if (!player.invincible) {
+            player.invincibleTime = player.maxInvincibleTime;
+            player.invincible = true;
+            console.log(`executed! invincible time : ${player.invincibleTime}`);
         }
 
     }
