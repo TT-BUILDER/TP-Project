@@ -3182,8 +3182,8 @@ export class Boss extends Enemy {
                             //特殊攻撃
                             if (randInt(0,10) <= 7){
                                 //地面からドーン！
-                                //this.BossState = 3;
-                                this.BossState = 11;
+                                this.BossState = 3;
+                                //this.BossState = 11;
                             } else {
                                 //うおお吸い込むぜぇぇぇ！
                                 this.BossState = 11;
@@ -3595,7 +3595,7 @@ export class Boss extends Enemy {
                         //特殊攻撃
                         if (randInt(0,10) <= 7){
                             //地面からドーン！
-                            this.BossState = 11;
+                            this.BossState = 3;
                         } else {
                             //うおお吸い込むぜぇぇぇ！
                             this.BossState = 11;
