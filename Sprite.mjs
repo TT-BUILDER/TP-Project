@@ -200,8 +200,11 @@ export class imgData {
      * @param {Number} px 描画位置X
      * @param {Number} py 描画位置Y
      */
-    render(px,py,alpha = 1.0){
+    render(px,py,alpha = 1.0,glayscaleRatio){
         const resGA = IR.ctx.globalAlpha;
+        const glaSC = IR.ctx.filter;
+
+        IR.ctx.filter = `grayscale(${100*glayscaleRatio}%)`;
         IR.ctx.globalAlpha = alpha;
         IR.renderImg(
             this.imageData,
@@ -216,6 +219,7 @@ export class imgData {
             this.trimSizeY
         )
         IR.ctx.globalAlpha = resGA;
+        IR.ctx.filter = glaSC;
     }
     /**
      * レンダリングする画像の設定（トリミング位置は自動で全体へと決定）
@@ -465,6 +469,7 @@ export class sprite {
         this.direction = 0;
         this.myImg = new imgData(img.imgList["null"]);
         this.imgAlpha = 1.0;
+        this.glayscaleRatio = 0.0;
 
         this.animationTick = 0;
         this.animationFrame = 0;
@@ -557,7 +562,7 @@ export class sprite {
                 this.myImg.setTrim(imgStX,imgStY,imgSX,imgSY);
                 //this.myImg.setSize(this.sx,Math.max(this.sz,this.sy));
                 this.myImg.setSize(this.sx,this.sz);
-                this.myImg.render(RenSprX,RenSprY-(this.sz/2)+(this.sy/2),this.imgAlpha);
+                this.myImg.render(RenSprX,RenSprY-(this.sz/2)+(this.sy/2),this.imgAlpha,this.glayscaleRatio);
             }
             //NowCTX.arc(32,32,32,0,Math.PI*2,false);
             if (DebugMode) {
@@ -1861,17 +1866,36 @@ export class Effect extends sprite {
 
                 break;
             case "WarpHole":
+
                 if (this.memory[0] < 10){
+                    //個人個人のメモリの初期化
                     console.log(`generate success : ${this.memory[0]}`);
                     this.memory[0] = this.memory[0]*10;
                 } else {
+                    
                     const myStage = this.memory/10;
+                    //プレイヤーの距離に応じて透明度を設定
                     const dist = -this.sx + ((player.px-this.px)**2+(player.py-this.py)**2)**0.5;
                     const alpha = Math.ceil( 255 / Math.max(1, Math.min(255,2*(dist / (this.sx)) ) ) );
+
+                    
+
+                    //ラストステージ以外なら
                     if (myStage != 9){
+                        
+                        //遊べるステージか？
                         const canGo = enableGoStageList[myStage-1];
+
+                        //"Ef:WarpHole,<インデックス値>"として、{ [テキスト] , [ワールドx座標] , [ワールドy座標] , [RGBAカラー]}のフォーマットでリクエストをスタックする。
                         textRenderRequestList[`Ef:${this.type},${idx},1`] = [`${myStage}ステージ入口`, this.px-TextSize*4.5, this.py+this.sy, [255,255,255,alpha]];
                         textRenderRequestList[`Ef:${this.type},${idx},2`] = [mapDescriptionList[`Map_${myStage}`], this.px-TextSize*(mapDescriptionList[`Map_${myStage}`].length*0.6), this.py+this.sy+TextSize, [255,0,0,alpha]];
+                        
+                        if (canGo != 1) {
+                            this.glayscaleRatio = 1.0;
+                        } else {
+                            this.glayscaleRatio = 0.0;
+                        }
+
                         if (canGo == 1 && this.hitCheck(
                             player.px,
                             player.py,
@@ -1885,6 +1909,13 @@ export class Effect extends sprite {
                         }
                     } else {
                         const canGo = enableGoStageList[4];
+
+                        if (canGo != 1) {
+                            this.glayscaleRatio = 1.0;
+                        } else {
+                            this.glayscaleRatio = 0.0;
+                        }
+
                         textRenderRequestList[`Ef:${this.type},${idx},1`] = [`ラスボスステージ入口`, this.px-TextSize*7, this.py+this.sy, [255,255,255,alpha]];
                         if (canGo != 1){
                             textRenderRequestList[`Ef:${this.type},${idx},2`] = [`未完成`, this.px-TextSize*1.5, this.py+this.sy+TextSize, [255,0,0,alpha]];
@@ -2009,6 +2040,8 @@ export class Boss extends Enemy {
         this.giveDamage = true;
         let moveOK = true;
         this.fallOK = false;
+
+        //死ぬときはthis.alliveをfalseにすると勝手に処理してくれるよ
 
         //各分岐
         if (this.type == "Rock"){
@@ -3138,15 +3171,6 @@ export class Boss extends Enemy {
             switch (this.BossState) {
                 //初期化
                 case 0:
-                    EfM.spawnNPC(
-                        0,
-                        0,
-                        0,
-                        TILESIZE,
-                        TILESIZE,
-                        TILESIZE,
-                        "test"
-                    );
                     this.BossInit();
                     this.BossState++;
                     console.log("Water Boss Init end");
@@ -3606,9 +3630,23 @@ export class Boss extends Enemy {
                     break;
                 case "died":
 
-                    //脂肪モーションがないためしかたなく点滅する。
+                    //死亡モーションがないためしかたなく点滅する。
 
-                    this.invisible = !this.invisible;
+                    //this.invisible = !this.invisible;
+
+                    //240フレーム(4sec)後に消滅
+                    if (this.waitFrame(240)){
+
+                        this.allive = false;
+
+                    } else if (this.waitFrameC < 180){
+                        //3秒間は震える
+                        this.vibrate(-2,2);
+                        //点滅
+                        this.invisible = !this.invisible;
+                    } else {
+                        this.invisible = false;
+                    }
 
                     break;
                 default:

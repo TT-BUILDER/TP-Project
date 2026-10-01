@@ -15,6 +15,7 @@ import { Boss } from "./Sprite.mjs";                                        //�
 import { isNowBossAnimation } from "./Sprite.mjs";                          //ボスアニメーションフラグ
 import { hitWallCheck } from "./Sprite.mjs";
 
+//UI描画
 import { setContext } from "./UI.mjs";
 import { setTextBuffer } from "./UI.mjs";
 import { setTextStyle } from "./UI.mjs";
@@ -45,8 +46,10 @@ import { audio } from "./AudioPlay.mjs";                                 //オ�
 //読み込みフラグオン
 let loading = 1;
 
+//日本語モードですか？
 let isJP = true;
 
+//BGMいる？
 let onBGM = false;
 
 export let fps = 0;
@@ -94,6 +97,7 @@ ctx.fillText("State : getting variable's memory spaces",0,TextSize);
 const baseTXTBufX = 19;
 const baseTXTBufY = 7;
 
+//UI関連初期化
 setContext(canvas,ctx);
 setTextBuffer(baseTXTBufX,baseTXTBufY,TextSize);
 setTextStyle("monospace","start","alphabetic");
@@ -297,18 +301,30 @@ class camera {
          */
         this.processingList = {};
 
-        //バッファスクリーンレイヤ関連
+        //バッファスクリーンレイヤ関連（上層レイヤー）
         this.scR = 255;
         this.scG = 255;
         this.scB = 255;
         this.scA = 255;
+        //RGBA非同期カラー変更加算値
         this.asyncFadeVR = 0;
         this.asyncFadeVG = 0;
         this.asyncFadeVB = 0;
         this.asyncFadeVA = 0;
+        //RGBA非同期カラー変更を勝手に終了していいか
         this.asyncFadeVZeroclearF = true;
+        //RGBA非同期カラー変更終了の通知
+        this.asyncInterruptR = false;
+        this.asyncInterruptG = false;
+        this.asyncInterruptB = false;
+        this.asyncInterruptA = false;
+        //RGBA非同期カラー変更終了の通知を待っているかどうか
+        this.asyncInterruptWaitingR = false;
+        this.asyncInterruptWaitingG = false;
+        this.asyncInterruptWaitingB = false;
+        this.asyncInterruptWaitingA = false;
 
-        //オーバーレイカラー
+        //オーバーレイカラー（下層レイヤー）
         this.BGRayColor = {
             "R" : 255,
             "G" : 255,
@@ -459,6 +475,27 @@ class camera {
         this.BGRayColor.A = Math.min(255,Math.max(0,this.BGRayColor.A));
 
     }
+
+    /**
+     * 
+     * @param {Hex} IF  [RGBA]の4bitのフラグデータ
+     * @param {Hex} IWF [RGBA]の4bitのフラグデータ
+     */
+    setAsyncInterruptFlag(IF,IWF){
+        
+        //純粋な真偽値にするために二重否定を使う。( !!(1) == true , !!(0) == false のため)
+
+        this.asyncInterruptR = !!(0b1000 & IF);
+        this.asyncInterruptG = !!(0b0100 & IF);
+        this.asyncInterruptB = !!(0b0010 & IF);
+        this.asyncInterruptA = !!(0b0001 & IF);
+        
+        this.asyncInterruptWaitingR = !!(0b1000 & IWF);
+        this.asyncInterruptWaitingG = !!(0b0100 & IWF);
+        this.asyncInterruptWaitingB = !!(0b0010 & IWF);
+        this.asyncInterruptWaitingA = !!(0b0001 & IWF);
+
+    }
     
     /**
      * バッファスクリーンカラーの成分の変化を固定実数値で非同期的に変化させる
@@ -467,8 +504,17 @@ class camera {
      * @param {Number} B 変化ベクトルブルー
      * @param {Number} A 変化ベクトル透明度
      * @param {Boolean} byMaxF いずれかが255か0で変化を終了させるかフラグ。デフォルトはtrue。
+     * @param {Boolean} keepNow 現在の通知状態や通知待ち状態を保持する。falseなら手動指定。
+     * @param {Boolean} IWF_R 非同期処理の通知待ちか？
+     * @param {Boolean} IWF_G 非同期処理の通知待ちか？
+     * @param {Boolean} IWF_B 非同期処理の通知待ちか？
+     * @param {Boolean} IWF_A 非同期処理の通知待ちか？
+     * @param {Boolean} IF_R 非同期処理の通知オンか？
+     * @param {Boolean} IF_G 非同期処理の通知オンか？
+     * @param {Boolean} IF_B 非同期処理の通知オンか？
+     * @param {Boolean} IF_A 非同期処理の通知オンか？
      */
-    setAsyncFadeScreenColor(R,G,B,A,byMaxF = true){
+    setAsyncFadeScreenColor(R,G,B,A,byMaxF = true, keepNow = true, IWF_R = true, IWF_G = true, IWF_B = true, IWF_A = true, IF_R = false, IF_G = false, IF_B = false, IF_A = false){
         
         this.asyncFadeVZeroclearF = byMaxF;
 
@@ -476,6 +522,20 @@ class camera {
         this.asyncFadeVG = G;
         this.asyncFadeVB = B;
         this.asyncFadeVA = A;
+
+        if (!keepNow){
+            this.asyncInterruptR = IF_R;
+            this.asyncInterruptWaitingR = IWF_R;
+
+            this.asyncInterruptG = IF_G;
+            this.asyncInterruptWaitingG = IWF_G;
+
+            this.asyncInterruptB = IF_B;
+            this.asyncInterruptWaitingB = IWF_B;
+
+            this.asyncInterruptA = IF_A;
+            this.asyncInterruptWaitingA = IWF_A;
+        }
     }
 
     doCameraEffect(x = this.e_valX, y = this.e_valY, z = this.e_valZ, w = this.e_valW, u = this.e_valU, v = this.e_valV){
@@ -520,6 +580,7 @@ class camera {
 
         }
 
+        /*
         if (
             this.asyncFadeVZeroclearF && 
             (
@@ -532,6 +593,96 @@ class camera {
         ){
             this.setAsyncFadeScreenColor(0,0,0,0,true);
         }
+        */
+        
+        if (this.asyncFadeVZeroclearF){
+
+            //各色が最大値(255)か最小値(0)をとったらtrue
+            if (this.scR >= 255 || this.scR <= 0) {
+                this.setAsyncFadeScreenColor(
+                    0,
+                    this.asyncFadeVG,
+                    this.asyncFadeVB,
+                    this.asyncFadeVA,
+                    this.asyncFadeVZeroclearF,
+                    true
+                );
+
+                if (!this.asyncInterruptR && this.asyncInterruptWaitingR) {
+                    console.log(`R Interrupt! IF:${this.asyncInterruptR},IWF:${this.asyncInterruptWaitingR}`);
+                    this.asyncInterruptR = true;
+                    this.asyncInterruptWaitingR = false;
+                } else {
+                    this.asyncInterruptR = false;
+                    this.asyncInterruptWaitingR = false;
+                }
+
+            }
+
+            if (this.scG >= 255 || this.scG <= 0) {
+                this.setAsyncFadeScreenColor(
+                    this.asyncFadeVR,
+                    0,
+                    this.asyncFadeVB,
+                    this.asyncFadeVA,
+                    this.asyncFadeVZeroclearF,
+                    true
+                );
+
+                if (!this.asyncInterruptG && this.asyncInterruptWaitingG) {
+                    console.log(`G Interrupt! IF:${this.asyncInterruptG},IWF:${this.asyncInterruptWaitingG}`);
+                    this.asyncInterruptG = true;
+                    this.asyncInterruptWaitingG = false;
+                } else {
+                    this.asyncInterruptG = false;
+                    this.asyncInterruptWaitingG = false;
+                }
+
+            }
+
+            if (this.scB >= 255 || this.scB <= 0) {
+                this.setAsyncFadeScreenColor(
+                    this.asyncFadeVR,
+                    this.asyncFadeVG,
+                    0,
+                    this.asyncFadeVA,
+                    this.asyncFadeVZeroclearF,
+                    true
+                );
+
+                if (!this.asyncInterruptB && this.asyncInterruptWaitingB) {
+                    console.log(`B Interrupt! IF:${this.asyncInterruptB},IWF:${this.asyncInterruptWaitingB}`);
+                    this.asyncInterruptB = true;
+                    this.asyncInterruptWaitingB = false;
+                } else {
+                    this.asyncInterruptB = false;
+                    this.asyncInterruptWaitingB = false;
+                }
+
+            }
+
+            if (this.scA >= 255 || this.scA <= 0) {
+                this.setAsyncFadeScreenColor(
+                    this.asyncFadeVR,
+                    this.asyncFadeVG,
+                    this.asyncFadeVB,
+                    0,
+                    this.asyncFadeVZeroclearF,
+                    true
+                );
+
+                if (!this.asyncInterruptA && this.asyncInterruptWaitingA) {
+                    console.log(`A Interrupt! IF:${this.asyncInterruptA},IWF:${this.asyncInterruptWaitingA}`);
+                    this.asyncInterruptA = true;
+                    this.asyncInterruptWaitingA = false;
+                } else {
+                    this.asyncInterruptA = false;
+                    this.asyncInterruptWaitingA = false;
+                }
+
+            }
+
+        }
 
         this.setScreenColorRelative(
             this.asyncFadeVR,
@@ -541,7 +692,8 @@ class camera {
         )
 
     }
-    
+
+    //おそらく未使用メソッド
     /**
      * 
      * @param {String} text 
@@ -581,6 +733,7 @@ class stage {
         this.StageFrameC[eventName] = 0;
         this.StageFrameCountingF[eventName] = false;
     }
+
     /**
      * @param {Number} frame カウントするフレーム数
      * @param {String} en カウントするイベントキー
@@ -608,6 +761,7 @@ class stage {
         }
 
     }
+
     deleteCount(en = "Default"){
         delete this.StageFrameC[en];
         delete this.StageFrameCountingF[en];
@@ -625,9 +779,11 @@ class stage {
             return 1;
         }
     }
+
     stopPlayer(flag){
         player.stop = flag;
     }
+
     /**
      * @param {String} name MapsやMapCollisionsに格納してあるキーの名前。ステージタイプになる
      */
@@ -768,8 +924,12 @@ let stageChangeRequest = null;
 //DebugStage.setCountEvent("stopPlayer");
 //let test = 0;
 
+//クリアしたかフラグ兼クリアモーションのステート
 let stageClear = 0;
-export let enableGoStageList = [1,1,1,1,0];
+let stageClearTime = 0;
+
+//いけるステージリスト
+export let enableGoStageList = [1,1,0,1,0];
 let jsonData = undefined;
 
 const plSizeX = TILESIZE;
@@ -1357,8 +1517,15 @@ async function executeSCRequest() {
  */
 async function setStage(stageName){
 
-    renderCamera.setScreenColor(1,1,1,254);
+    //フェードインをセット
+    renderCamera.setScreenColor(0,0,1,254);
     renderCamera.setAsyncFadeScreenColor(0,0,6,-6);
+    //IF_R,IF_G,IF_B,IF_Aすべてfalse、IWF_R,IWF_G,IWF_Bはfalse、IWF_Aはtrue
+    renderCamera.setAsyncInterruptFlag( 0b0000 , 0b0001 );
+
+    //カメラエフェクトのリセット
+    renderCamera.setCameraEffect(0,0,0,0,0,0);
+    renderCamera.setBGRayColor(0,0,0,0);
 
     stageClear = 0;
 
@@ -1396,9 +1563,6 @@ async function setStage(stageName){
     EnM.Enable();
     EfM.Enable();
 
-    //カメラエフェクトのリセット
-    renderCamera.setCameraEffect(0,0,0,0,0,0);
-    renderCamera.setBGRayColor(0,0,0,0);
 
     //メインホールのみ専用のスプライトを召喚
     if (stageName == "GrandFloor"){
@@ -1727,9 +1891,11 @@ function RenderCanvas(){
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     //ctx.fillText(`This is debug. keyCFG : ${keyConfig}`, canvas.width / 2, canvas.height - lineSize*3);
-    //ctx.fillText(`This is debug. asyncFadeVRGBA : ${[renderCamera.asyncFadeVR, renderCamera.asyncFadeVG, renderCamera.asyncFadeVB, renderCamera.asyncFadeVA]}`, canvas.width / 2, canvas.height - lineSize*4);
-    //ctx.fillText(`This is debug. BGRay : ${[renderCamera.BGRayColor.R, renderCamera.BGRayColor.G, renderCamera.BGRayColor.B, renderCamera.BGRayColor.A]}`, canvas.width / 2, canvas.height - lineSize*3);
-    //ctx.fillText(`This is debug. RGBA : ${[renderCamera.scR, renderCamera.scG, renderCamera.scB, renderCamera.scA]}`, canvas.width / 2, canvas.height - lineSize*4);
+    //ctx.fillText(`This is debug. IntrWaitList : ${[     renderCamera.asyncInterruptWaitingR,    renderCamera.asyncInterruptWaitingG,    renderCamera.asyncInterruptWaitingB,    renderCamera.asyncInterruptWaitingA ]}`, canvas.width / 2, canvas.height - lineSize*7);
+    //ctx.fillText(`This is debug. InterruptList : ${[    renderCamera.asyncInterruptR,           renderCamera.asyncInterruptG,           renderCamera.asyncInterruptB,           renderCamera.asyncInterruptA        ]}`, canvas.width / 2, canvas.height - lineSize*6);
+    //ctx.fillText(`This is debug. asyncFadeVRGBA : ${[   renderCamera.asyncFadeVR,               renderCamera.asyncFadeVG,               renderCamera.asyncFadeVB,               renderCamera.asyncFadeVA            ]}`, canvas.width / 2, canvas.height - lineSize*5);
+    //ctx.fillText(`This is debug. BGRay : ${[            renderCamera.BGRayColor.R,              renderCamera.BGRayColor.G,              renderCamera.BGRayColor.B,              renderCamera.BGRayColor.A           ]}`, canvas.width / 2, canvas.height - lineSize*3);
+    //ctx.fillText(`This is debug. RGBA : ${[             renderCamera.scR,                       renderCamera.scG,                       renderCamera.scB,                       renderCamera.scA                    ]}`, canvas.width / 2, canvas.height - lineSize*4);
     if (onBGM) {
         if (isUserGesture == "yet" || isUserGesture == "action"){
             ctx.fillText("画面をクリックするか、操作をしてください。", canvas.width / 2, canvas.height - lineSize*2);
@@ -1759,9 +1925,10 @@ function RenderCanvas(){
         const tsy = 2*UCY/(baseTXTBufY);
         setTextSize(Math.min(tsx,tsy)); 
         
-        //バッファのクリア
+        //テキストバッファのクリア
         clearTextBuffer();
         clearConfig();
+
         if (isPause){
             //ポーズ中なら外枠を描く
             renderUI(
@@ -1839,8 +2006,9 @@ function RenderCanvas(){
                             isPause = false;
                             toFadeStage = true;
                             
-                            renderCamera.setScreenColor(1,1,254,1);
+                            renderCamera.setScreenColor(0,0,254,1);
                             renderCamera.setAsyncFadeScreenColor(0,0,-3,3);
+                            renderCamera.setAsyncInterruptFlag( 0b0000 , 0b0001 );
                             
                             //mainStage.changeStage("GrandFloor");
                         } else if (moddedPCI == 1) {
@@ -1848,7 +2016,8 @@ function RenderCanvas(){
                         }
                     }
                 } else if (toFadeStage){
-                    if (renderCamera.scA >= 255){
+                    //if (renderCamera.scA >= 255){
+                    if (renderCamera.asyncInterruptA){
                         actionStop = false;
                         toFadeStage = false;
                         mainStage.changeStage("GrandFloor");
@@ -2584,11 +2753,34 @@ function plyayerAction(){
 function bossAction(){
     if (NowBoss != 0) {
         NowBoss.BossAction(NowMapCollision,TILESIZE);
+        //ボスが死んでたら
         if (!NowBoss.allive) {
             NowBoss = 0;
             stageClear = 1;
+            //クリアした時間の記録
+            stageClearTime = lastFrameTime;
             console.log("Boss Died! YaY!!");
         }
+    } else {
+
+        //2000ミリ秒(2秒)経過して、かつ未初期化なら
+        if (lastFrameTime - stageClearTime > 2000 && stageClear == 1){
+
+            stageClear++;
+
+            renderCamera.setScreenColor(0,0,254,1);
+            renderCamera.setAsyncFadeScreenColor(0,0,-2,1);
+            
+            renderCamera.setAsyncInterruptFlag( 0b0000 , 0b0001 );
+
+
+        } else {
+            if (renderCamera.asyncInterruptA && stageClear) {
+
+                mainStage.changeStage("GrandFloor");
+            }
+        }
+        
     }
 }
 function EffectAction(){
