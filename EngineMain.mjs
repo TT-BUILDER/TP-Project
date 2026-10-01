@@ -1295,7 +1295,7 @@ async function main(timestamp = performance.now()){
             fpsSampleStart = timestamp;
         }
 
-        const elapsed = Math.max(0.03, timestamp - lastFrameTime);
+        const elapsed = Math.min(30.0, timestamp - lastFrameTime);
         lastFrameTime = timestamp;
         frameDelta = elapsed;
 
@@ -2125,7 +2125,7 @@ function RenderCanvas(){
         //それっぽい見た目のFPSカウンタ
         const uts = TextSize*2/3;
         ctx.fillStyle = "black";
-        ctx.fillRect(0,0,uts*7,uts*2);
+        ctx.fillRect(0,0,uts*7,uts*3);
         ctx.font = `${uts}px monospace`;
         ctx.textBaseline = "top";
         ctx.textAlign = "start";
