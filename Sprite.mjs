@@ -1025,7 +1025,7 @@ export class Enemy extends sprite {
         this.vz = vz;
         this.nonDamage = false;
 
-        this.inwater = false;
+        this.inWater = false;
 
         //固有の配列を取得
         this.memory = Memory;
@@ -1683,6 +1683,8 @@ export class Effect extends sprite {
         this.vy = vy;
         this.vz = vz;
         this.nonDamage = false;
+
+        this.inWater = false;
 
         this.glayscaleRatio = 0.0;
 
