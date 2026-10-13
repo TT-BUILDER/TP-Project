@@ -51,6 +51,11 @@ let isJP = true;
 
 //BGMいる？
 let onBGM = false;
+let onSE = false;
+
+//ボリューム
+let BGMvolume = 50;
+let SEvolume = 50;
 
 export let fps = 0;
 export let frameDelta = 16.67;
@@ -60,11 +65,13 @@ let fpsElapsed = 0;
 let fpsSampleStart = 0;
 
 
-export const DebugMode = true;
+//export const DebugMode = true;
+export const DebugMode = false;
+
+
+
 
 const CRT_Effect = false;
-
-
 
 export let actionStop = false;
 export let renderStop = false;
@@ -721,11 +728,13 @@ class stage {
         this.StType = ST;
         this.StageFrameC = {
             "Default" : 0,
-            "stopPlayer" : 0
+            "stopPlayer" : 0,
+            "bubbleRepeat" : 0
         };
         this.StageFrameCountingF = {
             "Default" : false,
-            "stopPlayer" : false
+            "stopPlayer" : false,
+            "bubbleRepeat" : false
         };
     }
 
@@ -895,6 +904,7 @@ export const EfM = new EffectManager(200);
 const TR = new TileRender(ScreenB,ScB);                     //タイルレンダーインスタンス
 export const AuM = new audio();                             //オーディオインスタンス
 const audioInfo = {};
+export const SEM = new audio();                             //効果音インスタンス
 
 //拡大率変更
 //TR.TILESIZEUpdate(80,32);
@@ -973,6 +983,16 @@ let playerUnder = new sprite(
     knightStatus.STM,
     knightStatus.SPD
 );
+let lastPlayerState = null;
+
+//効果音ハンドラたち
+let seHandler_pla_damaged = null;
+let seHandler_pla_step = null;
+let seHandler_pla_attack = null;
+
+let seHandler_NowBoss_damaged = null;
+let seHandler_NowBoss_action = null;
+
 
 let tempDir = 0;
 
@@ -1006,25 +1026,71 @@ const promise = new Promise( async function(resolve,reject) {
         ctx.fillText("Now Loading... Please wait a moment.",0,0);
         ctx.fillText("State : Loading Map data asstes",0,TextSize);
         
+        /*
+        const MDpromise = await Promise.all([
+            //デバッグステージのデータ読み込み（「Debug」として追加）
+            //マップデータはJSONファイルから先に読む（TileRenderクラスのnewLoadMapメソッドがJSONファイルを利用するため）
+            MapJSONs["Map_1"] = await fetchJSON("./assets/maps/Map1.json"),
+            MapJSONs["Map_2"] = await fetchJSON("./assets/maps/Map2.json"),
+            MapJSONs["Map_3"] = await fetchJSON("./assets/maps/Map3.json"),
+            MapJSONs["Map_4"] = await fetchJSON("./assets/maps/Map4.json"),
+            MapJSONs["GrandFloor"] = await fetchJSON("./assets/maps/Map5.json"),
+            MapJSONs["water_debug"] = await fetchJSON("./assets/maps/Map7.json"),
+            MapJSONs["Debug"] = await fetchJSON("./assets/maps/Debug1.json"),
+            MapJSONs["Debug2"] = await fetchJSON("./assets/maps/Debug2.json"),
+
+            mapDescriptionList["Map_1"] = MapJSONs["Map_1"].Description,
+            Maps["Map_1"] = TR.newLoadMap(MapJSONs["Map_1"],"./assets/maps/Map1.txt"),
+            MapCollisions["Map_1"] = TR.newLoadMap(MapJSONs["Map_1"],"./assets/maps/Map1_C.txt"),
+            
+            mapDescriptionList["Map_2"] = MapJSONs["Map_2"].Description,
+            Maps["Map_2"] = TR.newLoadMap(MapJSONs["Map_2"],"./assets/maps/Map2.txt"),
+            MapCollisions["Map_2"] = TR.newLoadMap(MapJSONs["Map_2"],"./assets/maps/Map2_C.txt"),
+
+            mapDescriptionList["Map_3"] = MapJSONs["Map_3"].Description,
+            Maps["Map_3"] = TR.newLoadMap(MapJSONs["Map_3"],"./assets/maps/Map3.txt"),
+            MapCollisions["Map_3"] = TR.newLoadMap(MapJSONs["Map_3"],"./assets/maps/Map3_C.txt"),
+            
+            mapDescriptionList["Map_4"] = MapJSONs["Map_4"].Description,
+            Maps["Map_4"] = TR.newLoadMap(MapJSONs["Map_4"],"./assets/maps/Map4.txt"),
+            MapCollisions["Map_4"] = TR.newLoadMap(MapJSONs["Map_4"],"./assets/maps/Map4_C.txt"),
+            
+            Maps["GrandFloor"] = TR.newLoadMap(MapJSONs["GrandFloor"],"./assets/maps/Map5.txt"),
+            MapCollisions["GrandFloor"] = TR.newLoadMap(MapJSONs["GrandFloor"],"./assets/maps/Map5_C.txt"),
+            
+            mapDescriptionList["water_debug"] = MapJSONs["water_debug"].Description,
+            Maps["water_debug"] = TR.newLoadMap(MapJSONs["water_debug"],"./assets/maps/Map7.txt"),
+            MapCollisions["water_debug"] = TR.newLoadMap(MapJSONs["water_debug"],"./assets/maps/Map7_C.txt"),
+            
+            //water_debug
+
+            Maps["Debug"] = TR.newLoadMap(MapJSONs["Debug"],"./assets/maps/Debug1.txt"),
+            MapCollisions["Debug"] = TR.newLoadMap(MapJSONs["Debug"],"./assets/maps/Debug1_C.txt"),
+            
+            Maps["Debug2"] = TR.newLoadMap(MapJSONs["Debug2"],"./assets/maps/Debug2.txt"),
+            MapCollisions["Debug2"] = TR.newLoadMap(MapJSONs["Debug2"],"./assets/maps/Debug2_C.txt"),
+        ]);
+        */
+
         //デバッグステージのデータ読み込み（「Debug」として追加）
         //マップデータはJSONファイルから先に読む（TileRenderクラスのnewLoadMapメソッドがJSONファイルを利用するため）
         MapJSONs["Map_1"] = await fetchJSON("./assets/maps/Map1.json");
-        mapDescriptionList["Map_1"] = MapJSONs["Map_1"].Description;
+        mapDescriptionList["Map_1"] = await MapJSONs["Map_1"].Description;
         Maps["Map_1"] = await TR.newLoadMap(MapJSONs["Map_1"],"./assets/maps/Map1.txt");
         MapCollisions["Map_1"] = await TR.newLoadMap(MapJSONs["Map_1"],"./assets/maps/Map1_C.txt");
         
         MapJSONs["Map_2"] = await fetchJSON("./assets/maps/Map2.json");
-        mapDescriptionList["Map_2"] = MapJSONs["Map_2"].Description;
+        mapDescriptionList["Map_2"] = await MapJSONs["Map_2"].Description;
         Maps["Map_2"] = await TR.newLoadMap(MapJSONs["Map_2"],"./assets/maps/Map2.txt");
         MapCollisions["Map_2"] = await TR.newLoadMap(MapJSONs["Map_2"],"./assets/maps/Map2_C.txt");
 
         MapJSONs["Map_3"] = await fetchJSON("./assets/maps/Map3.json");
-        mapDescriptionList["Map_3"] = MapJSONs["Map_3"].Description;
+        mapDescriptionList["Map_3"] = await MapJSONs["Map_3"].Description;
         Maps["Map_3"] = await TR.newLoadMap(MapJSONs["Map_3"],"./assets/maps/Map3.txt");
         MapCollisions["Map_3"] = await TR.newLoadMap(MapJSONs["Map_3"],"./assets/maps/Map3_C.txt");
         
         MapJSONs["Map_4"] = await fetchJSON("./assets/maps/Map4.json");
-        mapDescriptionList["Map_4"] = MapJSONs["Map_4"].Description;
+        mapDescriptionList["Map_4"] = await MapJSONs["Map_4"].Description,
         Maps["Map_4"] = await TR.newLoadMap(MapJSONs["Map_4"],"./assets/maps/Map4.txt");
         MapCollisions["Map_4"] = await TR.newLoadMap(MapJSONs["Map_4"],"./assets/maps/Map4_C.txt");
         
@@ -1033,20 +1099,21 @@ const promise = new Promise( async function(resolve,reject) {
         MapCollisions["GrandFloor"] = await TR.newLoadMap(MapJSONs["GrandFloor"],"./assets/maps/Map5_C.txt");
         
         MapJSONs["water_debug"] = await fetchJSON("./assets/maps/Map7.json");
-        mapDescriptionList["water_debug"] = MapJSONs["water_debug"].Description;
+        mapDescriptionList["water_debug"] = await MapJSONs["water_debug"].Description;
         Maps["water_debug"] = await TR.newLoadMap(MapJSONs["water_debug"],"./assets/maps/Map7.txt");
         MapCollisions["water_debug"] = await TR.newLoadMap(MapJSONs["water_debug"],"./assets/maps/Map7_C.txt");
         
         //water_debug
 
         MapJSONs["Debug"] = await fetchJSON("./assets/maps/Debug1.json");
-        Maps["Debug"] = await TR.newLoadMap(MapJSONs["Debug"],"./assets/maps/Debug1.txt");
-        MapCollisions["Debug"] = await TR.newLoadMap(MapJSONs["Debug"],"./assets/maps/Debug1_C.txt");
+        Maps["Debug"] = TR.newLoadMap(MapJSONs["Debug"],"./assets/maps/Debug1.txt");
+        MapCollisions["Debug"] = TR.newLoadMap(MapJSONs["Debug"],"./assets/maps/Debug1_C.txt");
         
         MapJSONs["Debug2"] = await fetchJSON("./assets/maps/Debug2.json");
-        Maps["Debug2"] = await TR.newLoadMap(MapJSONs["Debug2"],"./assets/maps/Debug2.txt");
-        MapCollisions["Debug2"] = await TR.newLoadMap(MapJSONs["Debug2"],"./assets/maps/Debug2_C.txt");
+        Maps["Debug2"] = TR.newLoadMap(MapJSONs["Debug2"],"./assets/maps/Debug2.txt");
+        MapCollisions["Debug2"] = TR.newLoadMap(MapJSONs["Debug2"],"./assets/maps/Debug2_C.txt");
         
+
         ctx.fillStyle = "rgb(255,255,255)";
         ctx.fillRect(0,0,canvas.width,canvas.height);
         ctx.fillStyle = "rgb(0,0,0)";
@@ -1054,16 +1121,17 @@ const promise = new Promise( async function(resolve,reject) {
         ctx.fillText("State : Loading image asstes",0,TextSize);
 
         //画像データたちを読み込む
-        await img.AddImg("MapTip_Debug","./assets/tiles/testTiles1.png");
-        await img.AddImg("MapTip1","./assets/tiles/GenericTiles.png");
-        //await img.AddImg("MapTip2","./assets/tiles/RockTile.png");
-        await img.AddImg("MapTip2","./assets/tiles/test1.png");
-        await img.AddImg("SwordEffect","./assets/effects/TestEffect.png");
+        const IMGpromise = await Promise.all([
+            img.AddImg("MapTip_Debug","./assets/tiles/testTiles1.png"),
+            img.AddImg("MapTip1","./assets/tiles/GenericTiles.png"),
+            //await img.AddImg("MapTip2","./assets/tiles/RockTile.png"),
+            img.AddImg("MapTip2","./assets/tiles/test1.png"),
+            img.AddImg("SwordEffect","./assets/effects/TestEffect.png"),
 
-        await img.AddImg("player_assets1","./assets/imgs/player_walk.png");
+            img.AddImg("player_assets1","./assets/imgs/player_walk.png"),
 
-        await TexImg.AddImg("testTex","./assets/tiles/nullImage.png");
-
+            TexImg.AddImg("testTex","./assets/tiles/nullImage.png")
+        ]);
         //タイルチップデータの読み込み
         TR.newLoadImg(img.imgList["MapTip2"]);
 
@@ -1078,12 +1146,26 @@ const promise = new Promise( async function(resolve,reject) {
         ctx.fillText("Now Loading... Please wait a moment.",0,0);
         ctx.fillText("State : Loading music asstes",0,TextSize);
         
-        /*
-        await AuM.AddAudioFromInfo("Map1_Battle","./assets/sounds/BGM/map1_battle_info.json","./assets/sounds/BGM/");
-        await AuM.AddAudioFromInfo("Map2_Peace","./assets/sounds/BGM/map2_peace_info.json","./assets/sounds/BGM/");
-        await AuM.AddAudioFromInfo("Map2_Battle","./assets/sounds/BGM/map2_battle_info.json","./assets/sounds/BGM/");
-        */
         
+        const BGMpromise = await Promise.all([
+            AuM.AddAudioFromInfo("Map1_Battle","./assets/sounds/BGM/map1_battle_info.json","./assets/sounds/BGM/"),
+            AuM.AddAudioFromInfo("Map2_Peace","./assets/sounds/BGM/map2_peace_info.json","./assets/sounds/BGM/"),
+            AuM.AddAudioFromInfo("Map2_Battle","./assets/sounds/BGM/map2_battle_info.json","./assets/sounds/BGM/")
+        ]);
+
+        ctx.fillStyle = "rgb(255,255,255)";
+        ctx.fillRect(0,0,canvas.width,canvas.height);
+        ctx.fillStyle = "rgb(0,0,0)";
+        ctx.fillText("Now Loading... Please wait a moment.",0,0);
+        ctx.fillText("State : Loading SE or sound effect asstes",0,TextSize);
+
+        const SEpromise = await Promise.all([
+            SEM.AddAudioFromInfo("pla_step" , "./assets/sounds/SE/pla_step_info.json" , "./assets/sounds/SE/"),
+            SEM.AddAudioFromInfo("pla_noDamaged" , "./assets/sounds/SE/pla_noDamaged_info.json" , "./assets/sounds/SE/"),
+            SEM.AddAudioFromInfo("pla_damaged" , "./assets/sounds/SE/pla_damaged_info.json" , "./assets/sounds/SE/"),
+            SEM.AddAudioFromInfo("pla_attack" , "./assets/sounds/SE/pla_attack_info.json" , "./assets/sounds/SE/")
+        ]);
+
         ctx.fillStyle = "rgb(255,255,255)";
         ctx.fillRect(0,0,canvas.width,canvas.height);
         ctx.fillStyle = "rgb(0,0,0)";
@@ -1258,9 +1340,9 @@ export function screenSetOffset(px = 0,py = 0){
 async function init (){
 
     //ステージの呼び出し
-    //await mainStage.changeStage("GrandFloor");
+    await mainStage.changeStage("GrandFloor");
     //await mainStage.changeStage("water_debug");
-    await mainStage.changeStage("Map_4");
+    //await mainStage.changeStage("Map_4");
     //player.setPos(9/2*TILESIZE,8/2*TILESIZE);
     //NowBoss.setPos(TR.MapWidth/3*TILESIZE,TR.MapHeight/3*TILESIZE,0)
 
@@ -1324,6 +1406,14 @@ async function main(timestamp = performance.now()){
     if (playerKey.pulsekeyPause && !toFadeStage){
         isPause = !isPause;
     }
+
+    if (!onBGM){
+        BGMvolume = 0;
+    }
+    if (!onSE){
+        SEvolume = 0;
+    }
+
 
     if (!actionStop && !isPause){
         //プレイヤーの処理
@@ -1602,6 +1692,15 @@ async function setStage(stageName){
                 0,
                 [9]
             );
+        EfM.spawnNPC(
+                480*VisualDeltaVector,
+                1168*VisualDeltaVector,
+                0,
+                TILESIZE*3,
+                TILESIZE*3,
+                TILESIZE*3,
+                "test"
+        )
         //[496,160]
     } else if (stageName == "Map_4"){
         renderCamera.setCameraEffect(1,1.5,3,1,0,2.5);
@@ -1629,7 +1728,7 @@ async function setStage(stageName){
                 // その間にボス生成やステージ設定を続けられるように非同期処理を待たない。
                 if (onBGM) {
                     void AuM.play(temp["BGM"], {
-                        volume : 1,
+                        volume : BGMvolume/100,
                         pan : 0.0,
                         loop: true
                     });
@@ -1971,11 +2070,11 @@ function RenderCanvas(){
                     }
                 } else if (moddedPCI-2 == 1){
                     textWrite(11,6,"▶");
-                    /*
+                    
                     if (playerKey.pulseDesisionKey){
                         setting = 2;
                     }
-                    */
+                    
                 }
                 
             }
@@ -2034,6 +2133,7 @@ function RenderCanvas(){
                 pauseCursorItem--;
             }
             pauseCursorItem = mod(pauseCursorItem,3);
+            textWrite(0,0,"＜キーコンフィグ＞");
             textWrite(2,1,"FPSモード");
             textWrite(2,3,"ORGモード");
             textWrite(2,5,"もどる");
@@ -2075,44 +2175,80 @@ function RenderCanvas(){
                 textWrite(1,5,"▶");
                 if (playerKey.pulseDesisionKey){
                     setting = 0;
+                    pauseCursorItem = 0;
                 }
             }
         } else if (setting == 2) {
-            //カーソル移動
-            if (playerKey.pulseKeyDown || playerKey.pulseKeyLeft){
-                pauseCursorItem++;
-            } else if (playerKey.pulseKeyUp || playerKey.pulseKeyRight){
-                pauseCursorItem--;
-            }
-            pauseCursorItem = mod(pauseCursorItem,3);
-            textWrite(6,1,"オン");
-            textWrite(6,3,"オフ");
-            textWrite(6,5,"もどる");
+            
+            textWrite(3,5,"もどる");
             textWrite(1,6,"Fキーで決定");
             
-            if (onBGM){
-                textWrite(10,6,"現在：オン");
-            } else {
-                textWrite(10,6,"現在：オフ");
-            }
-            if (pauseCursorItem == 0){
-                textWrite(1,1,"▶");
+            if (onBGM && onSE){
                 
-                if (playerKey.pulseDesisionKey){
-                    onBGM = true;
+                //カーソル移動
+                if (playerKey.pulseKeyDown){
+                    pauseCursorItem++;
+                } else if (playerKey.pulseKeyUp){
+                    pauseCursorItem--;
                 }
-            } else if (pauseCursorItem == 1){
-                textWrite(1,3,"▶");
+                pauseCursorItem = mod(pauseCursorItem,3);
+                textWrite(0,0,"＜キーコンフィグ＞");
+                textWrite(3,1,"BGM:Vol");
+                textWrite(3,3,"SE :Vol");
+                textWrite(9,5,"移動キーで音量変更");
+                
+                //textWrite(8,6,"");
+                
+                if (pauseCursorItem == 0){
+                    textWrite(1,1,"▶");
+                    
+                    if (playerKey.pulseKeyLeft){
+                        //if (BGMvolume>0) BGMvolume -= 0.1;
+                        BGMvolume = BGMvolume>0 ? BGMvolume-10 : 0;
+                    } else if (playerKey.pulseKeyRight){
+                        //if (BGMvolume<1) BGMvolume += 0.1;
+                        BGMvolume = BGMvolume<100 ? BGMvolume+10 : 100;
+                    }
+                } else if (pauseCursorItem == 1){
+                    textWrite(1,3,"▶");
 
-                if (playerKey.pulseDesisionKey){
-                    onBGM = false;
+                    if (playerKey.pulseKeyLeft){
+                        //if (SEvolume>0) SEvolume -= 0.1;
+                        SEvolume = SEvolume>0 ? SEvolume-10 : 0;
+                    } else if (playerKey.pulseKeyRight){
+                        //if (SEvolume<1) SEvolume += 0.1;
+                        SEvolume = SEvolume<100 ? SEvolume+10 : 100;
+                    }
+                } else if (pauseCursorItem == 2){
+                    textWrite(1,5,"▶");
+                    if (playerKey.pulseDesisionKey){
+                        setting = 0;
+                    }
                 }
-            } else if (pauseCursorItem == 2){
+                
+                textWrite(11,1,String(BGMvolume));
+                textWrite(11,3,String(SEvolume));
+                if (DebugMode){
+                    textWrite(11,1,String(BGMvolume));
+                    textWrite(12,2,"rlV");
+                    textWrite(1,2,String(Math.round(BGMvolume/100)));
+                    textWrite(11,3,String(SEvolume));
+                    textWrite(12,4,"rlV");
+                    textWrite(4,3,String(Math.round(SEvolume/100)));
+
+                }
+            } else {
+                textWrite(3,3,"BGM又はSEがオフです。");
+                
                 textWrite(1,5,"▶");
                 if (playerKey.pulseDesisionKey){
                     setting = 0;
                 }
             }
+            
+
+            
+
         }
         
         //バッファのレンダリング
@@ -2422,6 +2558,21 @@ function plyayerAction(){
     let staminaDecreaseMult = 0.2;
     playerBaseAcs = player.Speed/5;
 
+    const spawnBubble = (px,py,pz) => {
+        EfM.spawnNPC(
+            px,
+            py,
+            pz,
+            TILESIZE/2,
+            TILESIZE/2,
+            TILESIZE/2,
+            "particle_bubble",
+            randFloat(-1,1),
+            randFloat(-1,1),
+            0
+        );
+    };
+
     if (mainStage.StType == "Map_2"){
         spd = 14;
     } else if (mainStage.StType == "Map_4"){
@@ -2429,6 +2580,12 @@ function plyayerAction(){
         player.inWater = true;
         //playerBaseAcs = playerBaseAcs*2;
         staminaDecreaseMult = 0.25;
+        
+        if (mainStage.countFrame(90,"bubbleRepeat")){
+
+            spawnBubble(player.px , player.py , player.pz-(player.sz/2))
+
+        }
     }
 
 
@@ -2468,6 +2625,7 @@ function plyayerAction(){
             player.slowDown(spd);
         }
 
+
         //playerのアニメーション関連のデバッグ用
         //console.log(`player.animationState : ${player.animationState}`);
         //console.log(`trimSX : ${playerImgTrimStX}, trimSY : ${playerImgTrimStY}`);
@@ -2506,6 +2664,13 @@ function plyayerAction(){
         if (playerKey.pulsekeyC_button && player.pz >= -3 && player.stamina >= player.MaxStamina*staminaDecreaseMult) {
             //バックステップ（要修正）
             //console.log("executed");
+
+            seHandler_pla_step = SEM.play("pla_step",{
+                volume : SEvolume/100,
+                pan : 0.0,
+                loop : false
+            });
+
             player.setPos(player.px,player.py,-1);
             player.ZAxisJump(-6);
             player.setVector(1.5*playerBaseAcs*VecDirList[player.direction][0],1.5*playerBaseAcs*VecDirList[player.direction][1]);
@@ -2534,6 +2699,13 @@ function plyayerAction(){
                     player.animationState == "jumping"
                 )
             ) {
+            
+            seHandler_pla_attack = SEM.play("pla_attack",{
+                volume : SEvolume/100,
+                pan : 0.0,
+                loop : false
+            });
+
             EfM.spawnNPC(
                 player.px+(VecDirList[player.direction][0]*player.sx/2),
                 player.py+(VecDirList[player.direction][1]*player.sy/2),
@@ -2657,6 +2829,15 @@ function plyayerAction(){
 
         } else if (player.animationState == "damaging") /*Damaging*/ {
 
+            
+            seHandler_pla_damaged = SEM.play("pla_damaged" , {
+                volume : SEvolume/100,
+                pan : 0.0,
+                loop : false
+            });
+            
+            player.animationState = lastPlayerState;
+            
         } else if (player.animationState == "toReset") /*Set to 1 or 2*/ {
             player.changeAnimState("running");
         } else if (player.animationState == "standing" || player.animationState == "running" || player.animationState == "jumping") /*Others*/ {
@@ -2747,7 +2928,7 @@ function plyayerAction(){
 
     //console.log(player.collisionState.toString(2).padStart(8,"0"));
 
-    
+    lastPlayerState = player.animationState;
 
 }
 function bossAction(){

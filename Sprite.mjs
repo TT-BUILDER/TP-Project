@@ -200,11 +200,11 @@ export class imgData {
      * @param {Number} px 描画位置X
      * @param {Number} py 描画位置Y
      */
-    render(px,py,alpha = 1.0,glayscaleRatio){
+    render(px,py,alpha = 1.0,grayscaleRatio){
         const resGA = IR.ctx.globalAlpha;
         const glaSC = IR.ctx.filter;
 
-        IR.ctx.filter = `grayscale(${100*glayscaleRatio}%)`;
+        IR.ctx.filter = `grayscale(${100*grayscaleRatio}%)`;
         IR.ctx.globalAlpha = alpha;
         IR.renderImg(
             this.imageData,
@@ -469,7 +469,7 @@ export class sprite {
         this.direction = 0;
         this.myImg = new imgData(img.imgList["null"]);
         this.imgAlpha = 1.0;
-        this.glayscaleRatio = 0.0;
+        this.grayscaleRatio = 0.0;
 
         this.animationTick = 0;
         this.animationFrame = 0;
@@ -562,7 +562,7 @@ export class sprite {
                 this.myImg.setTrim(imgStX,imgStY,imgSX,imgSY);
                 //this.myImg.setSize(this.sx,Math.max(this.sz,this.sy));
                 this.myImg.setSize(this.sx,this.sz);
-                this.myImg.render(RenSprX,RenSprY-(this.sz/2)+(this.sy/2),this.imgAlpha,this.glayscaleRatio);
+                this.myImg.render(RenSprX,RenSprY-(this.sz/2)+(this.sy/2),this.imgAlpha,this.grayscaleRatio);
             }
             //NowCTX.arc(32,32,32,0,Math.PI*2,false);
             if (DebugMode) {
@@ -927,6 +927,8 @@ export class sprite {
             let vy = this.py-ty;
 
             const dist = Math.hypot(vx,vy);
+
+            this.animationState = "damaging";
 
             if (!slip){
                 if (di > 0){
@@ -1551,8 +1553,30 @@ export class Enemy extends sprite {
             case "water_pufferfish":
                 this.EnMove(ColMap,TILESIZE,true,false);
 
+                const spawnBubble = (px,py,pz = randInt(this.pz-4,this.pz-TILESIZE)) => {
+                    EfM.spawnNPC(
+                        px,
+                        py,
+                        pz,
+                        TILESIZE/2,
+                        TILESIZE/2,
+                        TILESIZE/2,
+                        "particle_bubble",
+                        randFloat(-1,1),
+                        randFloat(-1,1),
+                        0
+                    );
+                };
+
                 if (this.hp <= 0 && (this.collisionState & 0b10000) > 0){
                     this.Unactivate();
+                    for (let i = 0; i<4; i++){
+                        spawnBubble(
+                            randInt(this.px-(this.sx/2) , this.px+(this.sx/2)),
+                            randInt(this.py-(this.sy/2) , this.py+(this.sy/2)),
+                            randInt(this.pz-(this.sz/2) , this.pz+(this.sz/2))
+                        )
+                    }
                 }
 
                 if (this.memory.length < 1){
@@ -1562,11 +1586,11 @@ export class Enemy extends sprite {
                     this.memory.unshift(this.vx);
                 }
 
-                if (this.hitCheck(player.px,player.py,player.pz,player.sx,player.sy,player.sz)){
+                if (this.hp > 0 && this.hitCheck(player.px,player.py,player.pz,player.sx,player.sy,player.sz)){
                     player.damage(1,this.px,this.py);
                 }
 
-                if (this.hitCheck(plaAttackAABB.px,plaAttackAABB.py,plaAttackAABB.pz,plaAttackAABB.sx,plaAttackAABB.sy,plaAttackAABB.sz)){
+                if (this.hp > 0 && this.hitCheck(plaAttackAABB.px,plaAttackAABB.py,plaAttackAABB.pz,plaAttackAABB.sx,plaAttackAABB.sy,plaAttackAABB.sz)){
                     
                     const dist = Math.hypot(this.px-player.px,this.py-player.py);
 
@@ -1686,7 +1710,7 @@ export class Effect extends sprite {
 
         this.inWater = false;
 
-        this.glayscaleRatio = 0.0;
+        this.grayscaleRatio = 0.0;
 
         //固有の配列を取得
         this.memory = Memory;
@@ -1813,6 +1837,19 @@ export class Effect extends sprite {
                 }
                 if (this.vz > 1) this.vz = 2;
                 break;
+            case "particle_bubble":
+                this.setCollision(false);
+                this.slowDown(12);
+                this.vx += randFloat(-1,1);
+                this.vy += randFloat(-1,1);
+                this.vz -= 0.25;
+                if (this.vz <= -(this.gravity**2)) this.vz = -(this.gravity**2);
+                this.pz += this.vz;
+                this.EfMove(ColMap,TILESIZE,false);
+                if (this.pz < -700){
+                    this.Unactivate();
+                }
+                break;
             case "boss_wood_leef":
                 if (this.memory.length < 1){
                     this.memory.unshift(this.sx/NowBoss.sx);
@@ -1899,9 +1936,9 @@ export class Effect extends sprite {
                         textRenderRequestList[`Ef:${this.type},${idx},2`] = [mapDescriptionList[`Map_${myStage}`], this.px-TextSize*(mapDescriptionList[`Map_${myStage}`].length*0.6), this.py+this.sy+TextSize, [255,0,0,alpha]];
                         
                         if (canGo != 1) {
-                            this.glayscaleRatio = 1.0;
+                            this.grayscaleRatio = 1.0;
                         } else {
-                            this.glayscaleRatio = 0.0;
+                            this.grayscaleRatio = 0.0;
                         }
 
                         if (canGo == 1 && this.hitCheck(
@@ -1919,9 +1956,9 @@ export class Effect extends sprite {
                         const canGo = enableGoStageList[4];
 
                         if (canGo != 1) {
-                            this.glayscaleRatio = 1.0;
+                            this.grayscaleRatio = 1.0;
                         } else {
-                            this.glayscaleRatio = 0.0;
+                            this.grayscaleRatio = 0.0;
                         }
 
                         textRenderRequestList[`Ef:${this.type},${idx},1`] = [`ラスボスステージ入口`, this.px-TextSize*7, this.py+this.sy, [255,255,255,alpha]];
@@ -1933,8 +1970,19 @@ export class Effect extends sprite {
                 }
                 break;
             case "test":
-                this.px = NowBoss.BossMemory["pos"][0];
-                this.py = NowBoss.BossMemory["pos"][1];
+                
+                //説明用の何も影響しないスプライト
+
+                this.grayscaleRatio = 1.0;
+                
+                this.sx = TILESIZE;
+                this.sy = TILESIZE;
+                this.sz = TILESIZE;
+
+                //"Ef:WarpHole,<インデックス値>"として、{ [テキスト] , [ワールドx座標] , [ワールドy座標] , [RGBAカラー]}のフォーマットでリクエストをスタックする。
+                textRenderRequestList[`Ef:${this.type},${idx},1`] = ["まだグラフィック全然がありません！！", this.px-TextSize*12, this.py+this.sy, [224,128,128,255]];
+                textRenderRequestList[`Ef:${this.type},${idx},2`] = ["そのため、足りないところは「NULL」とおいています！！", this.px-TextSize*17, this.py+(this.sy*1.5), [224,128,128,255]];
+                        
                 break;
             default:
                 this.Unactivate();
@@ -3176,6 +3224,21 @@ export class Boss extends Enemy {
                 return 2*(py>mapHeight*TILESIZE/2) + (px>mapWidth*TILESIZE/2);
             };
 
+            const spawnBubble = (px,py,pz = randInt(this.pz-4,this.pz-TILESIZE)) => {
+                EfM.spawnNPC(
+                    px,
+                    py,
+                    pz,
+                    TILESIZE/2,
+                    TILESIZE/2,
+                    TILESIZE/2,
+                    "particle_bubble",
+                    randFloat(-1,1),
+                    randFloat(-1,1),
+                    0
+                );
+            };
+
             switch (this.BossState) {
                 //初期化
                 case 0:
@@ -3333,7 +3396,9 @@ export class Boss extends Enemy {
                     break;
                 //微待機、壁に埋まってたらもう一回飛べ
                 case 9:
-                    this.nonDamage = false;
+                    
+                    //this.nonDamage = false;
+                    
                     this.BossMemory["autoDirSetter"] = false;
                     this.direction = 2;
                     if (this.waitFrame(120)){
@@ -3484,9 +3549,11 @@ export class Boss extends Enemy {
                     break;
                 //微待機
                 case 15:
+                    
+                    //this.nonDamage = false;
+                    
                     this.BossMemory["autoDirSetter"] = false;
                     this.direction = 2;
-                    this.nonDamage = false;
                     //15フレーム(0.5sec)
                     if (this.waitFrame(30)){
                         this.BossState++;
@@ -3522,9 +3589,11 @@ export class Boss extends Enemy {
                     }
                     this.BossMemory["rollingTime"]++;
                     
-                    if (this.BossMemory["rollSpeed"] < 6){
-                        this.nonDamage = false;
-                    }
+                    /*
+                        if (this.BossMemory["rollSpeed"] < 6){
+                            this.nonDamage = false;
+                        }
+                    */
 
                     //しょうもない最適化
                     let tempRD = this.BossMemory["rollDir"];
@@ -3611,14 +3680,17 @@ export class Boss extends Enemy {
                     this.forList.i++;
                     break;
                 case "damage":
-                    if (this.lastBossState != 2 && this.BossMemory["damageC"] < 3){
+
+                    //基本待機以外でダメージカウント２回未満ならカウントアップしてもとへ戻す
+                    if (this.lastBossState != 2 && this.BossMemory["damageC"] < 2){
+
                         this.BossMemory["damageC"]++;
+
                         console.log(`damageC : ${this.BossMemory["damageC"]}`);
                         //console.log(`last:${this.lastBossState}`);
                         this.BossState = this.lastBossState;
                         break;
-                    }
-                    if (this.waitFrame(this.maxInvincibleTime+15)){
+                    } else if (this.waitFrame(this.maxInvincibleTime+15)){
                         
                         this.forList.i = 0;
                         
@@ -3638,14 +3710,18 @@ export class Boss extends Enemy {
                     break;
                 case "died":
 
-                    //死亡モーションがないためしかたなく点滅する。
-
-                    //this.invisible = !this.invisible;
-
                     //240フレーム(4sec)後に消滅
                     if (this.waitFrame(240)){
 
                         this.allive = false;
+
+                        for (let i = 0; i<15; i++){
+                            spawnBubble(
+                                randInt(this.px-(this.sx/2) , this.px+(this.sx/2)),
+                                randInt(this.py-(this.sy/2) , this.py+(this.sy/2)),
+                                randInt(this.pz-(this.sz/2) , this.pz+(this.sz/2))
+                            )
+                        }
 
                     } else if (this.waitFrameC < 180){
                         //3秒間は震える
@@ -3747,6 +3823,7 @@ export class Boss extends Enemy {
             this.BossState = "died";
         } else if (hitFlag && this.giveDamage){
             player.damage(1,this.px,this.py);
+            /*
             if (!player.EVLOCK) {
                 player.setVectorNoLimit(
                     Math.sign(player.px-this.px)*Math.abs(player.vx)*2/3,
@@ -3757,6 +3834,7 @@ export class Boss extends Enemy {
                     player.setPos(player.px,player.py,-1);
                 }
             }
+            */
             player.EVLOCK = true;
         }
         if (player.EVLOCK && player.pz >= 0) {
