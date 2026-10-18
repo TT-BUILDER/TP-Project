@@ -1,0 +1,7 @@
+{
+    "intro" : false,
+    "loop" : true,
+    "type" : "BGM",
+    "file" : "snow_boss.wav",
+    "fileIntro" : null
+}
