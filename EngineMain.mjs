@@ -49,13 +49,6 @@ let loading = 1;
 //日本語モードですか？
 let isJP = true;
 
-//BGMいる？
-let onBGM = false;
-let onSE = false;
-
-//ボリューム
-let BGMvolume = 50;
-let SEvolume = 50;
 
 export let fps = 0;
 export let frameDelta = 16.67;
@@ -68,8 +61,18 @@ let fpsSampleStart = 0;
 //export const DebugMode = true;
 export const DebugMode = false;
 
+//BGMいる？
+let onBGM = true;
+let onSE = true;
+
+//ボリューム
+export let BGMvolume = 17;
+export let SEvolume = 25;
 
 
+
+//入れるステージリスト
+export let enableGoStageList = [1,1,1,1,0];
 
 const CRT_Effect = false;
 
@@ -843,7 +846,45 @@ class status {
     }
 
 }
+class Pad {
+    constructor(){
+        //このspx,spyプロパティはスクリーン座標(GameCanvas上での座標)を指すので注意
+        this.spx = 0;
+        this.spy = 0;
+        this.sx = 0;
+        this.sy = 0;
+        //Touched Normalized Vector N (タッチされた場所を指す正規化ベクトル)
+        this.tnvx = 0;
+        this.tnvy = 0;
+        //タッチのブール値
+        this.touched = false;
+        this.lastTouched = false;
+        this.pulseTouched = false;
+        //"circle" , "square"のいずれか。circleはsxを直径として扱う。
+        this.shape = "circle";
+        //RGBA
+        this.color = [128,128,128,128];
 
+    }
+
+    colorChange(R,G,B,A){
+
+        this.color = [mod(R,256),mod(G,256),mod(B,256),mod(A,256)];
+
+    }
+
+    setTouchedState(){
+
+        if (!this.lastTouched && this.touched){
+            this.pulseTouched = true;
+        } else {
+            this.pulseTouched = false;
+        }
+        this.lastTouched = this.touched;
+
+    }
+
+}
 
 //初期化（プロミスオブジェクトだとグローバルにならないため入れれない）
 
@@ -894,13 +935,9 @@ const TrR = new TexRen(TexImg);
 setContextForBuf(canvas,ctx);
 
 
-//export let pla_Anim_
-//player.setCollision(1);
-
+//マネージャー系
 export const EnM = new EnemyManager(100);
 export const EfM = new EffectManager(200);
-
-//メイン関係のオブジェクト
 const TR = new TileRender(ScreenB,ScB);                     //タイルレンダーインスタンス
 export const AuM = new audio();                             //オーディオインスタンス
 const audioInfo = {};
@@ -909,15 +946,17 @@ export const SEM = new audio();                             //効果音インス
 //拡大率変更
 //TR.TILESIZEUpdate(80,32);
 TR.TILESIZEUpdate(80,32);
-
+//マップ、移動時のデルタベクトル
 export let VisualDeltaVector = TILESIZE/showTILESIZE;
 export let deltaVector = VisualDeltaVector*(16.6/25);
 export let fpsdelta = (16.6/25);
 export let mapWidth = 0;
 export let mapHeight = 0;
+//キー入力
 export const keyInput = new key();                                 //キー入力の保持
 const playerKey = new usrKey();                             //ユーザーのキー保持
 
+//マウス、操作方法を管理する
 export let keyConfig = 0;
 export let mouseClick = false;
 export let mouseX = 0;
@@ -925,9 +964,9 @@ export let mouseY = 0;
 
 let setting = false;
 
+//レンダリングする際のカメラオブジェクト
 export const playerCamera = new camera();                          //プレイヤーカメラ座標の保持
 export const renderCamera = new camera();                          //レンダリング座標
-let DebugStage = new stage("Debug2");                       //ステージオブジェクト
 export const mainStage = new stage("Map_1");
 let stageChangeRequest = null;
 
@@ -938,17 +977,17 @@ let stageChangeRequest = null;
 let stageClear = 0;
 let stageClearTime = 0;
 
-//いけるステージリスト
-export let enableGoStageList = [1,1,0,1,0];
 let jsonData = undefined;
-
+//ポーズフラグ
+export let isPause = false;
+export let toFadeStage = false;
+//プレイヤー単位基本サイズ
 const plSizeX = TILESIZE;
 const plSizeY = TILESIZE;
 const plSizeZ = TILESIZE*1.5;
-export let isPause = false;
-export let toFadeStage = false;
+//プレイヤーの基本移動スピード
 let playerBaseAcs = 0;
-
+//ポーズ中のカーソルの位置
 let pauseCursorItem = 0;
 
 //プレイヤーオブジェクト
@@ -983,27 +1022,46 @@ let playerUnder = new sprite(
     knightStatus.STM,
     knightStatus.SPD
 );
+
+/*
+const movePad = { "x": 0 , "y": 0 , "sx": showTILESIZE , "sy": showTILESIZE , "color" : [128,128,128,128] , "shape" : "circle"};
+const jumpPad = { "x": 0 , "y": 0 , "sx": showTILESIZE , "sy": showTILESIZE , "color" : [128,128,128,128] , "shape" : "circle"};
+const stepPad = { "x": 0 , "y": 0 , "sx": showTILESIZE , "sy": showTILESIZE , "color" : [128,128,128,128] , "shape" : "circle"};
+const attackPad = { "x": 0 , "y": 0 , "sx": showTILESIZE , "sy": showTILESIZE , "color" : [128,128,128,128] , "shape" : "circle"};
+*/
+
+
 let lastPlayerState = null;
 
 //効果音ハンドラたち
 let seHandler_pla_damaged = null;
 let seHandler_pla_step = null;
+let seHandler_pla_jump = null;
 let seHandler_pla_attack = null;
 
 let seHandler_NowBoss_damaged = null;
 let seHandler_NowBoss_action = null;
 
-
+//最適化変数
 let tempDir = 0;
 
+//プレイヤーのグラフィックのトリミング位置の保存
 let playerImgTrimStX = 0;
 let playerImgTrimStY = 0;
-
 let playerLegImgTrimStX = 0;
 let playerLegImgTrimStY = 0;
-
+//プレイヤーのグラフィック基本単位
 const UnitPlayerGSizeX = 32;
 const UnitPlayerGSizeY = 48;
+
+//タッチ操作用のMapオブジェクト
+const activePointers = new Map();
+
+//タッチパッドオブジェクト
+const movePad = new Pad();
+const jumpPad = new Pad();
+const stepPad = new Pad();
+const attackPad = new Pad();
 
 /*  0...standing
     1...walking
@@ -1130,15 +1188,12 @@ const promise = new Promise( async function(resolve,reject) {
 
             img.AddImg("player_assets1","./assets/imgs/player_walk.png"),
 
+            img.AddImg("rockBoss_assets","./assets/imgs/Rock_Boss.png"),
+
             TexImg.AddImg("testTex","./assets/tiles/nullImage.png")
         ]);
         //タイルチップデータの読み込み
         TR.newLoadImg(img.imgList["MapTip2"]);
-
-        /*
-        await AuM.importAudio("Map1_Battle",);
-        audioInfo["Map1_Battle"] = await fetchJSON("./assets/sounds/BGM/map1_battle_info.json");
-        */
 
         ctx.fillStyle = "rgb(255,255,255)";
         ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -1150,7 +1205,8 @@ const promise = new Promise( async function(resolve,reject) {
         const BGMpromise = await Promise.all([
             AuM.AddAudioFromInfo("Map1_Battle","./assets/sounds/BGM/map1_battle_info.json","./assets/sounds/BGM/"),
             AuM.AddAudioFromInfo("Map2_Peace","./assets/sounds/BGM/map2_peace_info.json","./assets/sounds/BGM/"),
-            AuM.AddAudioFromInfo("Map2_Battle","./assets/sounds/BGM/map2_battle_info.json","./assets/sounds/BGM/")
+            //AuM.AddAudioFromInfo("Map2_Battle","./assets/sounds/BGM/map2_battle_info.json","./assets/sounds/BGM/"),
+            AuM.AddAudioFromInfo("Map2_Battle","./assets/sounds/BGM/ReleaseV/map2_battle_info.json","./assets/sounds/BGM/ReleaseV/")
         ]);
 
         ctx.fillStyle = "rgb(255,255,255)";
@@ -1161,8 +1217,10 @@ const promise = new Promise( async function(resolve,reject) {
 
         const SEpromise = await Promise.all([
             SEM.AddAudioFromInfo("pla_step" , "./assets/sounds/SE/pla_step_info.json" , "./assets/sounds/SE/"),
+            SEM.AddAudioFromInfo("pla_jump" , "./assets/sounds/SE/pla_jump_info.json" , "./assets/sounds/SE/"),
             SEM.AddAudioFromInfo("pla_noDamaged" , "./assets/sounds/SE/pla_noDamaged_info.json" , "./assets/sounds/SE/"),
             SEM.AddAudioFromInfo("pla_damaged" , "./assets/sounds/SE/pla_damaged_info.json" , "./assets/sounds/SE/"),
+            SEM.AddAudioFromInfo("boss_damaged" , "./assets/sounds/SE/boss_damaged_info.json" , "./assets/sounds/SE/"),
             SEM.AddAudioFromInfo("pla_attack" , "./assets/sounds/SE/pla_attack_info.json" , "./assets/sounds/SE/")
         ]);
 
@@ -1231,6 +1289,34 @@ const promise = new Promise( async function(resolve,reject) {
             mouseClick = false;
         }, { passive: true });
 
+        canvas.addEventListener('pointerdown', (e) => {
+        
+            // ポインタ情報を追加 (指のIDをキーにする)
+            activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            //showTestMassage("pointerdown");
+        });
+
+        canvas.addEventListener('pointermove', (e) => {
+        
+            // 触れているポインタの位置を更新
+            if (activePointers.has(e.pointerId)) {
+                activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+            }
+            //showTestMassage("pointermove");
+        });
+
+        canvas.addEventListener('pointerup', (e) => {
+        
+            activePointers.delete(e.pointerId);
+            //showTestMassage("pointerup");
+        });
+
+        canvas.addEventListener('pointercancel', (e) => {
+        
+            activePointers.delete(e.pointerId);
+            //showTestMassage("pointercancel");
+        });
+
         ctx.fillStyle = "rgb(255,255,255)";
         ctx.fillRect(0,0,canvas.width,canvas.height);
         ctx.fillStyle = "rgb(0,0,0)";
@@ -1266,6 +1352,21 @@ const promise = new Promise( async function(resolve,reject) {
     ctx.fillText("Loading is falid.",0,0);
     console.error(value);
 })
+
+
+//試験的
+function showTestMassage(text){
+
+    console.log(`Event "${text}"`);
+
+    if (activePointers.size == 0) console.log("    null");
+
+    for (const [k,v] of activePointers){
+        console.log(`    id:${k} , pos at:( ${v.x} , ${v.y} )`);
+    }
+}
+
+
 
 //                  関数群
 
@@ -1342,7 +1443,7 @@ async function init (){
     //ステージの呼び出し
     await mainStage.changeStage("GrandFloor");
     //await mainStage.changeStage("water_debug");
-    //await mainStage.changeStage("Map_4");
+    //await mainStage.changeStage("Map_1");
     //player.setPos(9/2*TILESIZE,8/2*TILESIZE);
     //NowBoss.setPos(TR.MapWidth/3*TILESIZE,TR.MapHeight/3*TILESIZE,0)
 
@@ -1715,8 +1816,8 @@ async function setStage(stageName){
                 temp["Position"][0]*(TILESIZE/showTILESIZE),
                 temp["Position"][1]*(TILESIZE/showTILESIZE),
                 plSizeX*temp["sizeX"],
-                plSizeY*temp["sizeY"],
-                plSizeZ*temp["sizeZ"],
+                plSizeX*temp["sizeY"],
+                plSizeX*temp["sizeZ"],
                 temp["Name"],
                 //temp["status"][5]
                 temp["HP"]
@@ -2428,12 +2529,93 @@ function playerCameraSet(smooth = 0){
     }
     
 }
+//多分スマホ操作はお蔵入りかも（いろいろつらい）
+function setPadTouched(){
+
+    //初期化
+    movePad.touched = false;
+    jumpPad.touched = false;
+    stepPad.touched = false;
+    attackPad.touched = false;
+
+    //実際のタッチ処理
+    for (const pos of activePointers.values){
+
+        //それぞれの距離
+        const mpd = Math.hypot((movePad.spx-pos.x) , (movePad.spy-pos.y));
+        const jpd = Math.hypot((jumpPad.spx-pos.x) , (jumpPad.spy-pos.y));
+        const spd = Math.hypot((stepPad.spx-pos.x) , (stepPad.spy-pos.y));
+        const apd = Math.hypot((attackPad.spx-pos.x) , (attackPad.spy-pos.y));
+
+        //movePad(移動用パッド)に触れているか？
+        if (!movePad.touched){
+            if (movePad.sx/2 >= mpd){
+                movePad.touched = true;
+                movePad.tnvx = pos.x/movePad.sx;
+                movePad.tnvy = pos.y/movePad.sx;
+            } else {
+                movePad.touched = false;
+                movePad.tnvx = 0;
+                movePad.tnvy = 0;
+            }
+        }
+        
+        if (!jumpPad.touched){
+            if (jumpPad.sx/2 >= spd){
+                jumpPad.touched = true;
+                jumpPad.tnvx = pos.x/jumpPad.sx;
+                jumpPad.tnvy = pos.y/jumpPad.sx;
+            } else {
+                jumpPad.touched = false;
+                jumpPad.tnvx = 0;
+                jumpPad.tnvy = 0;
+            }
+        }
+
+        if (!stepPad.touched){
+            if (stepPad.sx/2 >= jpd){
+                stepPad.touched = true;
+                stepPad.tnvx = pos.x/stepPad.sx;
+                stepPad.tnvy = pos.y/stepPad.sx;
+            } else {
+                stepPad.touched = false;
+                stepPad.tnvx = 0;
+                stepPad.tnvy = 0;
+            }
+        }
+
+        if (!attackPad.touched){
+            if (attackPad.sx/2 >= apd){
+                attackPad.touched = true;
+                attackPad.tnvx = pos.x/attackPad.sx;
+                attackPad.tnvy = pos.y/attackPad.sx;
+            } else {
+                attackPad.touched = false;
+                attackPad.tnvx = 0;
+                attackPad.tnvy = 0;
+            }
+        }
+
+    }
+
+    movePad.setTouchedState();
+    jumpPad.setTouchedState();
+    stepPad.setTouchedState();
+    attackPad.setTouchedState();
+
+}
+function padConvert(){
+
+}
 //キー入力を受け取る関数　　keyInputオブジェクトのプロパティをいじる。
 function getkey() {
 
     keyInput.key["Desision"] = Keys["KeyF"];
 
     if (keyConfig == 0){
+
+        //両腕中心（タクトモード）
+
         if ((Keys["KeyW"] | Keys["ArrowUp"]) == true) {
             keyInput.key["KeyW"] = true;
         } else {
@@ -2481,7 +2663,10 @@ function getkey() {
         } else {
             keyInput.key["KeyQ"] = false;
         }
-    } else {
+    } else if (keyConfig == 1) {
+
+        //WASD中心（タカトモード）
+
         if (Keys["KeyW"] == true) {
             keyInput.key["KeyW"] = true;
         } else {
@@ -2531,6 +2716,8 @@ function getkey() {
             keyInput.key["KeyQ"] = false;
         }
         */
+    } else {
+        
     }
     keyConvert();
 }
@@ -2661,9 +2848,27 @@ function plyayerAction(){
             }
         };
 
-        if (playerKey.pulsekeyC_button && player.pz >= -3 && player.stamina >= player.MaxStamina*staminaDecreaseMult) {
+        if (
+            playerKey.pulsekeyC_button &&
+            player.stamina >= player.MaxStamina*staminaDecreaseMult &&
+            ((player.pz >= -3 && player.animationState != "stepping") ||
+            (player.vz <= 3 && player.animationState == "jumping"))
+        ) {
             //バックステップ（要修正）
             //console.log("executed");
+
+            if (player.pz >= -3) {
+                player.setPos(player.px,player.py,-1);
+                player.ZAxisJump(-6);
+                player.setStaminaRelative(-player.MaxStamina*staminaDecreaseMult);
+            } else {
+                player.ZAxisJump(-4);
+                player.setStaminaRelative(-player.MaxStamina*staminaDecreaseMult*1.5);
+            }
+            player.setVector(2*playerBaseAcs*VecDirList[player.direction][0],2*playerBaseAcs*VecDirList[player.direction][1]);
+            
+            player.VLOCK = true;
+            player.changeAnimState("stepping");
 
             seHandler_pla_step = SEM.play("pla_step",{
                 volume : SEvolume/100,
@@ -2671,12 +2876,6 @@ function plyayerAction(){
                 loop : false
             });
 
-            player.setPos(player.px,player.py,-1);
-            player.ZAxisJump(-6);
-            player.setVector(1.5*playerBaseAcs*VecDirList[player.direction][0],1.5*playerBaseAcs*VecDirList[player.direction][1]);
-            player.setStaminaRelative(-player.MaxStamina*staminaDecreaseMult);
-            player.VLOCK = true;
-            player.changeAnimState("jumping");
         } else {
             if (player.vz >= 0) {
                 player.VLOCK = false;
@@ -2687,18 +2886,20 @@ function plyayerAction(){
             if (playerKey.pulsekeyB_button && player.pz >= -3) {
                 //ジャンプ
                 player.setPos(player.px,player.py,-1);
-                player.ZAxisJump(-6);
+                player.ZAxisJump(-9);
+                player.setVectorNoLimit(player.vx*1.25,player.vy*1.25);
                 player.changeAnimState("jumping");
+                
+                seHandler_pla_jump = SEM.play("pla_jump",{
+                    volume : SEvolume/100,
+                    pan : 0.0,
+                    loop : false
+                });
             }
         }
         
         //攻撃モーション
-        if (playerKey.pulsekeyA_button && (
-                    player.animationState == "standing" ||
-                    player.animationState == "running" ||
-                    player.animationState == "jumping"
-                )
-            ) {
+        if (playerKey.pulsekeyA_button && player.animationState != "attacking") {
             
             seHandler_pla_attack = SEM.play("pla_attack",{
                 volume : SEvolume/100,
@@ -2706,12 +2907,15 @@ function plyayerAction(){
                 loop : false
             });
 
-            EfM.spawnNPC(
+            const SwordEffectidx = EfM.spawnNPC(
                 player.px+(VecDirList[player.direction][0]*player.sx/2),
                 player.py+(VecDirList[player.direction][1]*player.sy/2),
                 player.pz,
                 player.sx*2,player.sx*3/2,player.sz,"sword"
             );
+            
+            EfM.spriteList[SwordEffectidx].setGravity(0);
+
             player.changeAnimState("attacking");
         }
 
@@ -2840,10 +3044,13 @@ function plyayerAction(){
             
         } else if (player.animationState == "toReset") /*Set to 1 or 2*/ {
             player.changeAnimState("running");
-        } else if (player.animationState == "standing" || player.animationState == "running" || player.animationState == "jumping") /*Others*/ {
+        } else if (player.animationState == "standing" || player.animationState == "running" || player.animationState == "jumping" || player.animationState == "stepping") /*Others*/ {
             //"sanding","running","jumping"のいずれかのとき
             playerImgTrimStX = playerLegImgTrimStX;
             playerImgTrimStY = playerLegImgTrimStY;
+            if (player.pz >= 0 && (player.animationState == "jumping" || player.animationState == "stepping")) {
+                player.changeAnimState("running");
+            }
         } else {
             console.error(`Illegal Player Animation State : ${player.animationState}`);
             player.changeAnimState("toReset");
@@ -2869,14 +3076,18 @@ function plyayerAction(){
         player.move(NowMapCollision,TILESIZE);
         playerUnder.setPos(player.px,player.py,player.pz);
         
-        if (player.animationState == "attacking") {
+        
+        if (player.animationState == "attacking" && lastPlayerState != "attacking") {
             plaAttackAABB.setAlpha(0.5);
             plaAttackAABB.setPos(
                 player.px+(VecDirList[player.direction][0]*plaAttackAABB.sx/2),
                 player.py+(VecDirList[player.direction][1]*plaAttackAABB.sy/2),
-                player.pz);
+                player.pz
+            );
+
             plaAttackAABB.direction = player.direction;
         } else {
+            plaAttackAABB.setAlpha(0);
             plaAttackAABB.setPos(65536*deltaVector,65536*deltaVector,65536*deltaVector);
         }
         
@@ -2950,7 +3161,7 @@ function bossAction(){
             stageClear++;
 
             renderCamera.setScreenColor(0,0,254,1);
-            renderCamera.setAsyncFadeScreenColor(0,0,-2,1);
+            renderCamera.setAsyncFadeScreenColor(0,0,-2,2);
             
             renderCamera.setAsyncInterruptFlag( 0b0000 , 0b0001 );
 

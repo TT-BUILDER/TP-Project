@@ -11,6 +11,9 @@ import { player } from "./EngineMain.mjs";
 import { plaAttackAABB } from "./EngineMain.mjs";
 import { nowStatus } from "./EngineMain.mjs";
 import { EnM } from "./EngineMain.mjs";
+import { AuM } from "./EngineMain.mjs";
+import { SEvolume,BGMvolume } from "./EngineMain.mjs";
+import { SEM } from "./EngineMain.mjs";
 import { img } from "./EngineMain.mjs";
 import { IR } from "./EngineMain.mjs";
 import { VecDirList } from "./EngineMain.mjs";
@@ -90,7 +93,7 @@ export function hitWallCheck(ColMap,TILESIZE,px,py,sx,sy){
 
 }
 export function vectorNormalizer(vx,vy){
-    const dist = (vx**2+vy**2)**0.5;
+    const dist = Math.hypot(vx,vy);//(vx**2+vy**2)**0.5;
     if (dist <= 0){
         return [0,0];
     } else {
@@ -98,16 +101,8 @@ export function vectorNormalizer(vx,vy){
     }
 }
 
-/*
-                                            多分この辺の幾何学系関数に問題あり？なぜかSIN()とCOS()のリターンがNaN
-*/
-
-export const SIN = (deg) => {
-    return Math.sin(deg*Math.PI/180);
-};
-export const COS = (deg) => {
-    return Math.cos(deg*Math.PI/180);
-};
+export const SIN = (deg) => Math.sin(deg*Math.PI/180);
+export const COS = (deg) => Math.cos(deg*Math.PI/180);
 /**
  * @param {Array} vec 回転させたいベクトル
  * @param {Number} degree 回転させたい角度
@@ -132,10 +127,10 @@ export function vectorRotation(vec,degree){
  */
 function hitCheck(tar,me){
     if (
-        Math.abs(tar.px-me.px) < (me.sx+tar.sx)/2 && 
-        Math.abs(tar.py-me.py) < (me.sy+tar.sy)/2 && 
+        Math.abs(tar.px-me.px) < (me.BBsx+tar.BBsx)/2 && 
+        Math.abs(tar.py-me.py) < (me.BBsy+tar.BBsy)/2 && 
         //Math.abs(tpz-pz) < (sz+tsz)/2
-        (tar.pz-tar.sz <= me.pz && me.pz-me.sz <= tar.pz)
+        (tar.pz-(tar.BBsz/2) <= me.pz && me.pz-(me.BBsz/2) <= tar.pz)
     ){
         return 1
     } else { 
@@ -165,6 +160,7 @@ export class imgData {
         this.sizeY = sizeY;
         this.roll = rad;
     }
+    /*
     setAnimIndex(csX,csY){
         this.charSizeX = csX;
         this.charSizeY = csY;
@@ -173,6 +169,7 @@ export class imgData {
         return [this.charIndexX,this.charIndexY];
 
     }
+    */
     /**
      * 描画サイズの設定
      * @param {Number} sx 描画サイズX
@@ -257,16 +254,21 @@ export class EnemyManager {
      * @param {Number} MemLength そのエネミーが保持できる固有メモリ。中身を直接記述もできる。
      * @param {Number} MHP マックスＨＰ（デフォルトは１）
      * @param {Number} HP 名の通りＨＰ（デフォルトはMHP）
+     * @returns {Number} スポーンしたNPCの配列上のインデックス
      */
     spawnNPC(px,py,pz,sx,sy,sz,type,vx = 0,vy = 0,vz = 0,MemLength = [],MHP = 1,HP = MHP){
         if (this.EnFlag){
-            const availableNPC = this.spriteList.find(npc => !npc.active);
+            const availableNPCidx = this.spriteList.findIndex(npc => !npc.active);
 
-            if (availableNPC) {
+            if (availableNPCidx >= 0){
+                const availableNPC = this.spriteList[availableNPCidx];
                 availableNPC.activate(px,py,pz,sx,sy,sz,type,vx,vy,vz,MemLength,HP);
             } else {
                 console.warn("Full of Enemy!");
             }
+            
+            return availableNPCidx;
+
         }
     }
     Disable(){
@@ -311,16 +313,22 @@ export class EffectManager {
      * @param {Number} MemLength そのエネミーが保持できる固有メモリ。中身を直接記述もできる。
      * @param {Number} MHP マックスＨＰ（デフォルトは１）
      * @param {Number} HP 名の通りＨＰ（デフォルトはMHP）
+     * @returns {Number} スポーンしたNPCの配列上のインデックス
      */
     spawnNPC(px,py,pz,sx,sy,sz,type,vx = 0,vy = 0,vz = 0,MemLength = [],MHP = 1,HP = MHP){
         if (this.EfFlag){
-            const availableEffect = this.spriteList.find(npc => !npc.active);
+            const availableEffectIDX = this.spriteList.findIndex(npc => !npc.active);
 
-            if (availableEffect) {
+
+            if (availableEffectIDX >= 0) {
+                const availableEffect = this.spriteList[availableEffectIDX];
                 availableEffect.activate(px,py,pz,sx,sy,sz,type,vx,vy,vz,MemLength,HP);
             } else {
                 console.warn("Full of Effect!");
             }
+
+            return availableEffectIDX;
+
         }
     }
     Disable(){
@@ -366,6 +374,11 @@ export class sprite {
         this.sx = sx;
         this.sy = sy;
         this.sz = sz;
+
+        this.BBsx = this.sx*0.8;
+        this.BBsy = this.sy*0.8;
+        this.BBsz = this.sz*0.8;
+
         this.defaultSX = this.sx;
         this.defaultSY = this.sy;
         this.defaultSZ = this.sz;
@@ -403,7 +416,16 @@ export class sprite {
         this.showflag = true;
         this.direction = 0;
         this.myImg = new imgData(img.imgList["null"]);
+
+        this.unitGraphicSizeX = this.myImg.imageData.width;
+        this.unitGraphicSizeY = this.myImg.imageData.height;
+
         this.imgAlpha = 1.0;
+        //AuMの渡してくるハンドラをしまう
+        this.myAudioHandlers = {
+            damage : null,
+            attack : null
+        };
 
         this.animationTick = 0;
         this.animationFrame = 0;
@@ -528,7 +550,7 @@ export class sprite {
      * @param {Number} imgSX 画像の切り取りサイズX
      * @param {Number} imgSY 画像の切り取りサイズY
      */
-    RenderMyself(CamX,CamY,style,ShowHP = false,ShowShadow = true,showImg = true,imgStX = 0,imgStY = 0,imgSX = this.myImg.imageData.width, imgSY = this.myImg.imageData.height){
+    RenderMyself(CamX,CamY,style,ShowHP = false,ShowShadow = true,showImg = true,imgStX = this.myImg.trimStX,imgStY = this.myImg.trimStY,imgSX = this.myImg.trimSizeX, imgSY = this.myImg.trimSizeY){
         if (this.invincible){
             this.invincibleTime--;
             if (this.invincibleTime <= 0) this.invincible = false;
@@ -570,10 +592,10 @@ export class sprite {
                 NowCTX.globalAlpha = 0.25;
                 NowCTX.fillStyle = style;
                 NowCTX.fillRect(
-                    (RenSprX-(this.sx/2)),
-                    (RenSprY-(this.sy/2))-this.pz,
-                    this.sx,
-                    this.sy
+                    (RenSprX-(this.BBsx/2)),
+                    (RenSprY-(this.BBsy/2))-this.pz,
+                    this.BBsx,
+                    this.BBsy
                 );
                 NowCTX.fillStyle = "cyan";
                 NowCTX.fillRect(
@@ -870,17 +892,17 @@ export class sprite {
         this.py = py;
         this.pz = pz;
     }
-    setSize(sx,sy,sz = this.sz){
+    setSize(sx,sy,sz = this.sz,BBsx = sx*0.8,BBsy = sy*0.8,BBsz = sz*0.8){
         this.sx = sx;
         this.sy = sy;
         this.sz = sz;
+        this.BBsx = BBsx;
+        this.BBsy = BBsy;
+        this.BBsz = BBsz;
     }
-
-
     setCollision(CF){
         this.collisionFlag = CF;
     }
-
     /**
      * @param {Number} tpx 相手のポジションX
      * @param {Number} tpy 相手のポジションY
@@ -896,12 +918,12 @@ export class sprite {
      * @param {Number} sz 自身のサイズZ
      * @returns boolean
      */
-    hitCheck(tpx,tpy,tpz,tsx,tsy,tsz,px = this.px,py = this.py,pz = this.pz,sx = this.sx,sy = this.sy,sz = this.sz){
+    hitCheck(tpx,tpy,tpz,tsx,tsy,tsz,px = this.px,py = this.py,pz = this.pz,sx = this.BBsx,sy = this.BBsy,sz = this.BBsz){
         if (
             Math.abs(tpx-px) < (sx+tsx)/2 && 
             Math.abs(tpy-py) < (sy+tsy)/2 && 
             //Math.abs(tpz-pz) < (sz+tsz)/2
-            (tpz-tsz <= pz && pz-sz <= tpz)
+            ((tpz-tsz)/2 <= pz && (pz-sz)/2 <= tpz)
         ){
             return 1
         } else { 
@@ -968,6 +990,14 @@ export class sprite {
         this.stamina = Math.min(this.MaxStamina,Math.max(0,this.stamina));
     }
 
+    hurtSprite(obj,tx,ty,di = 1,slip = false,nkockBack = true){
+        if (typeof(obj) === "object" && obj instanceof Boss){
+            obj.damage(di,tx,ty,slip,nkockBack);
+        } else {
+            
+            console.error(`sprite.hurtSprite() : Object not found.`);
+        }
+    }
 
 }
 
@@ -1342,7 +1372,7 @@ export class Enemy extends sprite {
                 this.memory[2] = this.vy;
 
                 //ボスにダメージを与える
-                if (typeof(NowBoss) == "object"){
+                if (NowBoss instanceof Boss){
                     if (this.hitCheck(
                             NowBoss.px,
                             NowBoss.py,
@@ -1352,11 +1382,13 @@ export class Enemy extends sprite {
                             NowBoss.sz
                         ) && !NowBoss.invisible){
                         if (!NowBoss.nonDamage) {
-                            
+                            /*
                             NowBoss.damage(nowStatus.AP,0,0,false,false);
                             NowBoss.lastBossState = NowBoss.BossState;
                             NowBoss.BossState = "damage";
-                            
+                            */
+                            NowBoss.takehurt(nowStatus.AP,0,0,false,false);
+
                             for (let i = 0; i<4; i++){
                                 EfM.spawnNPC(
                                     this.px,
@@ -2020,6 +2052,12 @@ export class Boss extends Enemy {
         this.lastBossState = 0;
         this.BossMemory = {};
         this.giveDamage = true;
+
+        
+        
+        //リクエストを保存しておく。達成したら消去。
+        //{ targetFrame:[tf] , nowFrame[nf] , bool:[b] , uy:[u] , dy:[d]}で保存する。
+        this.asyncVibRequest = [];
         //forループ的な使い方を想定
         this.forList = {
             "i" : 0,
@@ -2081,13 +2119,82 @@ export class Boss extends Enemy {
             }
         }
     }
+
+    //非同期振動処理
+    doAsyncVibrateRequest(){
+
+        this.asyncVibRequest.forEach( (item,idx) => {
+            
+            //item = {nf:nowFrame , tf:targetFrame , bool:isEnded , uy:VibScaleUp , dy:VibScaleDown};
+
+            item.nf++;
+            if (item.nf > item.tf){
+                item.bool = true;
+            } else {
+                this.vibrate(item.uy,item.dy);
+            }
+            
+        });
+
+        this.asyncVibRequest = this.asyncVibRequest.filter( (item) => item.bool == false);
+
+    }
+    //非同期振動処理のリクエスト送信
+    sendVibrateRequest(frame,UY,DY = UY){
+
+        this.asyncVibRequest.push(
+            {
+                tf : frame,
+                nf : 0,
+                bool : false,
+                uy : UY,
+                dy : DY
+            }
+        );
+
+    }
+
     BossInit(){
+        
+        switch(this.type){
+            case "Rock":
+                this.myImg.setImage(img.imgList["rockBoss_assets"]);
+                this.myImg.trimStX = 80;
+                this.myImg.trimStY = 0;
+                this.myImg.trimSizeX = 80;
+                this.myImg.trimSizeY = 48;
+                this.unitGraphicSizeX = this.myImg.trimSizeX;
+                this.unitGraphicSizeY = this.myImg.trimSizeY;
+                break;
+            default:
+                console.error(`BossInit : Boss Type error : unknown type ${this.type}`);
+                
+                break;
+        }
+        
         this.clearForList();
         this.clearMemory();
+        this.clearAnimState();
+        this.clearAnimTick();
         this.hp = this.MaxHp;
         isNowBossAnimation = true;
         //this.BossState++;
     }
+    
+    takehurt(di,tx,ty,slip = false,nkockBack = true){
+        if (!this.nonDamage && !this.invincible){
+            this.lastBossState = this.BossState;
+            this.damage(nowStatus.AP,0,0,false,false);
+            this.BossState = "damage";
+            this.myAudioHandlers.damage = SEM.play(
+                "boss_damaged",{
+                volume : SEvolume/100,
+                pan : 0.0,
+                loop : false
+            });
+        }
+    }
+
     /**
      * @param {Array} ColMap コリジョンマップ
      * @param {Number} TILESIZE 1タイル当たりのピクセル数
@@ -2107,6 +2214,7 @@ export class Boss extends Enemy {
                 case 0:
                     this.setPos(this.px,this.py,-360);
                     this.BossInit();
+                    this.animationState = "waiting";
                     this.BossState++;
                     //ぶつかった回数メモリ
                     this.forList["j"] = 0;
@@ -2119,6 +2227,7 @@ export class Boss extends Enemy {
                     break;
                 //落下
                 case 1:
+                    this.animationState = "waiting";
                     this.fallOK = true;
                     if (this.collisionState && 0b10000 == 0b10000) {
                         this.BossState++;
@@ -2126,6 +2235,7 @@ export class Boss extends Enemy {
                     break;
                 //落下衝撃
                 case 2:
+                    this.animationState = "waiting";
                     //forループの代替案
                     if ( this.forList["i"]<30 ) {
                         screenSetOffsetRand(6,6);
@@ -2141,12 +2251,14 @@ export class Boss extends Enemy {
                     break;
                 //アニメーション終了
                 case 3:
+                    this.animationState = "waiting";
                     isNowBossAnimation = false;
                     this.waitFrameReset();
                     this.BossState++;
                     break;
                 //謎待機＆いろいろ初期化
                 case 4:
+                    this.animationState = "waiting";
                     //this.nonDamage = false;
                     if (this.waitFrame(60)){
                         this.BossState++;
@@ -2166,6 +2278,7 @@ export class Boss extends Enemy {
                     break;
                 //ブリつけ中＆突進方向の決定
                 case 5:
+                    this.animationState = "waiting";
                     if (this.forList["i"] < 120){
                         this.vibrate(-1,2);
                         this.forList["i"]++;
@@ -2190,11 +2303,20 @@ export class Boss extends Enemy {
                     break;
                 //突進じゃぁ
                 case 6:
+                    this.animationState = "running";
                     if ((this.collisionState & 0b01111) < 1){
                         this.setVector(
                             this.BossMemory["tarX"]*this.BossMemory["MultSpeed"],
                             this.BossMemory["tarY"]*this.BossMemory["MultSpeed"]
                         );
+                        if (this.waitFrame(2)){
+                            if (this.vx > 0) {
+                                this.animationFrame--;
+                            } else {
+                                this.animationFrame++;
+                            }
+                            this.animationFrame = mod(this.animationFrame,8);
+                        }
                         this.BossMemory["wallDist"]++;
                     } else {
                         for (let i = 0; i<6+Math.round(Math.random()*8); i++){
@@ -2262,6 +2384,7 @@ export class Boss extends Enemy {
                     break;
                 //壁にゲキトツ
                 case 7:
+                    this.animationState = "weekPoint";
                     this.nonDamage = false;
                     this.setVector(0,0,0);
                     if (this.forList["i"] < 30){
@@ -2335,6 +2458,7 @@ export class Boss extends Enemy {
                     break;
                 //上方へと飛び上がる（case 8 ～ case 10）
                 case 8:
+                    this.animationState = "waiting";
                     if (this.forList["i"] < 30) {
                         this.vibrate(-1,2);
                     } else {
@@ -2351,6 +2475,7 @@ export class Boss extends Enemy {
                     break;
                 //落下～振動
                 case 9:
+                    this.animationState = "waiting";
                     if (this.pz < 0) {
                         if (this.pz > -600) {
                             this.showflag = true;
@@ -2411,6 +2536,7 @@ export class Boss extends Enemy {
                     break;
                 //スタン、case4（いろいろ初期化）へ
                 case 10:
+                    this.animationState = "weekPoint";
                     this.nonDamage = false;
                     this.setVector(0,0,0);
                     if (this.forList["i"]<260){
@@ -2428,8 +2554,10 @@ export class Boss extends Enemy {
                     break;
                 //高速回転（case 11 ～ case 13 ）ブリをかける
                 case 11:
+                    this.animationState = "waiting";
                     if (this.forList["i"] > 30) {
                         this.vibrate(-1,2);
+                        this.animationState = "running";
                         if (this.forList["i"] > 60) {
 
                             //高速回転アニメーション
@@ -2449,12 +2577,22 @@ export class Boss extends Enemy {
                                 this.forList["i"] = 0;
                             }
                         }
+                        if (this.waitFrame(2)){
+                            if (this.vx > 0) {
+                                this.animationFrame--;
+                            } else {
+                                this.animationFrame++;
+                            }
+                            this.animationFrame = mod(this.animationFrame,8);
+                        }
                     }
                     this.forList["i"]++;
                     break;
                 //じんわり追いかける
                 case 12:
+                    this.animationState = "waiting";
                     if ((this.collisionState & 0b01111) < 1){
+                        this.animationState = "running";
                         
                         //右を向いている度合い
                         let Rightness = 0;
@@ -2538,6 +2676,7 @@ export class Boss extends Enemy {
                     break;
                 //ゲキトツモーション
                 case 13:
+                    this.animationState = "weekPoint";
                     this.setVector(0,0,0,true,8);
                     this.nonDamage = false;
                     if (this.forList["i"]<360){
@@ -2562,21 +2701,24 @@ export class Boss extends Enemy {
                     break;
                 //ダメージ（ノーモーション）
                 case "damage":
+                    this.animationState = "angry";
                     this.BossMemory["damageCount"]++;
                     console.log(this.BossMemory["damageCount"]);
                     if (
                         this.BossMemory["damageCount"]%
                         (2 - (this.hp < this.MaxHp/2)) == 0)
                         {
-                            console.log("go attack");
+                            //console.log("go attack");
                             this.BossState = 4;
                     } else {
-                        console.log("go last");
+                        //console.log("go last");
                         this.BossState = this.lastBossState;
+
                     }
                     break;
                 //死モーション
                 case "died":
+                    this.animationState = "angry";
                     this.vibrate(-1,2);
                     if (this.waitFrame(420)){
                         renderCamera.setVibCamera(-8,8,80);
@@ -2622,6 +2764,31 @@ export class Boss extends Enemy {
                     this.setVector(0,0,0);
                     break;
             }
+
+            switch (this.animationState){
+                case "waiting":
+                    this.myImg.trimStX = this.unitGraphicSizeX;
+                    this.myImg.trimStY = 0;
+                    break;
+                case "running":
+                    this.myImg.trimStX = this.unitGraphicSizeX;
+                    this.myImg.trimStY = this.animationFrame*this.unitGraphicSizeY;
+                    break;
+                case "weekPoint":
+                    this.myImg.trimStX = 0;
+                    this.myImg.trimStY = 0;
+                    break;
+                case "angry":
+                    this.myImg.trimStX = this.unitGraphicSizeX*2;
+                    this.myImg.trimStY = 0;
+                    break;
+                default:
+                    console.error(`unknown animationState : ${this.animationState}`);
+            }
+            if (this.animationState == "waiting"){
+            } else if (this.animationState == "running"){
+            }
+
         } else if (this.type == "Snow"){
             this.nonDamage = true;
             switch (this.BossState) {
@@ -3802,12 +3969,30 @@ export class Boss extends Enemy {
         );
 
         //斬撃に当たったか
-        if (hitFlag == 1 && !this.nonDamage && !this.invincible) {
-            
-            this.lastBossState = this.BossState;
-            this.damage(nowStatus.AP,0,0,false,false);
-            this.BossState = "damage";
-
+        if (hitFlag == 1 ) {
+            if (!this.nonDamage && !this.invincible){
+                /*
+                this.lastBossState = this.BossState;
+                this.damage(nowStatus.AP,0,0,false,false);
+                this.BossState = "damage";
+                this.myAudioHandlers.damage = SEM.play(
+                    "boss_damaged",{
+                    volume : SEvolume/100,
+                    pan : 0.0,
+                    loop : false
+                });
+                */
+                this.takehurt(nowStatus.AP,0,0,false,false);
+                //this.sendVibrateRequest(30,-3,3);
+            } else {
+                this.myAudioHandlers.damage = SEM.play(
+                    "pla_noDamaged",{
+                    volume : SEvolume/100,
+                    pan : 0.0,
+                    loop : false
+                });
+                this.sendVibrateRequest(30,-1,1);
+            }
         }
 
         hitFlag = this.hitCheck(
@@ -3816,7 +4001,13 @@ export class Boss extends Enemy {
             player.pz,
             player.sx,
             player.sy,
-            player.sz
+            player.sz,
+            this.px,
+            this.py,
+            this.pz,
+            this.sx*0.75,
+            this.sy*0.75,
+            this.sz*0.75
         );
 
         if (this.hp <= 0){
@@ -3840,6 +4031,8 @@ export class Boss extends Enemy {
         if (player.EVLOCK && player.pz >= 0) {
             player.EVLOCK = false;
         }
+
+        this.doAsyncVibrateRequest();
         
     }
 
