@@ -96,9 +96,13 @@ export class TileRender {
 	 * 
 	 */
 	newLoadImg(img) {
-		this.tileImg = img;
-		this.T_width = img.width/showTILESIZE;
-		this.T_height = img.height/showTILESIZE;
+		try {
+			this.tileImg = img;
+			this.T_width = img.width/showTILESIZE;
+			this.T_height = img.height/showTILESIZE;
+		} catch {
+			console.error("newLoadImg : tileTip loading error!");
+		}
 	}
 	/**
 	 * @param {String} MapPass マップデータへのパス

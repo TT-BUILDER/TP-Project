@@ -1016,6 +1016,12 @@ export class Enemy extends sprite {
         super(px,py,sx,sy,sz,type,MHP,HP);
         this.active = active;
         this.swordHitF = false;
+        this.unitGraphicSizeX = 0;
+        this.unitGraphicSizeY = 0;
+        //waitメソッド用の変数
+        this.waitFrameC = 0;
+        this.waitFinished = true;
+        this.initalized = false;
     }
     /**
      * @param {Number} px ポジションｘ
@@ -1056,6 +1062,7 @@ export class Enemy extends sprite {
         this.vy = vy;
         this.vz = vz;
         this.nonDamage = false;
+        this.initalized = false;
 
         this.inWater = false;
 
@@ -1069,20 +1076,48 @@ export class Enemy extends sprite {
         //配列をサヨナラ
         this.memory = [];
     }
+    
+    /**
+     * 現在のフレームカウント値を0にする
+     */
+    waitFrameReset(){
+        this.waitFrameC = 0;
+        this.waitFinished = false;
+    }
+    /**
+     * Frameで設定した分が経過したら1を返す。
+     * @param {Number} Frame 測定したいフレーム数
+     * @returns {Boolean} 設定したフレームが経過したかどうか
+     */
+    waitFrame(Frame = 0){
+        //もしフレームのリセットをかけていなかったらリセットする。
+        if (this.waitFinished) this.waitFrameReset();
+        if (this.waitFrameC <= Frame) {
+            this.waitFrameC++;
+            this.waitFinished = false;
+            return 0;
+        } else {
+            this.waitFinished = true;
+            return 1;
+        }
+    }
     /**
      * @param {Array} ColMap コリジョンマップ
      * @param {Number} TILESIZE 1タイル当たりのピクセル数
      */
     EnMove(ColMap,TILESIZE,fallOK = true,nkockBack = false){
+
+        if (!this.initalized) this.initalized = true;
+
         this.move(ColMap,TILESIZE,this.vx,this.vy,fallOK);
         
         if (nkockBack && this.hitCheck(
-            plaAttackAABB.px,
-            plaAttackAABB.py,
-            plaAttackAABB.pz,
-            plaAttackAABB.sx,
-            plaAttackAABB.sy,
-            plaAttackAABB.sz
+            player.px,
+            player.py,
+            player.pz,
+            player.sx,
+            player.sy,
+            player.sz
         )) {
             if (!this.swordHitF){
                 //this.setVectorNoLimit(-this.vx,-this.vy);
@@ -1110,7 +1145,17 @@ export class Enemy extends sprite {
         switch (this.type) {
             //rocks - 小さい岩。飛ぶ向きはspawn関数の引数に持たせよう
             case "rocks":
-                this.EnMove(ColMap,TILESIZE);
+                
+                if (!this.initalized) {
+                    this.myImg.setImage(img.imgList["NPC_rock_assets"]);
+                    this.myImg.trimStX = 0;
+                    this.myImg.trimStY = 0;
+                    this.myImg.trimSizeX = 16;
+                    this.myImg.trimSizeY = 16;
+                    this.unitGraphicSizeX = this.myImg.trimSizeX;
+                    this.unitGraphicSizeY = this.myImg.trimSizeY;
+                    
+                }
 
                 if (this.hitCheck(player.px,player.py,player.pz,player.sx,player.sy,player.sz)){
                     player.damage(1,this.px,this.py);
@@ -1119,16 +1164,35 @@ export class Enemy extends sprite {
                 if ( (this.collisionState & 0b10000) === 0b10000 ) {
                     this.Unactivate();
                 }
+                
+                this.EnMove(ColMap,TILESIZE);
+                
                 break;
             //stone - 地を滑る岩。
             case "stone":
-                this.EnMove(ColMap,TILESIZE,true,true);
-
                 if (this.collisionState & 0b10000 == 0b10000) {
                     this.ZAxisJump(randInt(-4,-6));
                 }
                 if (this.vz >= 0){
                     this.VLOCK = false;
+                }
+
+                if (!this.initalized) {
+                    this.myImg.setImage(img.imgList["NPC_stone_assets"]);
+                    this.myImg.trimStX = 0;
+                    this.myImg.trimStY = 0;
+                    this.myImg.trimSizeX = 32;
+                    this.myImg.trimSizeY = 32;
+                    this.unitGraphicSizeX = this.myImg.trimSizeX;
+                    this.unitGraphicSizeY = this.myImg.trimSizeY;
+                    this.setSize(
+                        this.sx,
+                        this.sy,
+                        this.sz,
+                        this.sx*0.7,
+                        this.sy*0.7,
+                        this.sz*0.7,
+                    );
                 }
 
                 if (this.memory.length < 1){
@@ -1137,6 +1201,16 @@ export class Enemy extends sprite {
                     this.memory.unshift(Math.round(-Math.random())*Math.random()*5);
                     this.memory.unshift(Math.round(-Math.random())*Math.random()*5);
                     
+                }
+
+                if (this.waitFrame(2)){
+
+                    if (this.vx < 0) {
+                        this.myImg.trimStX += this.unitGraphicSizeX;
+                    } else {
+                        this.myImg.trimStX -= this.unitGraphicSizeX;
+                    }
+                    this.myImg.trimStX = mod(this.myImg.trimStX,128);
                 }
 
                 this.setVector(this.memory[1],this.memory[2]);
@@ -1165,12 +1239,24 @@ export class Enemy extends sprite {
                     this.Unactivate();
                 }
 
+                this.EnMove(ColMap,TILESIZE,true,false);
+
                 break;
             //落ちてくる岩
             case "fallRock":
                 if (this.memory[0]){
                     this.setPos(this.px,this.py,-360);
                     this.memory[0] = 0;
+                }
+                if (!this.initalized){
+                    this.myImg.setImage(img.imgList["NPC_fallRock_assets"]);
+                    this.myImg.trimStX = 0;
+                    this.myImg.trimStY = 0;
+                    this.myImg.trimSizeX = 64;
+                    this.myImg.trimSizeY = 64;
+                    this.unitGraphicSizeX = this.myImg.trimSizeX;
+                    this.unitGraphicSizeY = this.myImg.trimSizeY;
+                    
                 }
                 this.EnMove(ColMap,TILESIZE);
                 
@@ -1948,6 +2034,14 @@ export class Effect extends sprite {
                     //個人個人のメモリの初期化
                     console.log(`generate success : ${this.memory[0]}`);
                     this.memory[0] = this.memory[0]*10;
+                    this.setSize(
+                        this.sx,
+                        this.sy,
+                        this.sz,
+                        this.sx,
+                        this.sy,
+                        this.sz
+                    );
                 } else {
                     
                     const myStage = this.memory/10;
@@ -2052,9 +2146,9 @@ export class Boss extends Enemy {
         this.lastBossState = 0;
         this.BossMemory = {};
         this.giveDamage = true;
+        this.unitGraphicSizeX = 0;
+        this.unitGraphicSizeY = 0;
 
-        
-        
         //リクエストを保存しておく。達成したら消去。
         //{ targetFrame:[tf] , nowFrame[nf] , bool:[b] , uy:[u] , dy:[d]}で保存する。
         this.asyncVibRequest = [];
@@ -2366,9 +2460,9 @@ export class Boss extends Enemy {
                                     spX,
                                     spY,
                                     0,
-                                    randInt(TILESIZE/4,TILESIZE/2),
-                                    randInt(TILESIZE/4,TILESIZE/2),
-                                    randInt(TILESIZE/4,TILESIZE/2),
+                                    TILESIZE/2,
+                                    TILESIZE/2,
+                                    TILESIZE/2,
                                     "rocks",
                                     npcVX,
                                     npcVY,
@@ -2658,9 +2752,9 @@ export class Boss extends Enemy {
                                 spX,
                                 spY,
                                 0,
-                                2+(Math.random()*2),
-                                2+(Math.random()*2),
-                                2+(Math.random()*2),
+                                TILESIZE/2,
+                                TILESIZE/2,
+                                TILESIZE/2,
                                 "rocks",
                                 npcVX,
                                 npcVY,

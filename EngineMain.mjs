@@ -558,7 +558,8 @@ class camera {
         this.e_valV = v;
 
         if (this.effectMode == 1){
-            /*
+            /* 
+                effectMode == 2 => 縦波揺れ
                 X ... 周波数
                 Y ... 振幅
                 Z ... ノイズ強度
@@ -574,7 +575,8 @@ class camera {
             //console.log(this.e_valW);
 
         } else if (this.effectMode == 2){
-            /*
+            /* 
+                effectMode == 2 => 横波揺れ
                 X ... 周波数
                 Y ... 振幅
                 Z ... ノイズ強度
@@ -1181,19 +1183,22 @@ const promise = new Promise( async function(resolve,reject) {
         //画像データたちを読み込む
         const IMGpromise = await Promise.all([
             img.AddImg("MapTip_Debug","./assets/tiles/testTiles1.png"),
-            img.AddImg("MapTip1","./assets/tiles/GenericTiles.png"),
-            //await img.AddImg("MapTip2","./assets/tiles/RockTile.png"),
-            img.AddImg("MapTip2","./assets/tiles/test1.png"),
+            img.AddImg("MapTile_1","./assets/tiles/GenericTiles.png"),
+            img.AddImg("MapTile_Rock","./assets/tiles/RockTile.png"),
+            img.AddImg("MapTile_2","./assets/tiles/test1.png"),
             img.AddImg("SwordEffect","./assets/effects/TestEffect.png"),
 
             img.AddImg("player_assets1","./assets/imgs/player_walk.png"),
 
             img.AddImg("rockBoss_assets","./assets/imgs/Rock_Boss.png"),
+            img.AddImg("NPC_stone_assets","./assets/imgs/stone.png"),
+            img.AddImg("NPC_rock_assets","./assets/imgs/rock.png"),
+            img.AddImg("NPC_fallRock_assets","./assets/imgs/fallRock.png"),
 
             TexImg.AddImg("testTex","./assets/tiles/nullImage.png")
         ]);
         //タイルチップデータの読み込み
-        TR.newLoadImg(img.imgList["MapTip2"]);
+        TR.newLoadImg(img.imgList["MapTile_2"]);
 
         ctx.fillStyle = "rgb(255,255,255)";
         ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -1441,9 +1446,9 @@ export function screenSetOffset(px = 0,py = 0){
 async function init (){
 
     //ステージの呼び出し
-    await mainStage.changeStage("GrandFloor");
+    //await mainStage.changeStage("GrandFloor");
     //await mainStage.changeStage("water_debug");
-    //await mainStage.changeStage("Map_1");
+    await mainStage.changeStage("Map_1");
     //player.setPos(9/2*TILESIZE,8/2*TILESIZE);
     //NowBoss.setPos(TR.MapWidth/3*TILESIZE,TR.MapHeight/3*TILESIZE,0)
 
@@ -1755,8 +1760,18 @@ async function setStage(stageName){
     EfM.Enable();
 
 
+    /* effectMode = 1 => 横波揺れ
+        X ... 周波数
+        Y ... 振幅
+        Z ... ノイズ強度
+        W ... 位相
+        U ... 位相速度    
+    */
     //メインホールのみ専用のスプライトを召喚
     if (stageName == "GrandFloor"){
+
+        TR.newLoadImg(img.imgList["MapTile_2"]);
+
         const warpHolePoint = [
             [160,256],
             [320,192],
@@ -1803,6 +1818,10 @@ async function setStage(stageName){
                 "test"
         )
         //[496,160]
+    } else if (stageName == "Map_1"){
+        TR.newLoadImg(img.imgList["MapTile_Rock"]);
+        renderCamera.setCameraEffect(1,3,1,0,0,1);
+        renderCamera.setBGRayColor(255,16,0,16);
     } else if (stageName == "Map_4"){
         renderCamera.setCameraEffect(1,1.5,3,1,0,2.5);
         renderCamera.setBGRayColor(0,127,255,64);
@@ -1859,8 +1878,6 @@ async function setStage(stageName){
         
     }
 
-    
-    //player.setPos(TR.MapWidth/2*TILESIZE,TR.MapHeight/2*TILESIZE);
 }
 
 //canvasのサイズをウィンドウに合わせて変える関数
@@ -3002,14 +3019,18 @@ function plyayerAction(){
             
             if (player.animationFrame < 2){
                 plaAttackAABB.setSize(
-                    TILESIZE*2+(TILESIZE/4)*(Math.abs(VecDirList[player.direction][1])),//+10*(Math.abs(VecDirList[player.direction][1])),
+                    TILESIZE*2+(TILESIZE/4)*(Math.abs(VecDirList[player.direction][0])),//+10*(Math.abs(VecDirList[player.direction][1])),
                     TILESIZE*2+(TILESIZE/4)*(Math.abs(VecDirList[player.direction][1])),//+10*(Math.abs(VecDirList[player.direction][0])),
+                    TILESIZE*2,
+                    TILESIZE*2+(TILESIZE/4)*(Math.abs(VecDirList[player.direction][0])),
+                    TILESIZE*2+(TILESIZE/4)*(Math.abs(VecDirList[player.direction][1])),
                     TILESIZE*2
                 );
+
             }
 
             //基本は5フレームごとにアニメーションする。
-            if (player.countAnimTick(5+(player.inWater*5))){
+            if (player.countAnimTick(4+(player.inWater*5))){
                 if (player.animationFrame >= 3){
                     player.clearAnimTick();
                     if (quadDir() <= 0){
