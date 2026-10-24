@@ -50,6 +50,11 @@ let loading = 1;
 let isJP = true;
 
 
+const ORGmodeTXTstyle = window.getComputedStyle(document.querySelector(".ORG-MODE-shown")).display;
+const FPSmodeTXTstyle = window.getComputedStyle(document.querySelector(".FPS-MODE-shown")).display;
+console.log(ORGmodeTXTstyle);
+console.log(FPSmodeTXTstyle);
+
 export let fps = 0;
 export let frameDelta = 16.67;
 let lastFrameTime = 0;
@@ -1079,6 +1084,8 @@ export const plaAttackAABB = new sprite(player.px,player.py,0,0,0,"PlaAtAABB");
 
 const promise = new Promise( async function(resolve,reject) {
 
+    setShowingHowToPlay();
+
     try {
         ctx.fillStyle = "rgb(255,255,255)";
         ctx.fillRect(0,0,canvas.width,canvas.height);
@@ -1446,9 +1453,9 @@ export function screenSetOffset(px = 0,py = 0){
 async function init (){
 
     //ステージの呼び出し
-    //await mainStage.changeStage("GrandFloor");
+    await mainStage.changeStage("GrandFloor");
     //await mainStage.changeStage("water_debug");
-    await mainStage.changeStage("Map_1");
+    //await mainStage.changeStage("Map_1");
     //player.setPos(9/2*TILESIZE,8/2*TILESIZE);
     //NowBoss.setPos(TR.MapWidth/3*TILESIZE,TR.MapHeight/3*TILESIZE,0)
 
@@ -1509,17 +1516,18 @@ async function main(timestamp = performance.now()){
     //キー入力
     getkey();
 
+    setShowingHowToPlay();
+
     if (playerKey.pulsekeyPause && !toFadeStage){
         isPause = !isPause;
     }
 
-    if (!onBGM){
+    if (!onBGM || !onSE){
         BGMvolume = 0;
-    }
-    if (!onSE){
         SEvolume = 0;
     }
 
+    
 
     if (!actionStop && !isPause){
         //プレイヤーの処理
@@ -2434,6 +2442,31 @@ function RenderCanvas(){
         fctx.drawImage(canvas,0,0,FINC.width,FINC.height);
     }
 
+}
+function setShowingHowToPlay(){
+    //操作方法更新
+    const FPSelm = document.querySelectorAll(".FPS-MODE-shown");
+    const ORGelm = document.querySelectorAll(".ORG-MODE-shown");
+
+    FPSelm.forEach( elm => {
+        if (keyConfig == 1){
+            //FPS-MODE enable
+            elm.style.display = FPSmodeTXTstyle;
+        } else {
+            //FPS-MODE disable
+            elm.style.display = "none";
+        }
+    });
+
+    ORGelm.forEach( elm => {
+        if (keyConfig == 0){
+            //ORG-MODE enable
+            elm.style.display = ORGmodeTXTstyle;
+        } else {
+            //ORG-MODE disable
+            elm.style.display = "none";
+        }
+    });
 }
 function executeTextRenRecuest(){
     for (const k in textRenderRequestList){
