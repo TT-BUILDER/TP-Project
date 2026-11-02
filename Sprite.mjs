@@ -103,6 +103,11 @@ export function vectorNormalizer(vx,vy){
 
 export const SIN = (deg) => Math.sin(deg*Math.PI/180);
 export const COS = (deg) => Math.cos(deg*Math.PI/180);
+export const ATAN2 = (dx,dy) => degrees(Math.atan2(dy,dx));
+export const get8dirFromVec = (dx,dy) => {
+    const rawDeg = Math.floor((ATAN2(player.px-this.px,player.py-this.py)+360)%360);
+    return Math.floor((toPlaDeg+112.5)%360/45);
+};
 /**
  * @param {Array} vec 回転させたいベクトル
  * @param {Number} degree 回転させたい角度
@@ -1022,6 +1027,8 @@ export class Enemy extends sprite {
         this.waitFrameC = 0;
         this.waitFinished = true;
         this.initalized = false;
+        this.myImg = new imgData(img.imgList["null"]);
+        this.active = active;
     }
     /**
      * @param {Number} px ポジションｘ
@@ -1039,6 +1046,9 @@ export class Enemy extends sprite {
      * @param {Number} HP 名の通りＨＰ（デフォルトはMHP）
      */
     activate(px,py,pz,sx,sy,sz,type,vx = 0,vy = 0,vz = 0,Memory = [],MHP = 1,HP = MHP,MST = 1,ST = MST,SPD = 4){
+        
+        this.active = true;
+        
         this.px = px;
         this.py = py;
         this.pz = pz;
@@ -1051,7 +1061,6 @@ export class Enemy extends sprite {
         this.MaxStamina = MST;
         this.stamina = ST;
         this.Speed = SPD;
-        this.active = true;
         this.animationFrame = 0;
         this.animationState = 0;
         this.state = 0;
@@ -1068,6 +1077,11 @@ export class Enemy extends sprite {
 
         //固有の配列を取得
         this.memory = Memory;
+        
+        this.stop = false;
+        this.showflag = true;
+        this.direction = 0;
+        this.myImg = new imgData(img.imgList["null"]);
         //console.log([this.vx,this.vy]);
 
     }
@@ -1783,6 +1797,14 @@ export class Effect extends sprite {
      */
     constructor(px,py,sx,sy,sz,type,MHP = 1,HP = MHP,active = false){
         super(px,py,sx,sy,sz,type,MHP,HP);
+        this.active = active;
+        this.swordHitF = false;
+        this.unitGraphicSizeX = 0;
+        this.unitGraphicSizeY = 0;
+        //waitメソッド用の変数
+        this.waitFrameC = 0;
+        this.waitFinished = true;
+        this.initalized = false;
         this.myImg = new imgData(img.imgList["null"]);
         this.active = active;
     }
@@ -1802,6 +1824,9 @@ export class Effect extends sprite {
      * @param {Number} HP 名の通りＨＰ（デフォルトはMHP）
      */
     activate(px,py,pz,sx,sy,sz,type,vx = 0,vy = 0,vz = 0,Memory = [],MHP = 1,HP = MHP,MST = 1,ST = MST,SPD = 4){
+        
+        this.active = true;
+        
         this.px = px;
         this.py = py;
         this.pz = pz;
@@ -1814,7 +1839,6 @@ export class Effect extends sprite {
         this.MaxStamina = MST;
         this.stamina = ST;
         this.Speed = SPD;
-        this.active = true;
         this.animationFrame = 0;
         this.animationState = 0;
         this.state = 0;
@@ -1825,6 +1849,7 @@ export class Effect extends sprite {
         this.vy = vy;
         this.vz = vz;
         this.nonDamage = false;
+        this.initalized = false;
 
         this.inWater = false;
 
@@ -1832,6 +1857,9 @@ export class Effect extends sprite {
 
         //固有の配列を取得
         this.memory = Memory;
+        this.stop = false;
+        this.showflag = true;
+        this.direction = 0;
         this.myImg = new imgData(img.imgList["null"]);
         //console.log([this.vx,this.vy]);
 
@@ -1846,6 +1874,7 @@ export class Effect extends sprite {
      * @param {Number} TILESIZE 1タイル当たりのピクセル数
      */
     EfMove(ColMap,TILESIZE,fallOK = true){
+        if (!this.initalized) this.initalized = true;
         this.move(ColMap,TILESIZE,this.vx,this.vy,fallOK);
         //console.log([this.vx,this.vy]);
     }
@@ -1934,6 +1963,105 @@ export class Effect extends sprite {
                 if (this.collisionState & 0b10000){
                     this.Unactivate();
                 }
+
+                break;
+            case "boss_snow_rightHand":
+                if (!this.initalized){
+                    this.myImg.setImage(img.imgList["snowBoss_assets"]);
+                    this.myImg.trimStX = 0;
+                    this.myImg.trimStY = 160;
+                    this.myImg.trimSizeX = 16;
+                    this.myImg.trimSizeY = 16;
+                    this.unitGraphicSizeX = this.myImg.trimSizeX;
+                    this.unitGraphicSizeY = this.myImg.trimSizeY;
+                    this.clearAnimState();
+                    this.clearAnimTick();
+                    //このオブジェクトのみmemoryプロパティにオブジェクト丸ごとを代入する。
+                    this.memory = NowBoss;
+                    this.animationState = "normal";
+                }
+
+                //spriteオブジェクト プロパティ
+                //this.px
+                //this.py
+                //this.sx
+                //this.sy
+                //this.direction
+
+                switch (this.animationState){
+                    case "normal":
+                        const adx = this.memory.px + COS(this.memory.direction*45)*this.memory.sx*0.5;
+                        const ady = this.memory.pz/2 + this.memory.py + SIN(this.memory.direction*45)*this.memory.sy*0.25;
+                        this.setPos(adx,ady+16,this.memory.pz-16);
+                        break;
+                    case "trhowing-1":
+                        break;
+                    case "trhowing-2":
+                        break;
+                    case "trhowing-3":
+                        break;
+                    case "trhowing-4":
+                        break;
+                    case null:
+                        console.error("animationState is not initalized");
+                        break;
+                    case undefined:
+                        console.error("animationState is happened an Error!");
+                        break;
+                    default:
+                        console.error(`snowBossRightHand : unkown animationState : ${this.animationState}`);
+                        this.animationState = undefined;
+                        break;
+                    
+                }
+
+                this.direction = Math.floor(this.memory.direction/2);
+                this.myImg.trimStX = this.unitGraphicSizeX*this.direction;
+
+                break;
+            case "boss_snow_leftHand":
+                if (!this.initalized){
+                    this.myImg.setImage(img.imgList["snowBoss_assets"]);
+                    this.myImg.trimStX = 0;
+                    this.myImg.trimStY = 208;
+                    this.myImg.trimSizeX = 16;
+                    this.myImg.trimSizeY = 16;
+                    this.unitGraphicSizeX = this.myImg.trimSizeX;
+                    this.unitGraphicSizeY = this.myImg.trimSizeY;
+                    //このオブジェクトのみmemoryプロパティにオブジェクト丸ごとを代入する。
+                    this.memory = NowBoss;
+                    this.animationState = "normal";
+                }
+
+                switch (this.animationState){
+                    case "normal":
+                        const adx = this.memory.px + COS(180 + this.memory.direction*45)*this.memory.sx*0.5;
+                        const ady = this.memory.pz/2 + this.memory.py + SIN(180 + this.memory.direction*45)*this.memory.sy*0.25;
+                        this.setPos(adx,ady+16,this.memory.pz-16);
+                        break;
+                    case "trhowing-1":
+                        break;
+                    case "trhowing-2":
+                        break;
+                    case "trhowing-3":
+                        break;
+                    case "trhowing-4":
+                        break;
+                    case null:
+                        console.error("animationState is not initalized");
+                        break;
+                    case undefined:
+                        console.error("animationState is happened an Error!");
+                        break;
+                    default:
+                        console.error(`snowBossRightHand : unkown animationState : ${this.animationState}`);
+                        this.animationState = undefined;
+                        break;
+                }
+
+                
+                this.direction = Math.floor(mod(this.memory.direction+1,8)/2);
+                this.myImg.trimStX = this.unitGraphicSizeX*this.direction;
 
                 break;
             case "particle_ice":
@@ -2090,6 +2218,17 @@ export class Effect extends sprite {
                         textRenderRequestList[`Ef:${this.type},${idx},1`] = [`ラスボスステージ入口`, this.px-TextSize*7, this.py+this.sy, [255,255,255,alpha]];
                         if (canGo != 1){
                             textRenderRequestList[`Ef:${this.type},${idx},2`] = [`未完成`, this.px-TextSize*1.5, this.py+this.sy+TextSize, [255,0,0,alpha]];
+                        }
+                        if (canGo == 1 && this.hitCheck(
+                            player.px,
+                            player.py,
+                            player.pz,
+                            player.sx/2,
+                            player.sy/2,
+                            player.sz/2
+                        )){
+                            //stageChangeRequest = [`Map_${myStage}`,[1,1,1,254],[0,0,6,-6]];
+                            sendSCRequest([`final`,[1,1,254,1],[0,0,-3,3]]);
                         }
                     }
                     //renderText(`${this.memory/10}ステージ`,this.px-TextSize*4,this.py-this.sy);
@@ -2257,6 +2396,15 @@ export class Boss extends Enemy {
                 this.myImg.trimStY = 0;
                 this.myImg.trimSizeX = 80;
                 this.myImg.trimSizeY = 48;
+                this.unitGraphicSizeX = this.myImg.trimSizeX;
+                this.unitGraphicSizeY = this.myImg.trimSizeY;
+                break;
+            case "Snow":
+                this.myImg.setImage(img.imgList["snowBoss_assets"]);
+                this.myImg.trimStX = 0;
+                this.myImg.trimStY = 0;
+                this.myImg.trimSizeX = 48;
+                this.myImg.trimSizeY = 80;
                 this.unitGraphicSizeX = this.myImg.trimSizeX;
                 this.unitGraphicSizeY = this.myImg.trimSizeY;
                 break;
@@ -2885,13 +3033,33 @@ export class Boss extends Enemy {
 
         } else if (this.type == "Snow"){
             this.nonDamage = true;
+            
+            let autoDirSet = true;
+
             switch (this.BossState) {
                 //初期化
                 case 0:
                     this.BossInit();
                     this.BossState++;
                     console.log("Snow Boss Init end");
-                    
+                    EfM.spawnNPC(
+                        this.px,
+                        this.py,
+                        this.pz,
+                        TILESIZE/2,
+                        TILESIZE/2,
+                        TILESIZE/2,
+                        "boss_snow_rightHand"
+                    );
+                    EfM.spawnNPC(
+                        this.px,
+                        this.py,
+                        this.pz,
+                        TILESIZE/2,
+                        TILESIZE/2,
+                        TILESIZE/2,
+                        "boss_snow_leftHand"
+                    );
                     break;
                 //登場アニメーション
                 case 1:
@@ -2948,7 +3116,8 @@ export class Boss extends Enemy {
                     */
                     this.waitFrame(160);
                     const cycle = Math.floor(80-((this.hp <= this.MaxHp/2)*10));
-                    const dist = ((this.px-player.px)**2+(this.py-player.py)**2)**0.5;
+                    //const dist = ((this.px-player.px)**2+(this.py-player.py)**2)**0.5;
+                    const dist =Math.hypot(this.px-player.px,this.py-player.py);
                     if (this.waitFrameC%(cycle/4) == 0){
                         if (this.animationFrame < 3){
                             this.animationFrame++;
@@ -2958,18 +3127,37 @@ export class Boss extends Enemy {
                         console.log(`now animationFrame : ${this.animationFrame}`);
                         
                         if (this.animationFrame == 0){
-                            EnM.spawnNPC(
-                                this.px,
-                                this.py,
-                                0,
-                                TILESIZE,
-                                TILESIZE,
-                                TILESIZE,
-                                "throwSnow",
-                                (player.px-this.px+randFloat(-1,1)*4)/dist*6,
-                                (player.py-this.py+randFloat(-1,1)*4)/dist*6,
-                                -randFloat(0.5,1.5)*dist/(TILESIZE*3)
-                            );
+                        
+
+                            //これを有効にすると移動後の位置にあててくるようになる
+                            if (false && this.hp <= this.MaxHp/2){
+                                EnM.spawnNPC(
+                                    this.px,
+                                    this.py,
+                                    0,
+                                    TILESIZE,
+                                    TILESIZE,
+                                    TILESIZE,
+                                    "throwSnow",
+                                    (player.px-this.px)/dist*6+player.vx,
+                                    (player.py-this.py)/dist*6+player.vy,
+                                    randFloat(-1.1,-1.2)*dist/(TILESIZE*2)
+                                );
+                            } else {
+                                EnM.spawnNPC(
+                                    this.px,
+                                    this.py,
+                                    0,
+                                    TILESIZE,
+                                    TILESIZE,
+                                    TILESIZE,
+                                    "throwSnow",
+                                    (player.px-this.px)/dist*6,
+                                    (player.py-this.py)/dist*6,
+                                    randFloat(-1.1,-1.2)*dist/(TILESIZE*2)
+                                );
+                            }
+
                             console.log("throw!");
                             this.BossMemory["throwCounter"]--;
                         }
@@ -2987,6 +3175,10 @@ export class Boss extends Enemy {
                     break;
                 //地団駄ふむぜ
                 case 4:
+                    autoDirSet = false;
+                    this.direction = 4;
+                    this.myImg.trimStX = this.unitGraphicSizeX;
+                    this.myImg.trimStY = this.unitGraphicSizeY;
                     if (this.waitFrame(120)) {
                         this.waitFrameReset();
                         this.BossState++;
@@ -3000,6 +3192,10 @@ export class Boss extends Enemy {
                     break;
                 //ジャンプ！
                 case 5:
+                    autoDirSet = false;
+                    this.direction = 4;
+                    this.myImg.trimStX = this.unitGraphicSizeX;
+                    this.myImg.trimStY = this.unitGraphicSizeY;
                     this.fallOK = true;
                     this.waitFrameReset();
                     if (this.collisionState & 0b10000){
@@ -3008,6 +3204,10 @@ export class Boss extends Enemy {
                     break;
                 //ツララシャワー
                 case 6:
+                    autoDirSet = false;
+                    this.direction = 4;
+                    this.myImg.trimStX = this.unitGraphicSizeX;
+                    this.myImg.trimStY = this.unitGraphicSizeY;
                     if(this.waitFrame(75)){
                         if(randInt((this.hp <= this.MaxHp/2)*2,5) == 5){
                             this.waitFrameReset();
@@ -3138,10 +3338,18 @@ export class Boss extends Enemy {
                     }
                     break;
                 case "damage":
+                    autoDirSet = false;
+                    this.direction = 4;
+                    this.myImg.trimStX = 0;
+                    this.myImg.trimStY = this.unitGraphicSizeY;
                     this.BossState = 4;
                     this.waitFrameReset();
                     break;
-                case "died":;
+                case "died":
+                    autoDirSet = false;
+                    this.direction = 4;
+                    this.myImg.trimStX = 0;
+                    this.myImg.trimStY = this.unitGraphicSizeY;
                     const constantDieC = 300;
                     const mult = (constantDieC-this.forList["i"])/constantDieC;
                     this.vibrate(-3*mult,3*mult);
@@ -3175,6 +3383,27 @@ export class Boss extends Enemy {
                     this.setVector(0,0,0);
                     break;
             }
+            
+            if (autoDirSet) {
+                /*
+                const rawDeg = ATAN2(player.px-this.px,player.py-this.py);
+                const toPlaDeg = (rawdeg + 360)%360
+                */
+                //真右の時に0なので気を付ける。
+                const toPlaDeg = Math.floor((ATAN2(player.px-this.px,player.py-this.py)+360)%360);
+                //console.log(`degree is ${toPlaDeg}`);
+                //console.log(`dir is ${Math.floor(((toPlaDeg+22.5)%360)/45)}`);
+                
+                //なぜ112.5なのかはしらん。67.5（90 - 22.5）だと思うんだけどなぁ…
+                this.direction = Math.floor((toPlaDeg+112.5)%360/45);
+                
+                //console.log(this.direction);
+
+                this.myImg.trimStX = this.unitGraphicSizeX*this.direction;
+                this.myImg.trimStY = 0;
+            }
+
+
         } else if (this.type == "Wood"){
             this.nonDamage = true;
 
