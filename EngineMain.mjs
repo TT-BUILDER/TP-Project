@@ -67,8 +67,8 @@ let fpsSampleStart = 0;
 export const DebugMode = false;
 
 //BGMいる？
-let onBGM = true;
-let onSE = true;
+let onBGM = false;
+let onSE = false;
 
 //ボリューム
 export let BGMvolume = 17;
@@ -77,7 +77,7 @@ export let SEvolume = 25;
 
 
 //入れるステージリスト
-export let enableGoStageList = [1,1,1,1,0];
+export let enableGoStageList = [1,1,1,1,1];
 
 const CRT_Effect = false;
 
@@ -1161,6 +1161,11 @@ const promise = new Promise( async function(resolve,reject) {
         Maps["Map_4"] = await TR.newLoadMap(MapJSONs["Map_4"],"./assets/maps/Map4.txt");
         MapCollisions["Map_4"] = await TR.newLoadMap(MapJSONs["Map_4"],"./assets/maps/Map4_C.txt");
         
+        MapJSONs["final"] = await fetchJSON("./assets/maps/Map6.json");
+        mapDescriptionList["final"] = await MapJSONs["final"].Description,
+        Maps["final"] = await TR.newLoadMap(MapJSONs["final"],"./assets/maps/Map6.txt");
+        MapCollisions["final"] = await TR.newLoadMap(MapJSONs["final"],"./assets/maps/Map6_C.txt");
+        
         MapJSONs["GrandFloor"] = await fetchJSON("./assets/maps/Map5.json");
         Maps["GrandFloor"] = await TR.newLoadMap(MapJSONs["GrandFloor"],"./assets/maps/Map5.txt");
         MapCollisions["GrandFloor"] = await TR.newLoadMap(MapJSONs["GrandFloor"],"./assets/maps/Map5_C.txt");
@@ -1201,6 +1206,8 @@ const promise = new Promise( async function(resolve,reject) {
             img.AddImg("NPC_stone_assets","./assets/imgs/stone.png"),
             img.AddImg("NPC_rock_assets","./assets/imgs/rock.png"),
             img.AddImg("NPC_fallRock_assets","./assets/imgs/fallRock.png"),
+            
+            img.AddImg("snowBoss_assets","./assets/imgs/Snow_Boss.png"),
 
             TexImg.AddImg("testTex","./assets/tiles/nullImage.png")
         ]);
@@ -1453,9 +1460,9 @@ export function screenSetOffset(px = 0,py = 0){
 async function init (){
 
     //ステージの呼び出し
-    await mainStage.changeStage("GrandFloor");
+    //await mainStage.changeStage("GrandFloor");
     //await mainStage.changeStage("water_debug");
-    //await mainStage.changeStage("Map_1");
+    await mainStage.changeStage("Map_2");
     //player.setPos(9/2*TILESIZE,8/2*TILESIZE);
     //NowBoss.setPos(TR.MapWidth/3*TILESIZE,TR.MapHeight/3*TILESIZE,0)
 
@@ -1685,7 +1692,7 @@ function playerSelect(key){
     playerUnder.myImg.setImage(img.imgList["player_assets1"]);
     
     playerCameraSet();
-    //player.nonDamage = true;
+    player.nonDamage = true;
     //player.hp = 1;
     //player.setCollision(false);
     //renderCamera.setCameraEffect(1,4,2,0,0,2);
