@@ -1,0 +1,10 @@
+{
+    "Name" : "final",
+    "Position" : [0,0],
+    "sizeX" : 2,
+    "sizeY" : 2,
+    "sizeZ" : 2,
+    "status" : [20,0,56,13,40,45],
+    "HP" : 120,
+    "BGM" : null
+}
