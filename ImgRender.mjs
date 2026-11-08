@@ -69,10 +69,44 @@ export class imgRender {
             -img.height/2
         )
         */
+        
         //もとへ戻す
         this.ctx.restore();
 
     }
+    /**
+     * 回転させた画像の描画
+     * @param {String} style fillStyleに書き込むテキスト
+     * @param {Number} px 出力先の中心X
+     * @param {Number} py 出力先の中心Y
+     * @param {Number} roll 角度(度数法)
+     * @param {Number} sx サイズX
+     * @param {Number} sy サイズY
+     */
+    fillRect(
+            style,
+            px,
+            py,
+            roll,
+            sx,
+            sy
+        ){
+        
+        let radians = roll * (Math.PI/180);
+        //現在の状態を保存
+        this.ctx.save();
+        //原点移動
+        this.ctx.translate(px,py);
+        //回転
+        this.ctx.rotate(radians);
+        //描画
+        
+        this.ctx.fillStyle = style;
 
+        this.ctx.fillRect(sx/-2,sy/-2,sx,sy);
+
+        //もとへ戻す
+        this.ctx.restore();
+    }
 
 }

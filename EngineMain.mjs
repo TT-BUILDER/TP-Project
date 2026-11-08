@@ -63,8 +63,8 @@ let fpsElapsed = 0;
 let fpsSampleStart = 0;
 
 
-//export const DebugMode = true;
-export const DebugMode = false;
+export const DebugMode = true;
+//export const DebugMode = false;
 
 //BGMいる？
 let onBGM = false;
@@ -1208,7 +1208,7 @@ const promise = new Promise( async function(resolve,reject) {
             img.AddImg("NPC_fallRock_assets","./assets/imgs/fallRock.png"),
             
             img.AddImg("snowBoss_assets","./assets/imgs/Snow_Boss.png"),
-
+            
             TexImg.AddImg("testTex","./assets/tiles/nullImage.png")
         ]);
         //タイルチップデータの読み込み
@@ -1462,7 +1462,8 @@ async function init (){
     //ステージの呼び出し
     //await mainStage.changeStage("GrandFloor");
     //await mainStage.changeStage("water_debug");
-    await mainStage.changeStage("Map_2");
+    //await mainStage.changeStage("Map_2");
+    await mainStage.changeStage("final");
     //player.setPos(9/2*TILESIZE,8/2*TILESIZE);
     //NowBoss.setPos(TR.MapWidth/3*TILESIZE,TR.MapHeight/3*TILESIZE,0)
 
@@ -1692,7 +1693,7 @@ function playerSelect(key){
     playerUnder.myImg.setImage(img.imgList["player_assets1"]);
     
     playerCameraSet();
-    player.nonDamage = true;
+    //player.nonDamage = true;
     //player.hp = 1;
     //player.setCollision(false);
     //renderCamera.setCameraEffect(1,4,2,0,0,2);
@@ -1821,7 +1822,7 @@ async function setStage(stageName){
                 0,
                 0,
                 0,
-                [9]
+                [5]
             );
         EfM.spawnNPC(
                 480*VisualDeltaVector,

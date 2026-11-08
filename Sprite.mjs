@@ -123,7 +123,44 @@ export function vectorRotation(vec,degree){
     ];
 }
 
+//This function was build by VS code's AI.
+/**
+ * 回転した長方形同士の当たり判定。rotation は度数法で指定する。
+ * @param {Object} me {px, py, w, h, rotation} を持つ長方形
+ * @param {Object} tar {px, py, w, h, rotation} を持つ長方形
+ * @returns {boolean} 重なっている場合は true
+ */
+export function checkHitOBB(me,tar){
+    const meAngle = me.rotation * Math.PI / 180;
+    const tarAngle = tar.rotation * Math.PI / 180;
+    const meAxes = [
+        [Math.cos(meAngle),Math.sin(meAngle)],
+        [-Math.sin(meAngle),Math.cos(meAngle)]
+    ];
+    const tarAxes = [
+        [Math.cos(tarAngle),Math.sin(tarAngle)],
+        [-Math.sin(tarAngle),Math.cos(tarAngle)]
+    ];
+    const dx = tar.px-me.px;
+    const dy = tar.py-me.py;
+    const meHalfW = Math.abs(me.w)/2;
+    const meHalfH = Math.abs(me.h)/2;
+    const tarHalfW = Math.abs(tar.w)/2;
+    const tarHalfH = Math.abs(tar.h)/2;
 
+    for (const axis of [...meAxes,...tarAxes]){
+        const distance = Math.abs(dx*axis[0]+dy*axis[1]);
+        const meRadius =
+            meHalfW*Math.abs(meAxes[0][0]*axis[0]+meAxes[0][1]*axis[1])+
+            meHalfH*Math.abs(meAxes[1][0]*axis[0]+meAxes[1][1]*axis[1]);
+        const tarRadius =
+            tarHalfW*Math.abs(tarAxes[0][0]*axis[0]+tarAxes[0][1]*axis[1])+
+            tarHalfH*Math.abs(tarAxes[1][0]*axis[0]+tarAxes[1][1]*axis[1]);
+
+        if (distance >= meRadius+tarRadius) return false;
+    }
+    return true;
+}
 
 /**
  * @param {Object} tar 相手となるSpriteオブジェクト
@@ -131,6 +168,29 @@ export function vectorRotation(vec,degree){
  * @returns 
  */
 function hitCheck(tar,me){
+    const OBBcheck = checkHitOBB(
+        {
+            px:me.px,
+            py:me.py,
+            w:me.BBsx,
+            h:me.BBsy,
+            rotation:me.myImg.roll
+        },
+        {
+            px:tar.px,
+            py:tar.py,
+            w:tar.BBsx,
+            h:tar.BBsy,
+            rotation:tar.myImg.roll
+        }
+    );
+    if ( OBBcheck && (tar.pz-(tar.BBsz/2) <= me.pz && me.pz-(me.BBsz/2) <= tar.pz)
+    ){
+        return 1
+    } else { 
+        return 0
+    }
+    /*
     if (
         Math.abs(tar.px-me.px) < (me.BBsx+tar.BBsx)/2 && 
         Math.abs(tar.py-me.py) < (me.BBsy+tar.BBsy)/2 && 
@@ -141,6 +201,7 @@ function hitCheck(tar,me){
     } else { 
         return 0
     }
+    */
 }
 
 export class imgData {
@@ -231,6 +292,22 @@ export class imgData {
         this.imageData = imgData;
         this.setSize(this.imageData.width,this.imageData.height);
         this.setTrim(0,0,this.imageData.width,this.imageData.height);
+    }
+    fillRect(style,px,py,w,h,alpha = 1.0){
+        const Galpha = IR.ctx.globalAlpha;
+        IR.ctx.globalAlpha = alpha;
+
+        IR.fillRect(
+            style,
+            px,
+            py,
+            this.roll,
+            w,
+            h
+        );
+
+        IR.ctx.globalAlpha = Galpha;
+        
     }
 }
 
@@ -383,6 +460,9 @@ export class sprite {
         this.BBsx = this.sx*0.8;
         this.BBsy = this.sy*0.8;
         this.BBsz = this.sz*0.8;
+
+        //基本的にmyImgのrollプロパティと同期する。
+        this.OBBrotation = 0;
 
         this.defaultSX = this.sx;
         this.defaultSY = this.sy;
@@ -556,10 +636,13 @@ export class sprite {
      * @param {Number} imgSY 画像の切り取りサイズY
      */
     RenderMyself(CamX,CamY,style,ShowHP = false,ShowShadow = true,showImg = true,imgStX = this.myImg.trimStX,imgStY = this.myImg.trimStY,imgSX = this.myImg.trimSizeX, imgSY = this.myImg.trimSizeY){
-        if (this.invincible){
-            this.invincibleTime--;
-            if (this.invincibleTime <= 0) this.invincible = false;
+        
+        this.invincibleTime--;
+        if (this.invincibleTime <= 0){
+            this.invincible = false;
+            this.invincibleTime = 0;
         }
+    
         const RenSprX = this.px + CamX + this.visualPX;
         const RenSprY = this.py + CamY + this.pz + this.visualPY;
         
@@ -589,19 +672,41 @@ export class sprite {
                 this.myImg.setTrim(imgStX,imgStY,imgSX,imgSY);
                 //this.myImg.setSize(this.sx,Math.max(this.sz,this.sy));
                 this.myImg.setSize(this.sx,this.sz);
-                this.myImg.render(RenSprX,RenSprY-(this.sz/2)+(this.sy/2),this.imgAlpha,this.grayscaleRatio);
+                this.myImg.render(
+                    RenSprX,
+                    RenSprY-(this.sz/2)+(this.sy/2),
+                    this.imgAlpha,
+                    this.grayscaleRatio
+                );
             }
             //NowCTX.arc(32,32,32,0,Math.PI*2,false);
             if (DebugMode) {
+                //バウンドボックスの描画
                 let RestoreAplha = NowCTX.globalAlpha;
                 NowCTX.globalAlpha = 0.25;
                 NowCTX.fillStyle = style;
+                /*
                 NowCTX.fillRect(
                     (RenSprX-(this.BBsx/2)),
                     (RenSprY-(this.BBsy/2))-this.pz,
                     this.BBsx,
                     this.BBsy
                 );
+                */
+
+                this.myImg.fillRect(
+                    style,
+                    RenSprX,
+                    RenSprY-this.pz,
+                    this.BBsx,
+                    this.BBsy,
+                    0.25
+                );
+
+                //↓有効化したら面白いヨ
+                //this.myImg.roll++;
+
+                //謎
                 NowCTX.fillStyle = "cyan";
                 NowCTX.fillRect(
                     (RenSprX-(this.sx/2)),
@@ -924,6 +1029,7 @@ export class sprite {
      * @returns boolean
      */
     hitCheck(tpx,tpy,tpz,tsx,tsy,tsz,px = this.px,py = this.py,pz = this.pz,sx = this.BBsx,sy = this.BBsy,sz = this.BBsz){
+        
         if (
             Math.abs(tpx-px) < (sx+tsx)/2 && 
             Math.abs(tpy-py) < (sy+tsy)/2 && 
@@ -934,33 +1040,62 @@ export class sprite {
         } else { 
             return 0
         }
+        /*
+        const OBBcheck = checkHitOBB(
+            {
+                px:px,
+                py:py,
+                w:sx,
+                h:sy,
+                rotation:0
+            },
+            {
+                px:tpx,
+                py:tpy,
+                w:tsx,
+                h:tsy,
+                rotation:0
+            }
+        );
+        if ( OBBcheck && ((tpz-tsz)/2 <= pz && (pz-sz)/2 <= tpz)
+        ){
+            return 1
+        } else { 
+            return 0
+        }
+        */
+        
     }
 
     /**
      * @param {Number} di 与えるダメージ。負の数だと回復する。
+     * @param {number} tx ノックバックさせる側X
+     * @param {number} ty ノックバックさせる側Y
      * @param {boolean} slip スリップダメージかどうか
      * @param {boolean} nkockback ノックバックフラグ
-     * @param {number} tvx ノックバックベクトルX
-     * @param {number} tvy ノックバックベクトルY
      */
     damage(di,tx,ty,slip = false,nkockback = true){
         if ((!this.invincible && !this.nonDamage) || slip){
             //HPを減算
             this.hp = this.hp - di
+
+            //無敵時間初期化
+            if (this.invincibleTime <= 0) this.invincibleTime = this.maxInvincibleTime;
+
             //HPを０以上へ
             if (this.hp <= 0) this.hp = 0;
-            
-            let vx = this.px-tx;
-            let vy = this.py-ty;
-
-            const dist = Math.hypot(vx,vy);
 
             this.animationState = "damaging";
 
             if (!slip){
+                
+                let vx = this.px-tx;
+                let vy = this.py-ty;
+
+                const dist = Math.hypot(vx,vy);
+
                 if (di > 0){
                     //無敵時間初期化
-                    this.invincibleTime = this.maxInvincibleTime;
                     this.invincible = true;
                 }
                 //ノックバック処理
@@ -978,6 +1113,7 @@ export class sprite {
                         vx*TILESIZE/10,
                         vy*TILESIZE/10
                     );
+
                     this.ZAxisJump(-4);
                     this.VLOCK = true;
                 }
@@ -1774,6 +1910,171 @@ export class Enemy extends sprite {
                 */
 
                 break;
+            //ビームちゃん
+            case "beam":
+                if (this.memory.length < 5){
+                    console.error("enemy beam : not enough memory data.");
+                    this.Unactivate();
+                    //this.memory.unshift(Math.floor((ATAN2(player.px-this.px,player.py-this.py)+360)%360));
+                } else {
+                    if (!this.initalized){
+                        this.defaultSX = this.sx;
+                        this.defaultSY = this.sy;
+                        this.defaultSZ = this.sz;
+                        //償還時のデフォルト座標を記憶 [5],[6]
+                        this.memory.push(this.px);
+                        this.memory.push(this.py);
+
+                        this.myImg.roll = this.memory[0];
+                        //console.log(this.memory);
+
+                    }
+
+
+
+                    if (this.memory[3] > 0) {
+                        this.memory[3]--;
+                    } else {
+                        this.Unactivate();
+                    }
+
+                    this.EnMove(ColMap,TILESIZE,true,false);
+
+                    const timeDiv = ( this.memory[4]-this.memory[3] ) / this.memory[4];
+                    const multLen = 10000*timeDiv;
+
+                    this.setSize(
+                        this.defaultSX+( multLen ),
+                        this.defaultSY-(this.defaultSY*timeDiv*0.8),
+                        this.defaultSZ-(this.defaultSZ*timeDiv*0.8)
+                    );
+
+                    const [rvx,rvy] = vectorRotation([this.sx/2,0],this.memory[0]);
+
+                    this.setPos(
+                        this.memory[5]+rvx,
+                        this.memory[6]+rvy
+                    );
+
+                    const plaHit = checkHitOBB(
+                        {
+                            px:this.px,
+                            py:this.py,
+                            w:this.sx,
+                            h:this.sy,
+                            rotation:this.myImg.roll
+                        },
+                        {
+                            px:player.px,
+                            py:player.py,
+                            w:player.sx,
+                            h:player.sy,
+                            rotation:player.myImg.roll
+                        }
+                    );
+
+                    if (plaHit && (this.pz - this.sz/2 <= player.pz && player.pz - player.sz/2 < this.pz)){
+                        
+                        player.damage(0.1,player.px,player.py,true,false)
+
+                        console.log("player hit!");
+
+                    }
+                    
+                }
+                break;
+            //ビーム打つマシン
+            case "beamHead":
+                if (this.memory.length < 4){
+                    console.error("enemy beam : not enough memory data.");
+                    this.Unactivate();
+                    //this.memory.unshift(Math.floor((ATAN2(player.px-this.px,player.py-this.py)+360)%360));
+                } else {
+                    if (!this.initalized){
+                        //伸びの限界時間+1フレームぶんを設定 [4]
+                        this.memory.push(61);
+                        //設定した伸びマックス値 [5]
+                        this.memory.push(this.memory[4]-1);
+                        this.defaultSX = this.sx;
+                        this.defaultSY = this.sy;
+                        this.defaultSZ = this.sz;
+                        //償還時のデフォルト座標を記憶 [6],[7],[8]
+                        this.memory.push(this.px);
+                        this.memory.push(this.py);
+                        this.memory.push(this.pz);
+                        //ビームを召喚したかどうか [9]
+                        this.memory.push(0);
+                        //消える際の分厚さ [10]
+                        this.memory.push(0);
+
+                        this.myImg.roll = this.memory[0];
+                        //console.log(this.memory);
+
+                    }
+                    
+                    if (this.memory[4] > 0) {
+                        this.memory[4]--;
+                    } else {
+
+                        //ビームが残る時間
+                        const beamMaxFrame = 30;
+
+                        if (this.memory[9] <= 0){
+
+                            const [tvx,tvy] = vectorRotation([this.sx*0.6,0],this.memory[0]);
+
+                            EnM.spawnNPC(
+                                this.px + tvx,
+                                this.py + tvy,
+                                this.pz,
+                                this.defaultSX*0.75,
+                                this.defaultSY*0.75,
+                                this.defaultSZ*0.75,
+                                "beam",
+                                0,
+                                0,
+                                0,
+                                [this.memory[0],0,0,beamMaxFrame+1,beamMaxFrame]
+                            );
+
+                            this.memory[9] = 1;
+
+                        } else if (this.memory[9] == 1) {
+                            if (this.waitFrame(beamMaxFrame+15)) {
+                                this.memory[9] = 2;
+                            }
+                        } else {
+                            if (this.sy <= 0){
+                                this.Unactivate();
+                            } else {
+                                
+                                //this.myImg.roll = 0;
+
+                                this.setSize(
+                                    this.defaultSX + this.memory[10],
+                                    this.defaultSY - this.memory[10],
+                                    this.defaultSZ - this.memory[10]
+                                );
+                                this.memory[10]++;
+                            }
+                        }
+                        
+                    }
+
+                    const timeDiv = (this.memory[5] - this.memory[4])/this.memory[5];
+
+                    this.setPos(
+                        this.memory[6] + ( this.memory[1] - this.memory[6] ) * SIN(90*timeDiv),
+                        this.memory[7] + ( this.memory[2] - this.memory[7] ) * SIN(90*timeDiv),
+                        this.memory[8] + ( this.memory[3] - this.memory[8] ) * SIN(90*timeDiv)
+                        
+                    );
+
+
+
+                }
+                break;
+            //
             default:
                 this.Unactivate();
                 console.error(`Error : Undefined Enemy's property "type": "${this.type}"`)
@@ -2180,7 +2481,7 @@ export class Effect extends sprite {
                     
 
                     //ラストステージ以外なら
-                    if (myStage != 9){
+                    if (myStage != 5){
                         
                         //遊べるステージか？
                         const canGo = enableGoStageList[myStage-1];
@@ -2216,8 +2517,9 @@ export class Effect extends sprite {
                         }
 
                         textRenderRequestList[`Ef:${this.type},${idx},1`] = [`ラスボスステージ入口`, this.px-TextSize*7, this.py+this.sy, [255,255,255,alpha]];
+                        textRenderRequestList[`Ef:${this.type},${idx},2`] = [mapDescriptionList[`final`], this.px-TextSize*(mapDescriptionList[`final`].length*0.6), this.py+this.sy+TextSize, [255,0,0,alpha]];
                         if (canGo != 1){
-                            textRenderRequestList[`Ef:${this.type},${idx},2`] = [`未完成`, this.px-TextSize*1.5, this.py+this.sy+TextSize, [255,0,0,alpha]];
+                            
                         }
                         if (canGo == 1 && this.hitCheck(
                             player.px,
@@ -4272,6 +4574,59 @@ export class Boss extends Enemy {
                 this.sy = this.defaultSY;
             }
 
+        } else if (this.type == "final"){
+            this.nonDamage = true;
+
+            /**
+             * @param {Number} px 座標X
+             * @param {Number} py 座標Y
+             * @param {Number} thickness 太さ
+             * @param {Number} rotation 角度（度数法）
+             */
+            const shotBeam = (px,py,thickness,rotation = Math.floor((ATAN2(player.px-px,player.py-py)+360)%360),pz = this.pz) => {
+
+                EnM.spawnNPC(
+                    this.px,
+                    this.py,
+                    pz,
+                    thickness,
+                    thickness,
+                    thickness,
+                    "beamHead",
+                    0,
+                    0,
+                    0,
+                    [rotation,px,py,0]
+                );
+
+                //console.log(rotation);
+
+            };
+
+            switch (this.BossState){
+                case 0:
+                    this.setPos(this.px,this.py);
+                    this.BossInit();
+                    this.BossState++;
+                    break;
+                case 1:
+                    if (this.waitFrame(60)){
+                        shotBeam(
+                            randFloat(player.px-TILESIZE*2,player.px+TILESIZE*2),
+                            randFloat(player.py-TILESIZE*2,player.py+TILESIZE*2),
+                            TILESIZE*1.5
+                        );
+                        //console.log("spawn");
+                    }
+                    break;
+                default:
+                    console.error(`Error BossSate is : ${this.BossState} Unkown State `);
+                    this.BossState = 0;
+                    this.clearForList();
+                    this.clearMemory();
+                    this.setVector(0,0,0);
+                    break;
+            }
         }
         //console.log(this.BossState);
 
