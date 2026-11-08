@@ -1,10 +1,10 @@
 {
     "Name" : "final",
-    "Position" : [0,0],
-    "sizeX" : 2,
+    "Position" : [320,192],
+    "sizeX" : 1.5,
     "sizeY" : 2,
-    "sizeZ" : 2,
-    "status" : [20,0,56,13,40,45],
+    "sizeZ" : 2.5,
+    "status" : [20,0,56,13,40,120],
     "HP" : 120,
     "BGM" : null
 }
