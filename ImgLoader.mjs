@@ -1,4 +1,4 @@
-import { cryptos, decryptos } from "./ImgEncoder_N.mjs";
+
 
 export class Images {
     
@@ -52,9 +52,9 @@ export class Images {
                     console.log("arrayBuffer");
                     console.log(this.arrayBuffers[Name]);
 
-                    this.RAWIMG[Name] = await cryptos(this.arrayBuffers[Name],"testEnc",0,0);
+                    this.RAWIMG[Name] = null; // nope
                     
-                    const decode = decryptos(this.RAWIMG[Name],0,0);
+                    const decode = null; // nope
                     console.log("decode");
                     console.log(decode);
 
