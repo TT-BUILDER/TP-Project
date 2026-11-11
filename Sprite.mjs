@@ -4761,11 +4761,14 @@ export class Boss extends Enemy {
                             TILESIZE
                         );
                         */
+                        /*
                         this.BossMemory.i++;
                         if (this.BossMemory.i >= 15){
                             this.BossMemory.i = 0;
                             this.BossState = 2;
                         }
+                        */
+                        this.BossState = 2;
                         //console.log("spawn");
                     }
                     break;
@@ -4785,12 +4788,14 @@ export class Boss extends Enemy {
                             randFloat(player.py-TILESIZE*2,player.py+TILESIZE*2),
                             TILESIZE
                         );
-                        
+                        /*
                         this.BossMemory.i++;
                         if (this.BossMemory.i >= 15){
                             this.BossMemory.i = 0;
                             this.BossState = 1;
                         }
+                        */
+                        this.BossState = 1;
                         //console.log("spawn");
                     }
                     break;
