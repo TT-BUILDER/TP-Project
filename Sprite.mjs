@@ -2086,9 +2086,9 @@ export class Enemy extends sprite {
             case "brightTower":
                 if (this.memory.length < 1){
                     
-                    this.defaultSX = sx;
-                    this.defaultSY = sy;
-                    this.defaultSZ = sz;
+                    this.defaultSX = this.sx;
+                    this.defaultSY = this.sy;
+                    this.defaultSZ = this.sz;
                     
                     this.memory.push(this.defaultSX*0.4);
                     this.memory.push(this.memory[0]);
@@ -2153,14 +2153,15 @@ export class Enemy extends sprite {
             case "brightSummoner":
                 if (this.memory.length < 3){
                     
-                    this.defaultSX = sx;
-                    this.defaultSY = sy;
-                    this.defaultSZ = sz;
-                    
                     this.memory.unshift(30);
                     this.memory.unshift(this.memory[0]);
                 }
                 if (!this.initalized){
+                    
+                    this.defaultSX = this.sx;
+                    this.defaultSY = this.sy;
+                    this.defaultSZ = this.sz;
+                    
                     this.setSize(0,0,0);
                     //手動プロパティ書き換え
                     //（本来はthis.EnMoveメソッドを使う）
