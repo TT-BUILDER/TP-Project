@@ -1628,7 +1628,7 @@ function StageGimmick(){
 function showDebugInfo(Debug = DebugMode){
 }
 function playerSelect(key){
-    let [MHP,MST,SPD] = [0,0,0];
+    //let [MHP,MST,SPD] = [0,0,0];
     if (key == "KNIGHT") {
         nowStatus.setStatus(
             knightStatus.AP,

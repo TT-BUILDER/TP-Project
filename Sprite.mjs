@@ -1185,6 +1185,10 @@ export class Enemy extends sprite {
         
         this.active = true;
         
+        this.defaultSX = sx;
+        this.defaultSY = sy;
+        this.defaultSZ = sz;
+
         this.px = px;
         this.py = py;
         this.pz = pz;
@@ -1927,7 +1931,10 @@ export class Enemy extends sprite {
 
                         this.myImg.roll = this.memory[0];
                         //console.log(this.memory);
-
+                        
+                        //手動プロパティ書き換え
+                        //（本来はthis.EnMoveメソッドを使う）
+                        this.initalized = true;
                     }
 
 
@@ -2008,7 +2015,10 @@ export class Enemy extends sprite {
                         this.memory.push(0);
 
                         this.myImg.roll = this.memory[0];
-                        //console.log(this.memory);
+                        
+                        //手動プロパティ書き換え
+                        //（本来はthis.EnMoveメソッドを使う）
+                        this.initalized = true;
 
                     }
                     
@@ -2050,10 +2060,12 @@ export class Enemy extends sprite {
                                 
                                 //this.myImg.roll = 0;
 
+                                const timeDiv = (this.memory[10])/15;
+
                                 this.setSize(
-                                    this.defaultSX + this.memory[10],
-                                    this.defaultSY - this.memory[10],
-                                    this.defaultSZ - this.memory[10]
+                                    this.defaultSX + this.defaultSX*SIN(90*timeDiv),
+                                    this.defaultSY - this.defaultSY*SIN(90*timeDiv),
+                                    this.defaultSZ - this.defaultSZ*SIN(90*timeDiv)
                                 );
                                 this.memory[10]++;
                             }
@@ -2074,7 +2086,111 @@ export class Enemy extends sprite {
 
                 }
                 break;
+            //光の塔
+            case "brightTower":
+                if (this.memory.length < 1){
+                    this.memory.push(this.defaultSX*0.4);
+                    this.memory.push(this.memory[0]);
+                    this.memory.push(1);
+                }
+                if (!this.initalized){
+                    this.setSize(0,0,0);
+                    //手動プロパティ書き換え
+                    //（本来はthis.EnMoveメソッドを使う）
+                    this.initalized = true;
+                } else {
+                    //変数定義の重複回避の苦肉の策
+
+                    const timeDiv = (this.memory[0] - this.memory[1])/this.memory[0];
+
+                    this.setSize(
+                        this.defaultSX - (this.defaultSX*SIN(90*timeDiv)),
+                        this.defaultSY - (this.defaultSY*SIN(90*timeDiv)),
+                        this.defaultSZ + (this.defaultSZ*10*SIN(90*timeDiv))
+                    );
+
+                    if (this.memory[2] >= 1) {
+                        this.memory[2] = 0;
+                        this.setAlpha(0);
+                    } else {
+                        this.memory[2] = 1;
+                        this.setAlpha(1);
+                    }
+
+                    this.memory[1]--;
+                    if (this.memory[1] <= 0) {
+                        this.Unactivate();
+                    }
+
+                    const plaHit = checkHitOBB(
+                        {
+                            px:this.px,
+                            py:this.py,
+                            w:this.sx,
+                            h:this.sy,
+                            rotation:this.myImg.roll
+                        },
+                        {
+                            px:player.px,
+                            py:player.py,
+                            w:player.sx,
+                            h:player.sy,
+                            rotation:player.myImg.roll
+                        }
+                    );
+
+                    if (plaHit && (this.memory[1] >= this.memory[0]/3) && (this.pz - this.sz/2 <= player.pz && player.pz - player.sz/2 < this.pz)){
+                        
+                        player.damage(0.1,player.px,player.py,true,false)
+
+                        console.log("player hit!");
+
+                    }
+                }
+                break;
+            //光の塔召喚くん
+            case "brightSummoner":
+                if (this.memory.length < 3){
+                    this.memory.unshift(30);
+                    this.memory.unshift(this.memory[0]);
+                }
+                if (!this.initalized){
+                    this.setSize(0,0,0);
+                    //手動プロパティ書き換え
+                    //（本来はthis.EnMoveメソッドを使う）
+                    this.initalized = true;
+                } else {
+
+                    const timeDiv = (this.memory[0] - this.memory[1])/this.memory[0];
+
+                    this.setSize(
+                        this.defaultSX*SIN(90*timeDiv),
+                        this.defaultSY*SIN(90*timeDiv),
+                        this.defaultSZ*SIN(90*timeDiv),
+                    );
+
+                    this.memory[1]--;
+                    if (this.memory[1] <= 0){
+                        if(this.memory[2] || this.waitFrame(this.memory[0]/2)) {
+                            this.Unactivate();
+                            EnM.spawnNPC(
+                                this.px,
+                                this.py,
+                                0,
+                                this.defaultSX/3*2,
+                                this.defaultSY/3*2,
+                                this.defaultSZ/3*2,
+                                "brightTower"
+                            );
+                        } else {
+                            this.memory[1] = 0;
+                        }
+                    }
+
+                }
+                break;
             //
+
             default:
                 this.Unactivate();
                 console.error(`Error : Undefined Enemy's property "type": "${this.type}"`)
@@ -4578,6 +4694,7 @@ export class Boss extends Enemy {
             this.nonDamage = true;
 
             /**
+             * biim発射
              * @param {Number} px 座標X
              * @param {Number} py 座標Y
              * @param {Number} thickness 太さ
@@ -4603,6 +4720,24 @@ export class Boss extends Enemy {
 
             };
 
+            const summonBrightTower = (px,py,radius,semiWait = false) => {
+                
+                EnM.spawnNPC(
+                    px,
+                    py,
+                    0,
+                    radius*1.5,
+                    radius*1.5,
+                    radius*1.5,
+                    "brightSummoner",
+                    0,
+                    0,
+                    0,
+                    [semiWait]
+                );
+
+            };
+
             switch (this.BossState){
                 case 0:
                     this.setPos(this.px,this.py);
@@ -4611,11 +4746,51 @@ export class Boss extends Enemy {
                     break;
                 case 1:
                     if (this.waitFrame(60)){
+                        
                         shotBeam(
                             randFloat(player.px-TILESIZE*2,player.px+TILESIZE*2),
                             randFloat(player.py-TILESIZE*2,player.py+TILESIZE*2),
                             TILESIZE*1.5
                         );
+                        
+                        //summonBrightTower(player.px+TILESIZE*2,player.py,TILESIZE);
+                        /*
+                        summonBrightTower(
+                            randFloat(player.px-TILESIZE*2,player.px+TILESIZE*2),
+                            randFloat(player.py-TILESIZE*2,player.py+TILESIZE*2),
+                            TILESIZE
+                        );
+                        */
+                        this.BossMemory.i++;
+                        if (this.BossMemory.i >= 15){
+                            this.BossMemory.i = 0;
+                            this.BossState = 2;
+                        }
+                        //console.log("spawn");
+                    }
+                    break;
+                case 2:
+                    if (this.waitFrame(60)){
+                        /*
+                        shotBeam(
+                            randFloat(player.px-TILESIZE*2,player.px+TILESIZE*2),
+                            randFloat(player.py-TILESIZE*2,player.py+TILESIZE*2),
+                            TILESIZE*1.5
+                        );
+                        */
+                        //summonBrightTower(player.px+TILESIZE*2,player.py,TILESIZE);
+                        
+                        summonBrightTower(
+                            randFloat(player.px-TILESIZE*2,player.px+TILESIZE*2),
+                            randFloat(player.py-TILESIZE*2,player.py+TILESIZE*2),
+                            TILESIZE
+                        );
+                        
+                        this.BossMemory.i++;
+                        if (this.BossMemory.i >= 15){
+                            this.BossMemory.i = 0;
+                            this.BossState = 1;
+                        }
                         //console.log("spawn");
                     }
                     break;
