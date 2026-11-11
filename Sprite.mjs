@@ -1185,10 +1185,6 @@ export class Enemy extends sprite {
         
         this.active = true;
         
-        this.defaultSX = sx;
-        this.defaultSY = sy;
-        this.defaultSZ = sz;
-
         this.px = px;
         this.py = py;
         this.pz = pz;
@@ -2089,6 +2085,11 @@ export class Enemy extends sprite {
             //光の塔
             case "brightTower":
                 if (this.memory.length < 1){
+                    
+                    this.defaultSX = sx;
+                    this.defaultSY = sy;
+                    this.defaultSZ = sz;
+                    
                     this.memory.push(this.defaultSX*0.4);
                     this.memory.push(this.memory[0]);
                     this.memory.push(1);
@@ -2151,6 +2152,11 @@ export class Enemy extends sprite {
             //光の塔召喚くん
             case "brightSummoner":
                 if (this.memory.length < 3){
+                    
+                    this.defaultSX = sx;
+                    this.defaultSY = sy;
+                    this.defaultSZ = sz;
+                    
                     this.memory.unshift(30);
                     this.memory.unshift(this.memory[0]);
                 }
