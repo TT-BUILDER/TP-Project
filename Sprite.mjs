@@ -1,4 +1,4 @@
-import { EfM, fpsdelta, fpsFrameCount, randInt, TextSize, toFadeStage, VisualDeltaVector } from "./EngineMain.mjs";
+import { actionStop, EfM, fpsdelta, fpsFrameCount, GLOBAL_PASSED_FRAME_COUNTER, randInt, TextSize, toFadeStage, VisualDeltaVector } from "./EngineMain.mjs";
 import { randFloat } from "./EngineMain.mjs";
 import { radians } from "./EngineMain.mjs";
 import { degrees } from "./EngineMain.mjs";
@@ -637,12 +637,14 @@ export class sprite {
      */
     RenderMyself(CamX,CamY,style,ShowHP = false,ShowShadow = true,showImg = true,imgStX = this.myImg.trimStX,imgStY = this.myImg.trimStY,imgSX = this.myImg.trimSizeX, imgSY = this.myImg.trimSizeY){
         
-        this.invincibleTime--;
-        if (this.invincibleTime <= 0){
-            this.invincible = false;
-            this.invincibleTime = 0;
+        if (!actionStop && !isPause){
+            this.invincibleTime--;
+            if (this.invincibleTime <= 0){
+                this.invincible = false;
+                this.invincibleTime = 0;
+            }
         }
-    
+
         const RenSprX = this.px + CamX + this.visualPX;
         const RenSprY = this.py + CamY + this.pz + this.visualPY;
         
@@ -707,10 +709,19 @@ export class sprite {
                 //this.myImg.roll++;
 
                 //謎
+                /*
                 NowCTX.fillStyle = "cyan";
                 NowCTX.fillRect(
                     (RenSprX-(this.sx/2)),
                     (RenSprY-this.sz+(this.sy/2)),
+                    this.sx,
+                    this.sz
+                );
+                */
+                this.myImg.fillRect(
+                    "rgb(0,255,255,25%)",
+                    RenSprX,
+                    RenSprY-(this.sz/2)+(this.sy/2),
                     this.sx,
                     this.sz
                 );
@@ -1184,7 +1195,7 @@ export class Enemy extends sprite {
     activate(px,py,pz,sx,sy,sz,type,vx = 0,vy = 0,vz = 0,Memory = [],MHP = 1,HP = MHP,MST = 1,ST = MST,SPD = 4){
         
         this.active = true;
-        
+
         this.px = px;
         this.py = py;
         this.pz = pz;
@@ -1218,6 +1229,14 @@ export class Enemy extends sprite {
         this.showflag = true;
         this.direction = 0;
         this.myImg = new imgData(img.imgList["null"]);
+
+        this.setAlpha(1);
+        this.clearAnimState();
+        this.clearAnimTick();
+        this.waitFrameReset();
+        this.visualPX = 0;
+        this.visualPY = 0;
+
         //console.log([this.vx,this.vy]);
 
     }
@@ -1240,6 +1259,8 @@ export class Enemy extends sprite {
      * @returns {Boolean} 設定したフレームが経過したかどうか
      */
     waitFrame(Frame = 0){
+        //ウェイトをかける意味よ
+        if (Frame == 0) return 1;
         //もしフレームのリセットをかけていなかったらリセットする。
         if (this.waitFinished) this.waitFrameReset();
         if (this.waitFrameC <= Frame) {
@@ -1976,9 +1997,9 @@ export class Enemy extends sprite {
                         }
                     );
 
-                    if (plaHit && (this.pz - this.sz/2 <= player.pz && player.pz - player.sz/2 < this.pz)){
+                    if ( player.animationState != "damaging" && plaHit && (this.pz - this.sz/2 <= player.pz && player.pz - player.sz/2 < this.pz)){
                         
-                        player.damage(0.1,player.px,player.py,true,false)
+                        player.damage(0.0625,player.px,player.py,true,false)
 
                         console.log("player hit!");
 
@@ -2085,12 +2106,12 @@ export class Enemy extends sprite {
             //光の塔
             case "brightTower":
                 if (this.memory.length < 1){
-                    
+        
                     this.defaultSX = this.sx;
                     this.defaultSY = this.sy;
                     this.defaultSZ = this.sz;
-                    
-                    this.memory.push(this.defaultSX*0.4);
+
+                    this.memory.push(this.defaultSX*0.75);
                     this.memory.push(this.memory[0]);
                     this.memory.push(1);
                 }
@@ -2107,7 +2128,7 @@ export class Enemy extends sprite {
                     this.setSize(
                         this.defaultSX - (this.defaultSX*SIN(90*timeDiv)),
                         this.defaultSY - (this.defaultSY*SIN(90*timeDiv)),
-                        this.defaultSZ + (this.defaultSZ*10*SIN(90*timeDiv))
+                        this.defaultSZ + (this.defaultSZ*15*SIN(90*timeDiv))
                     );
 
                     if (this.memory[2] >= 1) {
@@ -2140,7 +2161,7 @@ export class Enemy extends sprite {
                         }
                     );
 
-                    if (plaHit && (this.memory[1] >= this.memory[0]/3) && (this.pz - this.sz/2 <= player.pz && player.pz - player.sz/2 < this.pz)){
+                    if ( player.animationState != "damaging" && plaHit && (this.memory[1] >= this.memory[0]/3) && (this.pz - this.sz/2 <= player.pz && player.pz - player.sz/2 < this.pz)){
                         
                         player.damage(0.1,player.px,player.py,true,false)
 
@@ -2152,16 +2173,15 @@ export class Enemy extends sprite {
             //光の塔召喚くん
             case "brightSummoner":
                 if (this.memory.length < 3){
+
+                    this.defaultSX = this.sx;
+                    this.defaultSY = this.sy;
+                    this.defaultSZ = this.sz;
                     
                     this.memory.unshift(30);
                     this.memory.unshift(this.memory[0]);
                 }
                 if (!this.initalized){
-                    
-                    this.defaultSX = this.sx;
-                    this.defaultSY = this.sy;
-                    this.defaultSZ = this.sz;
-                    
                     this.setSize(0,0,0);
                     //手動プロパティ書き換え
                     //（本来はthis.EnMoveメソッドを使う）
@@ -2178,7 +2198,7 @@ export class Enemy extends sprite {
 
                     this.memory[1]--;
                     if (this.memory[1] <= 0){
-                        if(this.memory[2] || this.waitFrame(this.memory[0]/2)) {
+                        if(this.waitFrame(this.memory[2])) {
                             this.Unactivate();
                             EnM.spawnNPC(
                                 this.px,
@@ -2196,8 +2216,81 @@ export class Enemy extends sprite {
 
                 }
                 break;
-            //
+            //バ～リアッ！
+            case "boss_final_barrier":
+                if (this.memory.length < 1){
+                    console.error("Enemy : boss_final_barrier : this.memory was invaild");
+                    this.Unactivate();
+                }
+                if (!this.initalized){
+                    //点滅の位相 [1]
+                    this.memory.push(0);
+                    //耐える回数 [2]
+                    this.memory.push(2);
+                    //dist from player [3]
+                    this.memory.push(0);
+                    //ダメージ点滅 [4]
+                    this.memory.push(0);
+                }
 
+                this.memory[3] = Math.hypot(
+                    ((plaAttackAABB.px)-(this.px)),
+                    ((plaAttackAABB.py)-(this.py)),
+                    ((plaAttackAABB.pz)-(this.pz)),
+                );
+                
+                this.setPos(
+                    this.memory[0].px,
+                    this.memory[0].py+2,
+                    this.memory[0].pz
+                );
+
+                if (this.memory[4] <= 0 && this.memory[3] < (this.sx+Math.min(plaAttackAABB.sx,plaAttackAABB.sy))/2 ) {
+                    this.memory[2]--;
+                    this.memory[4] = 13;
+
+                    const [vx,vy] = vectorNormalizer(player.px-this.px,player.py-this.py);
+                    player.setVectorNoLimit(vx*TILESIZE/12,vy*TILESIZE/12,-6);
+                    if (player.pz >= 0) player.setPos(player.px,player.py,-1);
+                    player.ZVLOCK = true;
+                }
+
+                if (this.hitCheck(
+                    player.px,
+                    player.py,
+                    player.pz,
+                    player.sx,
+                    player.sy,
+                    player.sz
+                )){
+                    const [vx,vy] = vectorNormalizer(player.px-this.px,player.py-this.py);
+                    player.setVectorNoLimit(vx*TILESIZE/8,vy*TILESIZE/8,-6);
+                    player.setPos(player.px,player.py,-1);
+                    player.ZVLOCK = true;
+                }
+                
+                if (Math.round(this.memory[4])%2 == 0){
+                    this.setAlpha(0.25 + 0.5*(SIN(this.memory[1])**2));
+                } else {
+                    this.setAlpha(0);
+                }
+
+                //0より大きい値なら1減らす
+                this.memory[4] = this.memory[4] - (this.memory[4]>0)*0.5;
+
+                //console.log(this.memory[4]);
+
+                //加算と縛り
+                this.memory[1] = ( this.memory[1] + 4 )%180;
+                
+                if (this.memory[2] <= 0){
+                    this.memory[0].active = false;
+                    this.Unactivate();
+                }
+
+                break;
+            //
+            
             default:
                 this.Unactivate();
                 console.error(`Error : Undefined Enemy's property "type": "${this.type}"`)
@@ -2767,6 +2860,17 @@ export class Boss extends Enemy {
      * @param {Number} DY 下方向
      */
     vibrate(UY,DY = UY){
+        
+        //ブリモーション
+        if (fpsFrameCount%2 == 0){
+            this.fallOK = false;
+            if (this.visualPY > 0){
+                this.visualPY = UY*VisualDeltaVector;
+            } else {
+                this.visualPY = DY*VisualDeltaVector;
+            }
+        }
+        /*
         //ブリモーション
         if (fpsFrameCount%2 == 0){
             this.fallOK = false;
@@ -2776,6 +2880,7 @@ export class Boss extends Enemy {
                 this.pz = DY*VisualDeltaVector;
             }
         }
+        */
     }
 
     //非同期振動処理
@@ -2867,9 +2972,14 @@ export class Boss extends Enemy {
      * @param {Number} TILESIZE 1タイル当たりのピクセル数
      */
     BossAction(ColMap,TILESIZE){
+
+        this.visualPX = 0;
+        this.visualPY = 0;
+
         this.giveDamage = true;
         let moveOK = true;
         this.fallOK = false;
+        let noDamageMotion = false;
 
         //死ぬときはthis.alliveをfalseにすると勝手に処理してくれるよ
 
@@ -4698,21 +4808,17 @@ export class Boss extends Enemy {
             }
 
         } else if (this.type == "final"){
-            this.nonDamage = true;
+            this.nonDamage = false;
 
-            /**
-             * biim発射
-             * @param {Number} px 座標X
-             * @param {Number} py 座標Y
-             * @param {Number} thickness 太さ
-             * @param {Number} rotation 角度（度数法）
-             */
-            const shotBeam = (px,py,thickness,rotation = Math.floor((ATAN2(player.px-px,player.py-py)+360)%360),pz = this.pz) => {
+            let nowHeight = -4*TILESIZE;
+
+            //ビーム発射！
+            const shotBeam = (px,py,thickness,rotation = Math.floor((ATAN2(player.px-px,player.py-py)+360)%360),) => {
 
                 EnM.spawnNPC(
                     this.px,
                     this.py,
-                    pz,
+                    this.pz,
                     thickness,
                     thickness,
                     thickness,
@@ -4726,8 +4832,8 @@ export class Boss extends Enemy {
                 //console.log(rotation);
 
             };
-
-            const summonBrightTower = (px,py,radius,semiWait = false) => {
+            //光の塔召喚！
+            const summonBrightTower = (px,py,radius,semiWait = 30) => {
                 
                 EnM.spawnNPC(
                     px,
@@ -4744,67 +4850,211 @@ export class Boss extends Enemy {
                 );
 
             };
+            //十字型にビーム発射！
+            const shotBeamCross = (px,py,radius,thickness,rotation) => {
+                
+                for (let i = 0; i<4; i++) {
+
+                    const [avx,avy] = vectorRotation([radius,0],(rotation+i*90)%360);
+
+                    const rot = Math.floor((ATAN2(player.px-(px+avx),player.py-(py+avy))+360)%360);
+
+                    EnM.spawnNPC(
+                        this.px,
+                        this.py,
+                        this.pz,
+                        thickness,
+                        thickness,
+                        thickness,
+                        "beamHead",
+                        0,
+                        0,
+                        0,
+                        [rot,px+avx,py+avy,0]
+                    );
+                    
+                }
+            };
+            const summonBrightTowerCircle = (px,py,radius,circleRadius,semiWait = 30) => {
+
+                /**
+                 * 半径rの円O上に隙間なく半径r0の円Rを並べる際の個数とかを調べてくれるヨ
+                 * @param {Number} r 全体円O
+                 * @param {Number} r0 小さい円R
+                 * @returns {Object} { exactCount : 理論値 , maxCount : 可能な数 , adjustR0 : 隙間をなくす場合の半径r0}
+                 */
+                function getCircleArrangement(r, r0) {
+                    
+                    if (r0 <= 0 || r <= 0 || r0 > r) {
+                        return { maxCount: 0, exactCount: 0, adjustedR0: 0 };
+                    }
+
+                    //理論上の個数
+                    const exactCount = Math.PI / Math.asin(r0 / r);
+
+                    //浮動小数点誤差対策として微小な値を足す
+                    const maxCount = Math.floor(exactCount + 1e-10);
+
+                    //maxCount個並べる場合に逆算した理想の半径 r0
+                    const adjustedR0 = r * Math.sin(Math.PI / maxCount);
+
+                    return {
+                        exactCount, // 計算上の個数
+                        maxCount,   // 配置可能な最大整数個
+                        adjustedR0  // 隙間をなくす場合の円Rの半径
+                    };
+                }
+
+                const res = getCircleArrangement(circleRadius,radius);
+
+                for (let i = 0; i<res.maxCount; i++){
+                    
+                    const [avx,avy] = vectorRotation([circleRadius,0],i*(360/res.maxCount));
+                    
+                    summonBrightTower(
+                        px+avx,
+                        py+avy,
+                        res.adjustedR0,//radius,
+                        semiWait
+                    );
+                }
+
+            };
+            //バリア展開！
+            const summonbarrier = () => {
+
+                this.BossMemory.sharedValue = {};
+                this.BossMemory.sharedValue.px = this.px;
+                this.BossMemory.sharedValue.py = this.py;
+                this.BossMemory.sharedValue.pz = this.pz;
+                this.BossMemory.sharedValue.active = true;
+
+                const maxSize = Math.max(this.sx,this.sy,this.sz)*1.2
+
+                const eIDX = EnM.spawnNPC(
+                    this.px,
+                    this.py,
+                    this.pz,
+                    maxSize,
+                    maxSize,
+                    maxSize,
+                    "boss_final_barrier",
+                    0,
+                    0,
+                    0,
+                    [this.BossMemory.sharedValue],
+                    15
+                );
+
+                this.BossMemory.barrier = {
+                    idx:eIDX,
+                    obj:EnM.spriteList[eIDX]
+                };
+
+            };
+
+            let vertWaving = true;
+            let vertWavingPxMult = 0.5;
+            let vertWavingSpMult = 1.5;
+            let horiWaving = true;
+            let horiWavingPxMult = 0.5;
+            let horiWavingSpMult = 2;
+
+            const sinWaveVal = (sp,mul) => mul*SIN(sp*Number(GLOBAL_PASSED_FRAME_COUNTER)%360);
+            const cosWaveVal = (sp,mul) => mul*COS(sp*Number(GLOBAL_PASSED_FRAME_COUNTER)%360);
 
             switch (this.BossState){
+
                 case 0:
                     this.setPos(this.px,this.py);
                     this.BossInit();
-                    this.BossState++;
+                    this.BossMemory.i = 0;
+                    summonbarrier();
+                    this.BossState = 1;
                     break;
+                //単純なビーム
                 case 1:
-                    if (this.waitFrame(60)){
+                    if (this.waitFrame(150)){
                         
                         shotBeam(
                             randFloat(player.px-TILESIZE*2,player.px+TILESIZE*2),
                             randFloat(player.py-TILESIZE*2,player.py+TILESIZE*2),
-                            TILESIZE*1.5
+                            TILESIZE*2
                         );
                         
-                        //summonBrightTower(player.px+TILESIZE*2,player.py,TILESIZE);
-                        /*
-                        summonBrightTower(
-                            randFloat(player.px-TILESIZE*2,player.px+TILESIZE*2),
-                            randFloat(player.py-TILESIZE*2,player.py+TILESIZE*2),
-                            TILESIZE
-                        );
-                        */
-                        /*
                         this.BossMemory.i++;
-                        if (this.BossMemory.i >= 15){
+                        if(this.BossMemory.i >= 6){
                             this.BossMemory.i = 0;
                             this.BossState = 2;
                         }
-                        */
-                        this.BossState = 2;
-                        //console.log("spawn");
                     }
                     break;
+                //ブリモーション
                 case 2:
-                    if (this.waitFrame(60)){
-                        /*
-                        shotBeam(
-                            randFloat(player.px-TILESIZE*2,player.px+TILESIZE*2),
-                            randFloat(player.py-TILESIZE*2,player.py+TILESIZE*2),
-                            TILESIZE*1.5
+
+                    nowHeight = TILESIZE/-2;
+
+                    if (this.waitFrame(120)){
+                        this.BossState = 3;
+                    } else {
+                        this.vibrate(-2,2);
+                    }
+                    break;
+                //十字ビーム
+                case 3:
+
+                    nowHeight = -1*TILESIZE;
+
+                    if (this.waitFrame(90)){
+                        shotBeamCross(
+                            player.px,
+                            player.py,
+                            TILESIZE*2.5,
+                            TILESIZE,
+                            randInt(0,89)
                         );
-                        */
-                        //summonBrightTower(player.px+TILESIZE*2,player.py,TILESIZE);
                         
-                        summonBrightTower(
-                            randFloat(player.px-TILESIZE*2,player.px+TILESIZE*2),
-                            randFloat(player.py-TILESIZE*2,player.py+TILESIZE*2),
-                            TILESIZE
-                        );
-                        /*
                         this.BossMemory.i++;
-                        if (this.BossMemory.i >= 15){
+                        if(this.BossMemory.i >= 5){
+                            this.BossMemory.i = 0;
+                            this.BossState = 2 + 2*Math.round(Math.random());
+                        }
+
+                    }
+                    break;
+                //円状に光の塔
+                case 4:
+
+                    nowHeight = TILESIZE*-3;
+
+                    if (this.waitFrame(150)){
+                        
+                        summonBrightTowerCircle(
+                            player.px,
+                            player.py,
+                            TILESIZE/4*3,
+                            TILESIZE*3
+                        );
+                        
+                        this.BossMemory.i++;
+                        if(this.BossMemory.i >= 6){
                             this.BossMemory.i = 0;
                             this.BossState = 1;
                         }
-                        */
-                        this.BossState = 1;
-                        //console.log("spawn");
                     }
+                    break;
+
+                case 5:
+                    break;
+                case "damage":
+
+                    summonbarrier();
+
+                    this.BossState = this.lastBossState;
+
+                    break;
+                case "died":
+
                     break;
                 default:
                     console.error(`Error BossSate is : ${this.BossState} Unkown State `);
@@ -4814,6 +5064,26 @@ export class Boss extends Enemy {
                     this.setVector(0,0,0);
                     break;
             }
+
+            //console.log(fadeIn(this.pz,nowHeight,12));
+
+            this.setPos(
+                this.px+cosWaveVal(vertWavingSpMult,vertWavingPxMult*VisualDeltaVector),
+                this.py+sinWaveVal(horiWavingSpMult,horiWavingPxMult*VisualDeltaVector),
+                this.pz+fadeIn(this.pz,nowHeight,12)+cosWaveVal(2,1*VisualDeltaVector)
+            );
+
+            //if (this.pz > TILESIZE/16) this.pz = 0;
+            
+
+            this.BossMemory.sharedValue.px = this.px;
+            this.BossMemory.sharedValue.py = this.py;
+            this.BossMemory.sharedValue.pz = this.pz;
+
+            if (this.BossMemory.sharedValue.active){
+                noDamageMotion = true;
+            }
+
         }
         //console.log(this.BossState);
 
@@ -4823,43 +5093,46 @@ export class Boss extends Enemy {
             this.EnMove(ColMap,TILESIZE,this.fallOK);
         }
 
-        
-        let hitFlag = this.hitCheck(
-            plaAttackAABB.px,
-            plaAttackAABB.py,
-            plaAttackAABB.pz,
-            plaAttackAABB.sx,
-            plaAttackAABB.sy,
-            plaAttackAABB.sz
-        );
+        let hitFlag = false;
 
-        //斬撃に当たったか
-        if (hitFlag == 1 ) {
-            if (!this.nonDamage && !this.invincible){
-                /*
-                this.lastBossState = this.BossState;
-                this.damage(nowStatus.AP,0,0,false,false);
-                this.BossState = "damage";
-                this.myAudioHandlers.damage = SEM.play(
-                    "boss_damaged",{
-                    volume : SEvolume/100,
-                    pan : 0.0,
-                    loop : false
-                });
-                */
-                this.takehurt(nowStatus.AP,0,0,false,false);
-                //this.sendVibrateRequest(30,-3,3);
-            } else {
-                this.myAudioHandlers.damage = SEM.play(
-                    "pla_noDamaged",{
-                    volume : SEvolume/100,
-                    pan : 0.0,
-                    loop : false
-                });
-                this.sendVibrateRequest(30,-1,1);
+        if (!noDamageMotion){
+            
+            hitFlag = this.hitCheck(
+                plaAttackAABB.px,
+                plaAttackAABB.py,
+                plaAttackAABB.pz,
+                plaAttackAABB.sx,
+                plaAttackAABB.sy,
+                plaAttackAABB.sz
+            );
+
+            //斬撃に当たったか
+            if (hitFlag == 1 ) {
+                if (!this.nonDamage && !this.invincible){
+                    /*
+                    this.lastBossState = this.BossState;
+                    this.damage(nowStatus.AP,0,0,false,false);
+                    this.BossState = "damage";
+                    this.myAudioHandlers.damage = SEM.play(
+                        "boss_damaged",{
+                        volume : SEvolume/100,
+                        pan : 0.0,
+                        loop : false
+                    });
+                    */
+                    this.takehurt(nowStatus.AP,0,0,false,false);
+                    //this.sendVibrateRequest(30,-3,3);
+                } else {
+                    this.myAudioHandlers.damage = SEM.play(
+                        "pla_noDamaged",{
+                        volume : SEvolume/100,
+                        pan : 0.0,
+                        loop : false
+                    });
+                    this.sendVibrateRequest(30,-1,1);
+                }
             }
         }
-
         hitFlag = this.hitCheck(
             player.px,
             player.py,

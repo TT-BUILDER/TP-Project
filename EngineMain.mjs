@@ -61,6 +61,8 @@ let lastFrameTime = 0;
 export let fpsFrameCount = 0;
 let fpsElapsed = 0;
 let fpsSampleStart = 0;
+//あまりにも過剰な性能
+export let GLOBAL_PASSED_FRAME_COUNTER = 0n;
 
 
 export const DebugMode = true;
@@ -1526,6 +1528,8 @@ async function main(timestamp = performance.now()){
 
     setShowingHowToPlay();
 
+    GLOBAL_PASSED_FRAME_COUNTER++;
+
     if (playerKey.pulsekeyPause && !toFadeStage){
         isPause = !isPause;
     }
@@ -2554,6 +2558,7 @@ function RenderStage() {
  * @param {Number} a 変更前の値
  * @param {Number} b 変更したい値
  * @param {Number} speed 変化率（分母の値）
+ * @return {Number} 変化度合い
  */
 export function fadeIn(a,b,speed){
     if (Math.round(b-a) == 0){
@@ -3095,6 +3100,7 @@ function plyayerAction(){
 
         } else if (player.animationState == "damaging") /*Damaging*/ {
 
+            
             
             seHandler_pla_damaged = SEM.play("pla_damaged" , {
                 volume : SEvolume/100,
