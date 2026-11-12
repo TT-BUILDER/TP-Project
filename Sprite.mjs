@@ -5003,7 +5003,7 @@ export class Boss extends Enemy {
                 //十字ビーム
                 case 3:
 
-                    nowHeight = -1*TILESIZE;
+                    nowHeight = TILESIZE/-2;
 
                     if (this.waitFrame(90)){
                         shotBeamCross(
