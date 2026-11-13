@@ -1087,9 +1087,10 @@ export const plaAttackAABB = new sprite(player.px,player.py,0,0,0,"PlaAtAABB");
 Promise.all([
 
     setShowingHowToPlay(),
+    console.log("initalizing start!"),
 
     //むちゃくそ強引な実行（カッコをつけて無理やり関数化して一命令とする）
-    
+
     (async () => {
         try {
 
@@ -1145,52 +1146,53 @@ Promise.all([
             ]);
             */
 
-            Promise.all([
+            await Promise.all([
                 //デバッグステージのデータ読み込み（「Debug」として追加）
                 //マップデータはJSONファイルから先に読む（TileRenderクラスのnewLoadMapメソッドがJSONファイルを利用するため）
                 MapJSONs["Map_1"] = await fetchJSON("./assets/maps/Map1.json"),
-                mapDescriptionList["Map_1"] = await MapJSONs["Map_1"].Description,
-                Maps["Map_1"] = await TR.newLoadMap(MapJSONs["Map_1"],"./assets/maps/Map1.txt"),
-                MapCollisions["Map_1"] = await TR.newLoadMap(MapJSONs["Map_1"],"./assets/maps/Map1_C.txt"),
-                
                 MapJSONs["Map_2"] = await fetchJSON("./assets/maps/Map2.json"),
-                mapDescriptionList["Map_2"] = await MapJSONs["Map_2"].Description,
-                Maps["Map_2"] = await TR.newLoadMap(MapJSONs["Map_2"],"./assets/maps/Map2.txt"),
-                MapCollisions["Map_2"] = await TR.newLoadMap(MapJSONs["Map_2"],"./assets/maps/Map2_C.txt"),
-
                 MapJSONs["Map_3"] = await fetchJSON("./assets/maps/Map3.json"),
-                mapDescriptionList["Map_3"] = await MapJSONs["Map_3"].Description,
-                Maps["Map_3"] = await TR.newLoadMap(MapJSONs["Map_3"],"./assets/maps/Map3.txt"),
-                MapCollisions["Map_3"] = await TR.newLoadMap(MapJSONs["Map_3"],"./assets/maps/Map3_C.txt"),
-                
                 MapJSONs["Map_4"] = await fetchJSON("./assets/maps/Map4.json"),
-                mapDescriptionList["Map_4"] = await MapJSONs["Map_4"].Description,
-                Maps["Map_4"] = await TR.newLoadMap(MapJSONs["Map_4"],"./assets/maps/Map4.txt"),
-                MapCollisions["Map_4"] = await TR.newLoadMap(MapJSONs["Map_4"],"./assets/maps/Map4_C.txt"),
-                
                 MapJSONs["final"] = await fetchJSON("./assets/maps/Map6.json"),
-                mapDescriptionList["final"] = await MapJSONs["final"].Description,
-                Maps["final"] = await TR.newLoadMap(MapJSONs["final"],"./assets/maps/Map6.txt"),
-                MapCollisions["final"] = await TR.newLoadMap(MapJSONs["final"],"./assets/maps/Map6_C.txt"),
-                
                 MapJSONs["GrandFloor"] = await fetchJSON("./assets/maps/Map5.json"),
-                Maps["GrandFloor"] = await TR.newLoadMap(MapJSONs["GrandFloor"],"./assets/maps/Map5.txt"),
-                MapCollisions["GrandFloor"] = await TR.newLoadMap(MapJSONs["GrandFloor"],"./assets/maps/Map5_C.txt"),
-                
                 MapJSONs["water_debug"] = await fetchJSON("./assets/maps/Map7.json"),
-                mapDescriptionList["water_debug"] = await MapJSONs["water_debug"].Description,
-                Maps["water_debug"] = await TR.newLoadMap(MapJSONs["water_debug"],"./assets/maps/Map7.txt"),
-                MapCollisions["water_debug"] = await TR.newLoadMap(MapJSONs["water_debug"],"./assets/maps/Map7_C.txt"),
+                MapJSONs["Debug"] = await fetchJSON("./assets/maps/Debug1.json"),
+                MapJSONs["Debug2"] = await fetchJSON("./assets/maps/Debug2.json"),
+                
+                mapDescriptionList["Map_1"] = MapJSONs["Map_1"].Description,
+                TR.newLoadMap(MapJSONs["Map_1"],"./assets/maps/Map1.txt").then(res => Maps["Map_1"] = res),
+                TR.newLoadMap(MapJSONs["Map_1"],"./assets/maps/Map1_C.txt").then(res => MapCollisions["Map_1"] = res),
+                
+                mapDescriptionList["Map_2"] = MapJSONs["Map_2"].Description,
+                TR.newLoadMap(MapJSONs["Map_2"],"./assets/maps/Map2.txt").then(res => Maps["Map_2"] = res),
+                TR.newLoadMap(MapJSONs["Map_2"],"./assets/maps/Map2_C.txt").then(res => MapCollisions["Map_2"] = res),
+
+                mapDescriptionList["Map_3"] = MapJSONs["Map_3"].Description,
+                TR.newLoadMap(MapJSONs["Map_3"],"./assets/maps/Map3.txt").then(res => Maps["Map_3"] = res),
+                TR.newLoadMap(MapJSONs["Map_3"],"./assets/maps/Map3_C.txt").then(res => MapCollisions["Map_3"] = res),
+                
+                mapDescriptionList["Map_4"] = MapJSONs["Map_4"].Description,
+                TR.newLoadMap(MapJSONs["Map_4"],"./assets/maps/Map4.txt").then(res => Maps["Map_4"] = res),
+                TR.newLoadMap(MapJSONs["Map_4"],"./assets/maps/Map4_C.txt").then(res => MapCollisions["Map_4"] = res),
+                
+                mapDescriptionList["final"] = MapJSONs["final"].Description,
+                TR.newLoadMap(MapJSONs["final"],"./assets/maps/Map6.txt").then(res => Maps["final"] = res),
+                TR.newLoadMap(MapJSONs["final"],"./assets/maps/Map6_C.txt").then(res => MapCollisions["final"] = res),
+                
+                TR.newLoadMap(MapJSONs["GrandFloor"],"./assets/maps/Map5.txt").then(res => Maps["GrandFloor"] = res),
+                TR.newLoadMap(MapJSONs["GrandFloor"],"./assets/maps/Map5_C.txt").then(res => MapCollisions["GrandFloor"] = res),
+                
+                mapDescriptionList["water_debug"] = MapJSONs["water_debug"].Description,
+                TR.newLoadMap(MapJSONs["water_debug"],"./assets/maps/Map7.txt").then(res => Maps["water_debug"] = res),
+                TR.newLoadMap(MapJSONs["water_debug"],"./assets/maps/Map7_C.txt").then(res => MapCollisions["water_debug"] = res),
                 
                 //water_debug
 
-                MapJSONs["Debug"] = await fetchJSON("./assets/maps/Debug1.json"),
-                Maps["Debug"] = TR.newLoadMap(MapJSONs["Debug"],"./assets/maps/Debug1.txt"),
-                MapCollisions["Debug"] = TR.newLoadMap(MapJSONs["Debug"],"./assets/maps/Debug1_C.txt"),
+                TR.newLoadMap(MapJSONs["Debug"],"./assets/maps/Debug1.txt").then(res => Maps["Debug"] = res),
+                TR.newLoadMap(MapJSONs["Debug"],"./assets/maps/Debug1_C.txt").then(res => MapCollisions["Debug"] = res),
                 
-                MapJSONs["Debug2"] = await fetchJSON("./assets/maps/Debug2.json"),
-                Maps["Debug2"] = TR.newLoadMap(MapJSONs["Debug2"],"./assets/maps/Debug2.txt"),
-                MapCollisions["Debug2"] = TR.newLoadMap(MapJSONs["Debug2"],"./assets/maps/Debug2_C.txt"),
+                TR.newLoadMap(MapJSONs["Debug2"],"./assets/maps/Debug2.txt").then(res => Maps["Debug2"] = res),
+                TR.newLoadMap(MapJSONs["Debug2"],"./assets/maps/Debug2_C.txt").then(res => MapCollisions["Debug2"] = res),
                 
             ]);
 
@@ -1218,7 +1220,8 @@ Promise.all([
                 img.AddImg("snowBoss_assets","./assets/imgs/Snow_Boss.png"),
                 
                 TexImg.AddImg("testTex","./assets/tiles/nullImage.png")
-            ]),
+            ]);
+            
             //タイルチップデータの読み込み
             TR.newLoadImg(img.imgList["MapTile_2"]);
 
@@ -1226,29 +1229,23 @@ Promise.all([
             ctx.fillRect(0,0,canvas.width,canvas.height);
             ctx.fillStyle = "rgb(0,0,0)";
             ctx.fillText("Now Loading... Please wait a moment.",0,0);
-            ctx.fillText("State : Loading music asstes",0,TextSize);
+            ctx.fillText("State : Loading music and SE asstes",0,TextSize);
             
             
-            Promise.all([
+            await Promise.all([
+
                 AuM.AddAudioFromInfo("Map1_Battle","./assets/sounds/BGM/map1_battle_info.json","./assets/sounds/BGM/"),
                 AuM.AddAudioFromInfo("Map2_Peace","./assets/sounds/BGM/map2_peace_info.json","./assets/sounds/BGM/"),
                 //AuM.AddAudioFromInfo("Map2_Battle","./assets/sounds/BGM/map2_battle_info.json","./assets/sounds/BGM/"),
-                AuM.AddAudioFromInfo("Map2_Battle","./assets/sounds/BGM/ReleaseV/map2_battle_info.json","./assets/sounds/BGM/ReleaseV/")
-            ]);
-
-            ctx.fillStyle = "rgb(255,255,255)";
-            ctx.fillRect(0,0,canvas.width,canvas.height);
-            ctx.fillStyle = "rgb(0,0,0)";
-            ctx.fillText("Now Loading... Please wait a moment.",0,0);
-            ctx.fillText("State : Loading SE or sound effect asstes",0,TextSize);
-
-            Promise.all([
+                AuM.AddAudioFromInfo("Map2_Battle","./assets/sounds/BGM/ReleaseV/map2_battle_info.json","./assets/sounds/BGM/ReleaseV/"),
+                
                 SEM.AddAudioFromInfo("pla_step" , "./assets/sounds/SE/pla_step_info.json" , "./assets/sounds/SE/"),
                 SEM.AddAudioFromInfo("pla_jump" , "./assets/sounds/SE/pla_jump_info.json" , "./assets/sounds/SE/"),
                 SEM.AddAudioFromInfo("pla_noDamaged" , "./assets/sounds/SE/pla_noDamaged_info.json" , "./assets/sounds/SE/"),
                 SEM.AddAudioFromInfo("pla_damaged" , "./assets/sounds/SE/pla_damaged_info.json" , "./assets/sounds/SE/"),
                 SEM.AddAudioFromInfo("boss_damaged" , "./assets/sounds/SE/boss_damaged_info.json" , "./assets/sounds/SE/"),
                 SEM.AddAudioFromInfo("pla_attack" , "./assets/sounds/SE/pla_attack_info.json" , "./assets/sounds/SE/")
+
             ]);
 
             ctx.fillStyle = "rgb(255,255,255)";
@@ -1317,13 +1314,13 @@ Promise.all([
             }, { passive: true });
 
             //スマホ用のイベントリスナー
+            
             canvas.addEventListener('pointerdown', (e) => {
             
                 // ポインタ情報を追加 (指のIDをキーにする)
                 activePointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
                 //showTestMassage("pointerdown");
             });
-
             canvas.addEventListener('pointermove', (e) => {
             
                 // 触れているポインタの位置を更新
@@ -1361,6 +1358,7 @@ Promise.all([
         } catch(error) {
             //例外を再スローしてPromise.allを失敗させる
             throw new Error(`error ${error}`);
+            
         }
     })()
 ])
