@@ -658,8 +658,8 @@ export class sprite {
             if (cx < 0) cx = 0; if (cy < 0) cy = 0;
             NowCTX.fillStyle = `rgb( 0 0 0 / ${Alpha}%)`;
             NowCTX.ellipse(
-                this.px+CamX,
-                this.py+CamY+this.sy/2,
+                this.px+CamX+this.visualPX,
+                this.py+CamY+this.visualPY+this.sy/2,
                 cx,
                 cy,
                 0,
@@ -708,7 +708,7 @@ export class sprite {
                 //↓有効化したら面白いヨ
                 //this.myImg.roll++;
 
-                //謎
+                //グラフィック範囲を描画
                 /*
                 NowCTX.fillStyle = "cyan";
                 NowCTX.fillRect(
@@ -718,6 +718,7 @@ export class sprite {
                     this.sz
                 );
                 */
+                
                 this.myImg.fillRect(
                     "rgb(0,255,255,25%)",
                     RenSprX,
@@ -725,6 +726,7 @@ export class sprite {
                     this.sx,
                     this.sz
                 );
+                
                 NowCTX.globalAlpha = RestoreAplha;
             }
         }
@@ -2231,6 +2233,11 @@ export class Enemy extends sprite {
                     this.memory.push(0);
                     //ダメージ点滅 [4]
                     this.memory.push(0);
+                    this.setSize(
+                        this.sx,
+                        this.sy,
+                        this.sz
+                    );
                 }
 
                 this.memory[3] = Math.hypot(
@@ -2244,6 +2251,7 @@ export class Enemy extends sprite {
                     this.memory[0].py+2,
                     this.memory[0].pz
                 );
+                this.visualPY = TILESIZE/-4;
 
                 if (this.memory[4] <= 0 && this.memory[3] < (this.sx+Math.min(plaAttackAABB.sx,plaAttackAABB.sy))/2 ) {
                     this.memory[2]--;
@@ -2270,7 +2278,7 @@ export class Enemy extends sprite {
                 }
                 
                 if (Math.round(this.memory[4])%2 == 0){
-                    this.setAlpha(0.25 + 0.5*(SIN(this.memory[1])**2));
+                    this.setAlpha(0.25 + 0.25*(SIN(this.memory[1])**2));
                 } else {
                     this.setAlpha(0);
                 }
@@ -2886,13 +2894,14 @@ export class Boss extends Enemy {
     //非同期振動処理
     doAsyncVibrateRequest(){
 
-        this.asyncVibRequest.forEach( (item,idx) => {
+        this.asyncVibRequest.forEach( (item) => {
             
             //item = {nf:nowFrame , tf:targetFrame , bool:isEnded , uy:VibScaleUp , dy:VibScaleDown};
 
             item.nf++;
             if (item.nf > item.tf){
                 item.bool = true;
+                item.func?.();
             } else {
                 this.vibrate(item.uy,item.dy);
             }
@@ -2902,8 +2911,13 @@ export class Boss extends Enemy {
         this.asyncVibRequest = this.asyncVibRequest.filter( (item) => item.bool == false);
 
     }
-    //非同期振動処理のリクエスト送信
-    sendVibrateRequest(frame,UY,DY = UY){
+    /**非同期振動処理のリクエスト送信
+     * @param {Number} frame 待機フレーム数
+     * @param {Number} UY 上方ゆれ
+     * @param {Number} DY 下方ゆれ
+     * @param {Function} callback コールバック（割り込み）
+     */
+    sendVibrateRequest(frame,UY,DY = UY,callback = null){
 
         this.asyncVibRequest.push(
             {
@@ -2911,7 +2925,8 @@ export class Boss extends Enemy {
                 nf : 0,
                 bool : false,
                 uy : UY,
-                dy : DY
+                dy : DY,
+                func:callback
             }
         );
 
@@ -4968,9 +4983,9 @@ export class Boss extends Enemy {
                 case 0:
                     this.setPos(this.px,this.py);
                     this.BossInit();
-                    this.BossMemory.i = 0;
+                    this.forList.i = 0;
                     summonbarrier();
-                    this.BossState = 1;
+                    this.BossState = 4;
                     break;
                 //単純なビーム
                 case 1:
@@ -4982,9 +4997,9 @@ export class Boss extends Enemy {
                             TILESIZE*2
                         );
                         
-                        this.BossMemory.i++;
-                        if(this.BossMemory.i >= 6){
-                            this.BossMemory.i = 0;
+                        this.forList.i++;
+                        if(this.forList.i >= 6){
+                            this.forList.i = 0;
                             this.BossState = 2;
                         }
                     }
@@ -5005,7 +5020,7 @@ export class Boss extends Enemy {
 
                     nowHeight = TILESIZE/-2;
 
-                    if (this.waitFrame(90)){
+                    if (this.waitFrame(120)){
                         shotBeamCross(
                             player.px,
                             player.py,
@@ -5014,10 +5029,10 @@ export class Boss extends Enemy {
                             randInt(0,89)
                         );
                         
-                        this.BossMemory.i++;
-                        if(this.BossMemory.i >= 5){
-                            this.BossMemory.i = 0;
-                            this.BossState = 2 + 2*Math.round(Math.random());
+                        this.forList.i++;
+                        if(this.forList.i >= 10){
+                            this.forList.i = 0;
+                            this.BossState = 2;// + 2*Math.round(Math.random());
                         }
 
                     }
@@ -5025,22 +5040,39 @@ export class Boss extends Enemy {
                 //円状に光の塔
                 case 4:
 
-                    nowHeight = TILESIZE*-3;
+                    if (this.forList.j == 0){
 
-                    if (this.waitFrame(150)){
+                        if (this.waitFrame(150)) this.forList.j = 1;
                         
-                        summonBrightTowerCircle(
-                            player.px,
-                            player.py,
-                            TILESIZE/4*3,
-                            TILESIZE*3
-                        );
                         
-                        this.BossMemory.i++;
-                        if(this.BossMemory.i >= 6){
-                            this.BossMemory.i = 0;
-                            this.BossState = 1;
+                    } else {
+                        
+                        if (this.waitFrame(45)){
+                            
+                            summonBrightTowerCircle(
+                                player.px,
+                                player.py,
+                                TILESIZE/4*3,
+                                TILESIZE*3
+                            );
+
+                            summonBrightTower(
+                                player.px,
+                                player.py,
+                                TILESIZE/4*3
+                            );
+                            
+                            this.forList.i++;
+                            if(this.forList.i >= 8){
+                                this.forList.i = 0;
+                                this.forList.j = 0;
+                                this.BossState = 1;
+                            }
+
+                        
+
                         }
+                        
                     }
                     break;
 
@@ -5048,10 +5080,23 @@ export class Boss extends Enemy {
                     break;
                 case "damage":
 
-                    summonbarrier();
+                    //summonbarrier();
 
-                    this.BossState = this.lastBossState;
+                    this.sendVibrateRequest(60,-4,4,summonbarrier);
 
+                    if (typeof(this.BossMemory.damageC) != "number"){
+                        this.BossMemory.damageC = 0;
+                    }
+                    this.BossMemory.damageC++;
+                    if (this.BossMemory.damageC < 3){
+                        this.BossState = this.lastBossState;
+                        this.BossMemory.damageC = 0;
+                    } else {
+                        this.forList.i = 0;
+                        this.forList.j = 0;
+                        this.BossState = 4;
+                    }
+                    
                     break;
                 case "died":
 
