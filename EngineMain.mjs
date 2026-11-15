@@ -79,7 +79,7 @@ export let SEvolume = 25;
 
 
 //入れるステージリスト
-export let enableGoStageList = [1,1,1,1,1];
+export let enableGoStageList = [1,1,1,0,1];
 
 const CRT_Effect = false;
 
@@ -1218,6 +1218,11 @@ Promise.all([
                 img.AddImg("NPC_fallRock_assets","./assets/imgs/fallRock.png"),
                 
                 img.AddImg("snowBoss_assets","./assets/imgs/Snow_Boss.png"),
+
+                img.AddImg("NPC_beamHead","./assets/imgs/beamHead.png"),
+                img.AddImg("NPC_beam","./assets/imgs/beam.png"),
+                img.AddImg("NPC_brightTowerHead","./assets/imgs/beamHead2.png"),
+                img.AddImg("NPC_brightTower","./assets/imgs/beam2.png"),
                 
                 TexImg.AddImg("testTex","./assets/tiles/nullImage.png")
             ]);
@@ -1474,7 +1479,7 @@ async function init (){
 
     // requestAnimationFrame による描画ループ
     requestAnimationFrame(loop);
-    console.log("Render Start");
+    console.log("Program Start");
     /*
     EnM.spawnNPC(player.px+TILESIZE*2,player.py,TILESIZE,TILESIZE,0xFF,
             Math.sign(Math.random()-0.5)*8*Math.random(),
@@ -1700,6 +1705,7 @@ function playerSelect(key){
     
     playerCameraSet();
     //player.nonDamage = true;
+    player.debugInvincible = true;
     //player.hp = 1;
     //player.setCollision(false);
     //renderCamera.setCameraEffect(1,4,2,0,0,2);
@@ -1795,10 +1801,10 @@ async function setStage(stageName){
         TR.newLoadImg(img.imgList["MapTile_2"]);
 
         const warpHolePoint = [
-            [160,256],
-            [320,192],
-            [672,192],
-            [832,256],
+            [768,192],
+            [576,192],
+            [384,192],
+            //[832,192],
         ];
 
         for (let i = 0; i<warpHolePoint.length; i++){
@@ -1818,8 +1824,8 @@ async function setStage(stageName){
         }
         //ラスボス専用（仮）のワープホール
         EfM.spawnNPC(
-                496*VisualDeltaVector,
-                176*VisualDeltaVector,
+                144*VisualDeltaVector,
+                240*VisualDeltaVector,
                 0,
                 TILESIZE*3,
                 TILESIZE*3,

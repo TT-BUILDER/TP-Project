@@ -108,12 +108,13 @@ export class TileRender {
 	 * @param {String} MapPass マップデータへのパス
 	 */
 	async loadMap(MapPass){
-		try {
 
+		try {
+			
 			const Text = await fetch(MapPass);
 			
 			if (!Text.ok) {
-				throw new Error(`An Error! : ${Text.status}`);
+				throw new Error(`${Text.status}`);
 			}
 
 			const MapText = await Text.text();
@@ -128,10 +129,12 @@ export class TileRender {
     		    .filter(item => item !== '') // 行末のカンマによる「空の要素」を除外
     		    .map(Number);        // 文字列から「数値（Number）」に変換
     			});
+			console.log(`success to load ${MapPass} !`);
+
 			return map2DArray;
 		} catch (error) {
 			console.error("An Error!",error);
-			return 0
+			return [[]];
 		}
 
 	}
