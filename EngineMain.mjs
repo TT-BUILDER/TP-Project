@@ -1239,8 +1239,8 @@ Promise.all([
             
             await Promise.all([
 
-                AuM.AddAudioFromInfo("Map1_Battle","./assets/sounds/BGM/map1_battle_info.json","./assets/sounds/BGM/"),
-                AuM.AddAudioFromInfo("Map2_Peace","./assets/sounds/BGM/map2_peace_info.json","./assets/sounds/BGM/"),
+                AuM.AddAudioFromInfo("Map1_Battle","./assets/sounds/BGM/ReleaseV/map1_battle_info.json","./assets/sounds/BGM/ReleaseV/"),
+                //AuM.AddAudioFromInfo("Map2_Peace","./assets/sounds/BGM/map2_peace_info.json","./assets/sounds/BGM/"),
                 //AuM.AddAudioFromInfo("Map2_Battle","./assets/sounds/BGM/map2_battle_info.json","./assets/sounds/BGM/"),
                 AuM.AddAudioFromInfo("Map2_Battle","./assets/sounds/BGM/ReleaseV/map2_battle_info.json","./assets/sounds/BGM/ReleaseV/"),
                 
