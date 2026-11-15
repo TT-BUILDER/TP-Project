@@ -1240,6 +1240,7 @@ export class Enemy extends sprite {
         this.showflag = true;
         this.direction = 0;
         this.myImg = new imgData(img.imgList["null"]);
+        this.showShadow = true;
 
         this.setAlpha(1);
         this.clearAnimState();
@@ -1970,6 +1971,9 @@ export class Enemy extends sprite {
                         this.sx = this.defaultSX;
                         this.sy = this.defaultSY;
                         this.sz = this.defaultSZ;
+                        
+                        this.showShadow = false;
+                        
                         //待機終わったか？ [7]
                         this.memory.push(30);
 
@@ -2182,6 +2186,8 @@ export class Enemy extends sprite {
                     this.sx = this.defaultSX;
                     this.sy = this.defaultSY;
                     this.sz = this.defaultSZ;
+
+                    this.showShadow = false;
 
                     this.memory.push(this.defaultSX*0.75);
                     this.memory.push(this.memory[0]);
@@ -2455,9 +2461,12 @@ export class Effect extends sprite {
         this.px = px;
         this.py = py;
         this.pz = pz;
+        /*
         this.sx = sx;
         this.sy = sy;
         this.sz = sz;
+        */
+        this.setSize(sx,sy,sz);
         this.type = type;
         this.MaxHp = MHP;
         this.hp = HP;

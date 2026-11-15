@@ -2059,7 +2059,7 @@ function RenderBufferCorrect(){
                 plaAttackAABB.RenderMyself(renderCamera.camX,renderCamera.camY,"rgb(0, 255, 0)",false,false,true);
             } else if (column[0] == "Enemy"){
                 const npc = AcEn[column[1]];
-                npc.RenderMyself(renderCamera.camX,renderCamera.camY,"red",false);
+                npc.RenderMyself(renderCamera.camX,renderCamera.camY,"red",false,npc.showShadow);
             } else if (column[0] == "Effect"){
                 const npc = AcEf[column[1]];
                 npc.RenderMyself(renderCamera.camX,renderCamera.camY,"blue",false,false);
