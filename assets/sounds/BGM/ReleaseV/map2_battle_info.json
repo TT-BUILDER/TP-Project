@@ -2,6 +2,6 @@
     "intro" : false,
     "loop" : true,
     "type" : "BGM",
-    "file" : "snow_boss.wav",
+    "file" : "snow_boss.mp3",
     "fileIntro" : null
 }
