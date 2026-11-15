@@ -3,4 +3,4 @@
  "Direction" : 0,
  "isThereBoss" : true,
  "BossPass" : "./assets/Boss/Boss4.json",
- "Description" : "水中のボス。ステージ、ボスともに完成。" }
+ "Description" : "没ステージ" }
