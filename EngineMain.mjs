@@ -1,3 +1,10 @@
+//たった一人でこの量のエンジンをくみ上げた私に称賛を。
+/*
+    Project start at 2026 / 05 ...?
+    Release on 2026 / 12 / 01
+    All Rights Reserved By Tomechan!
+*/
+
 //"use strict";
 import { Images } from "./ImgLoader.mjs";                                   //イメージクラス
 import { fetchJSON } from "./FetchJSON.mjs";                                //JSONファイルの読み取り関数
@@ -987,9 +994,15 @@ let stageClear = 0;
 let stageClearTime = 0;
 
 let jsonData = undefined;
+
 //ポーズフラグ
 export let isPause = false;
 export let toFadeStage = false;
+
+//ステージセレクト関連
+let isStageSelect = 0;
+let stageNum = 0;
+
 //プレイヤー単位基本サイズ
 const plSizeX = TILESIZE;
 const plSizeY = TILESIZE;
@@ -1209,6 +1222,8 @@ Promise.all([
                 img.AddImg("MapTile_Rock","./assets/tiles/RockTile.png"),
                 img.AddImg("MapTile_2","./assets/tiles/test1.png"),
                 img.AddImg("SwordEffect","./assets/effects/TestEffect.png"),
+
+                img.AddImg("stageSelectSelector","./assets/imgs/warpHole_Selectorpng.png"),
 
                 img.AddImg("player_assets1","./assets/imgs/player_walk.png"),
 
@@ -1472,8 +1487,8 @@ async function init (){
     //ステージの呼び出し
     //await mainStage.changeStage("GrandFloor");
     //await mainStage.changeStage("water_debug");
-    //await mainStage.changeStage("Map_2");
-    await mainStage.changeStage("final");
+    await mainStage.changeStage("Map_3");
+    //await mainStage.changeStage("final");
     //player.setPos(9/2*TILESIZE,8/2*TILESIZE);
     //NowBoss.setPos(TR.MapWidth/3*TILESIZE,TR.MapHeight/3*TILESIZE,0)
 
@@ -1549,7 +1564,7 @@ async function main(timestamp = performance.now()){
 
     
 
-    if (!actionStop && !isPause){
+    if (!actionStop && !isPause && isStageSelect <= 0){
         //プレイヤーの処理
         plyayerAction();
         //ボスの処理
@@ -1568,6 +1583,12 @@ async function main(timestamp = performance.now()){
         RenderBufferCorrect();
         //バッファの中身描画
         RenderCanvas();
+    }
+
+    if (isStageSelect){
+
+        stageSelect();
+
     }
 
     /*
@@ -1907,7 +1928,20 @@ async function setStage(stageName){
     }
 
 }
+function stageSelect(){
+    
+    const ScB_Width = ScreenB.width;
+    const ScB_Height = ScreenB.height;
 
+    ScB.save();
+    ScB.fillStyle = "rgb(0,0,0,0.5)";
+    ScB.fillRect(0,0,ScB_Width,ScB_Height);
+
+
+
+    ScB.restore();
+
+}
 //canvasのサイズをウィンドウに合わせて変える関数
 function ResizeCanvas(){
     //canvas.width = window.innerWidth
@@ -2812,7 +2846,7 @@ function plyayerAction(){
 
     let keyPressed = true;
 
-    let spd = 4;
+    let spd = 8;
     let staminaDecreaseMult = 0.2;
     playerBaseAcs = player.Speed/5;
 
@@ -2848,7 +2882,8 @@ function plyayerAction(){
 
 
     if (!isNowBossAnimation || true){
-            
+
+        if (player.pz < 0) spd *= 3;
 
         if (playerKey.keyRight && playerKey.keyUp) {
             player.setVector(playerBaseAcs*0.7,playerBaseAcs*-0.7,player.vz,true,spd);
