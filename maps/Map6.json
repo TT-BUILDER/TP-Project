@@ -1,0 +1,6 @@
+{ "Position" : [320,384], 
+"MapSize" : [21,15], 
+"Direction" : 0, 
+"isThereBoss" : true, 
+"BossPass" : "./assets/Boss/Boss5.json", 
+"Description" : "ビームのテスト中…" }

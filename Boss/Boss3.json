@@ -1,0 +1,10 @@
+{
+    "Name" : "Wood",
+    "Position" : [512,96],
+    "sizeX" : 3,
+    "sizeY" : 3,
+    "sizeZ" : 4,
+    "status" : [20,0,56,13,40,45],
+    "HP" : 45,
+    "BGM" : null
+}

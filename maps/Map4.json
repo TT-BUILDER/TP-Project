@@ -1,0 +1,6 @@
+{ "Position" : [480,960],
+ "MapSize" : [30,40],
+ "Direction" : 0,
+ "isThereBoss" : true,
+ "BossPass" : "./assets/Boss/Boss4.json",
+ "Description" : "没ステージ" }
