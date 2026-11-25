@@ -13,7 +13,7 @@ import { showTILESIZE, TileRender } from "./TileRender.mjs";                //�
 import { TILESIZE } from "./TileRender.mjs";                                //タイルサイズ定数
 import { imgRender } from "./ImgRender.mjs";                                //イメージレンダー
 //スプライト、NPC
-import { NowCanvasContext, sprite } from "./Sprite.mjs";                    //スプライトクラス
+import { NowCanvasContext, setIsNowBossAnimationF, sprite } from "./Sprite.mjs";                    //スプライトクラス
 import { Enemy } from "./Sprite.mjs";                                       //エネミークラス
 import { EnemyManager } from "./Sprite.mjs";                                //エネミーマネジメントクラス
 import { Effect } from "./Sprite.mjs";                                      //エフェクトクラス
@@ -62,6 +62,13 @@ const FPSmodeTXTstyle = window.getComputedStyle(document.querySelector(".FPS-MOD
 console.log(ORGmodeTXTstyle);
 console.log(FPSmodeTXTstyle);
 
+//デバッグモードの切り替え
+const debugButton = document.getElementById("debugButton");
+//無敵化ボタン
+const playerInvincibleButton = document.getElementById("playerInvincible");
+//カメラモードのセレクト
+const cameraFurtureTestingButton = document.getElementById("cameraTest");
+
 export let fps = 0;
 export let frameDelta = 16.67;
 let lastFrameTime = 0;
@@ -72,8 +79,11 @@ let fpsSampleStart = 0;
 export let GLOBAL_PASSED_FRAME_COUNTER = 0n;
 
 
-export const DebugMode = true;
+export let DebugMode = true;
 //export const DebugMode = false;
+//以下、製品版はconstにしておく変数
+let cameraMode = 0; //0はだいたい追従
+let playerDebugInvincibleF = false; //falseは当たり前だがnot無敵
 
 //BGMいる？
 let onBGM = false;
@@ -982,7 +992,12 @@ let setting = false;
 
 //レンダリングする際のカメラオブジェクト
 export const playerCamera = new camera();                          //プレイヤーカメラ座標の保持
+export const bossCamera = new camera();
 export const renderCamera = new camera();                          //レンダリング座標
+
+let lastCameraX = 0;
+let lastCameraY = 0;
+
 export const mainStage = new stage("Map_1");
 let stageChangeRequest = null;
 
@@ -1333,8 +1348,27 @@ Promise.all([
                 mouseClick = false;
             }, { passive: true });
 
+            debugButton.addEventListener("click" , () =>{
+                DebugMode = !DebugMode;
+                debugButton.textContent = DebugMode ? 
+                    "デバッグモード：オン" :
+                    "デバッグモード：オフ";
+            });
+            playerInvincibleButton.addEventListener("click" , () =>{
+                playerDebugInvincibleF = !playerDebugInvincibleF;
+                player.debugInvincible = playerDebugInvincibleF;
+                playerInvincibleButton.textContent = playerDebugInvincibleF ? 
+                    "無敵モード：オン" :
+                    "無敵モード：オフ";
+            });
+            cameraFurtureTestingButton.addEventListener("click" , () =>{
+                cameraMode = cameraMode == 0 ? 1 : 0;
+                cameraFurtureTestingButton.textContent = cameraMode == 1 ? 
+                    "カメラモード：完全追従" :
+                    "カメラモード：だいたい追従";
+            });
+
             //スマホ用のイベントリスナー
-            
             canvas.addEventListener('pointerdown', (e) => {
             
                 // ポインタ情報を追加 (指のIDをキーにする)
@@ -1726,7 +1760,7 @@ function playerSelect(key){
     
     playerCameraSet();
     //player.nonDamage = true;
-    player.debugInvincible = true;
+    player.debugInvincible = playerDebugInvincibleF;
     //player.hp = 1;
     //player.setCollision(false);
     //renderCamera.setCameraEffect(1,4,2,0,0,2);
@@ -1761,6 +1795,8 @@ async function executeSCRequest() {
  * @param {String} stageName 辞書に格納されているキー
  */
 async function setStage(stageName){
+
+    setIsNowBossAnimationF(true);
 
     //フェードインをセット
     renderCamera.setScreenColor(0,0,1,254);
@@ -1907,8 +1943,17 @@ async function setStage(stageName){
 
                 }
             }
+
+            bossCameraSet(0);
+            lastCameraX = bossCamera.camX;
+            lastCameraY = bossCamera.camY;
+
         } catch (e) {
             console.error(`Error : ${e} Not Found Pass : ${NowMapJSON["BossPass"]}`);
+            
+            playerCameraSet(0);
+            lastCameraX = playerCamera.camX;
+            lastCameraY = playerCamera.camY;
         }
     } else {
         //
@@ -1925,6 +1970,12 @@ async function setStage(stageName){
             void AuM.stopAll();
         }
         
+        playerCameraSet(0);
+        lastCameraX = playerCamera.camX;
+        lastCameraY = playerCamera.camY;
+        
+        setIsNowBossAnimationF(false);
+
     }
 
 }
@@ -2586,9 +2637,15 @@ function RenderStage() {
         //cameraSet(frameC,0);
         //console.log([player.px,player.py]);
         //if (!keyInput.key["KeyC"]) {
-        playerCameraSet(1);
+        playerCameraSet(0);
+        bossCameraSet(0);
+        const [camX,camY] = !isNowBossAnimation ? 
+            [playerCamera.camX, playerCamera.camY] :
+            [bossCamera.camX, bossCamera.camY];
+        lastCameraX += fadeIn(lastCameraX,camX,8);
+        lastCameraY += fadeIn(lastCameraY,camY,8);
         //}
-        RenderCameraSet();
+        RenderCameraSet(lastCameraX,lastCameraY);
     }
     TR.RenderMap(renderCamera.camX,renderCamera.camY,DebugMode,Math.floor(frameC/30));
 
@@ -2622,17 +2679,39 @@ function playerCameraSet(smooth = 0){
     //renderCamera.offX += fadeIn(renderCamera.offX,(-TILESIZE*player.vx*2/3),4);
     //renderCamera.OffY += fadeIn(renderCamera.OffY,(-TILESIZE*player.vy*2/3),4);
 
-    const TarX = player.px-(ScreenB.width/2);
-    const TarY = player.py-(ScreenB.height/2);
+    const TarX = (player.vx + player.px)-(ScreenB.width/2);
+    const TarY = cameraMode == 1 ?
+        (player.pz + player.vy + player.py)-(ScreenB.height/2) :
+        (player.vy + player.py)-(ScreenB.height/2);
 
     if (!smooth) {
         playerCamera.camX = TarX;
         playerCamera.camY = TarY;
     } else {
-        playerCamera.camX += fadeIn(playerCamera.camX,TarX,8);
-        playerCamera.camY += fadeIn(playerCamera.camY,TarY,8);
+        playerCamera.camX += fadeIn(playerCamera.camX,TarX,4);
+        playerCamera.camY += fadeIn(playerCamera.camY,TarY,4);
     }
     
+}
+function bossCameraSet(smooth = false){
+
+    if (NowBoss != 0){
+
+        const TarX = NowBoss.px-(ScreenB.width/2);
+        const TarY = cameraMode == 1 ?
+            (NowBoss.pz + NowBoss.py)-(ScreenB.height/2) :
+            NowBoss.py-(ScreenB.height/2);
+
+        if (!smooth) {
+            bossCamera.camX = TarX;
+            bossCamera.camY = TarY;
+        } else {
+            bossCamera.camX += fadeIn(bossCamera.camX,TarX,4);
+            bossCamera.camY += fadeIn(bossCamera.camY,TarY,4);
+        }
+        
+    }
+
 }
 //多分スマホ操作はお蔵入りかも（いろいろつらい）
 function setPadTouched(){
@@ -2881,7 +2960,7 @@ function plyayerAction(){
     }
 
 
-    if (!isNowBossAnimation || true){
+    if (!isNowBossAnimation){// || true){
 
         if (player.pz < 0) spd *= 3;
 
@@ -3106,7 +3185,7 @@ function plyayerAction(){
         if (player.animationState == "attacking") /*attacking*/ {
             //攻撃判定の設定
             
-            if (player.animationFrame < 2){
+            if (player.animationFrame < 3){
                 plaAttackAABB.setSize(
                     TILESIZE*2+(TILESIZE/4)*(Math.abs(VecDirList[player.direction][0])),//+10*(Math.abs(VecDirList[player.direction][1])),
                     TILESIZE*2+(TILESIZE/4)*(Math.abs(VecDirList[player.direction][1])),//+10*(Math.abs(VecDirList[player.direction][0])),

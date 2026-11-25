@@ -4,6 +4,11 @@
     臨時共有コマンド：ssh -p 443 -R 80:127.0.0.1:5500 free.pinggy.io
 -->
 
+<!--
+    「とりあえず動く」なのでとんでもなくスパゲッティコードである。
+    開発期間半年++だから許して。
+-->
+
 <html>
     <head>
         <title>test of Javascript</title>
@@ -82,7 +87,11 @@
     </head>
     <body>
         <canvas id = "GameCanvas" width = "720" Height = "540"></canvas>
+
         <div class="texts">
+            <button id="debugButton">デバッグモード：オン</button><br>
+            <button id="playerInvincible">無敵モード：オン</button><br>
+            <button id="cameraTest">カメラモード：だいたい追従</button><br>
             <h2 id="howToTitle">＜操作方法＞</h2>
             <p>
                 ＜デバッグ用めっせーじ＞<br>
