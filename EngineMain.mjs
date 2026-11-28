@@ -83,7 +83,7 @@ export let DebugMode = true;
 //export const DebugMode = false;
 //以下、製品版はconstにしておく変数
 let cameraMode = 0; //0はだいたい追従
-let playerDebugInvincibleF = false; //falseは当たり前だがnot無敵
+let playerDebugInvincibleF = true; //falseは当たり前だがnot無敵
 
 //BGMいる？
 let onBGM = false;
@@ -1600,7 +1600,7 @@ async function main(timestamp = performance.now()){
 
     if (!actionStop && !isPause && isStageSelect <= 0){
         //プレイヤーの処理
-        plyayerAction();
+        if (!isNowBossAnimation) plyayerAction();
         //ボスの処理
         bossAction();
         //エネミーの処理
@@ -1944,9 +1944,6 @@ async function setStage(stageName){
                 }
             }
 
-            bossCameraSet(0);
-            lastCameraX = bossCamera.camX;
-            lastCameraY = bossCamera.camY;
 
         } catch (e) {
             console.error(`Error : ${e} Not Found Pass : ${NowMapJSON["BossPass"]}`);
@@ -1970,13 +1967,14 @@ async function setStage(stageName){
             void AuM.stopAll();
         }
         
-        playerCameraSet(0);
-        lastCameraX = playerCamera.camX;
-        lastCameraY = playerCamera.camY;
         
         setIsNowBossAnimationF(false);
 
     }
+
+    playerCameraSet(0);
+    lastCameraX = playerCamera.camX;
+    lastCameraY = playerCamera.camY;
 
 }
 function stageSelect(){
@@ -2169,7 +2167,7 @@ function RenderBufferCorrect(){
 function RenderCanvas(){
 
     //モーションブラー定数(0~1)
-    ctx.globalAlpha = 0.75;
+    ctx.globalAlpha = 1;
     //バッファの内容を実際のcanvasへ転送
 
     if (renderCamera.effectMode == 1){
@@ -2698,10 +2696,13 @@ function bossCameraSet(smooth = false){
     if (NowBoss != 0){
 
         const TarX = NowBoss.px-(ScreenB.width/2);
+        /*
         const TarY = cameraMode == 1 ?
             (NowBoss.pz + NowBoss.py)-(ScreenB.height/2) :
             NowBoss.py-(ScreenB.height/2);
-
+        */
+        const TarY = (NowBoss.pz + NowBoss.py)-(ScreenB.height/2);
+        
         if (!smooth) {
             bossCamera.camX = TarX;
             bossCamera.camY = TarY;
@@ -3339,12 +3340,18 @@ function bossAction(){
         if (!NowBoss.allive) {
             NowBoss = 0;
             stageClear = 1;
+
             //クリアした時間の記録
             stageClearTime = lastFrameTime;
+
             console.log("Boss Died! YaY!!");
         }
     } else {
 
+        if (lastFrameTime - stageClearTime >= 1000){
+            setIsNowBossAnimationF(false);
+        }
+        
         //2000ミリ秒(2秒)経過して、かつ未初期化なら
         if (lastFrameTime - stageClearTime > 2000 && stageClear == 1){
 

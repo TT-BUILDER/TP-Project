@@ -114,6 +114,7 @@ export const get8dirFromVec = (dx,dy) => {
 /**
  * @param {Array} vec 回転させたいベクトル
  * @param {Number} degree 回転させたい角度
+ * @returns {Array} 回転後のベクトル
  */
 export function vectorRotation(vec,degree){
     const sinVal = SIN(degree);
@@ -1122,7 +1123,7 @@ export class sprite {
                     this.invincible = true;
                 }
                 //ノックバック処理
-                if (nkockback) {
+                if (nkockback && !this.debugInvincible) {
                     
                     if (dist <= 0){
 
@@ -1756,7 +1757,7 @@ export class Enemy extends sprite {
 
                 //伸び縮み調整
                 this.setSize(this.sx,this.sy,TILESIZE/4*this.memory[0]);
-                this.setSize(this.sx,Math.min(this.memory[2],this.sz));
+                //this.setSize(this.sx,Math.min(this.memory[2],this.sz));
 
                 this.EnMove(ColMap,TILESIZE);
 
@@ -1793,7 +1794,7 @@ export class Enemy extends sprite {
                         
                         this.damage(1,this.px,this.py,false,false);
                         if (this.hp <= 0){
-                            for (let i = 0; i<4; i++){
+                            for (let i = 0; i<2; i++){
                                 EfM.spawnNPC(
                                     this.px,
                                     this.py,
@@ -1830,7 +1831,7 @@ export class Enemy extends sprite {
                 
                 //ボスからの自滅命令受け取り
                 if (isSpawnByBoss && typeof(NowBoss.BossMemory["toDeleteRoot"]) === "boolean" && NowBoss.BossMemory["toDeleteRoot"] == true){
-                    for (let i = 0; i<4; i++){
+                    for (let i = 0; i<2; i++){
                         EfM.spawnNPC(
                             this.px,
                             this.py,
@@ -1898,7 +1899,7 @@ export class Enemy extends sprite {
                     //this.memory.push(0);
                     this.MaxHp = 2;
                     this.hp = this.MaxHp;
-                    this.setGravity(0.5);
+                    this.setGravity(0.3);
                     this.initalized = true;
                 }
 
@@ -1909,9 +1910,13 @@ export class Enemy extends sprite {
                 if (this.collisionState & 0b10000){
 
                     if (randInt(0,100) < 75 || player.pz < 0) {
-                        this.setVectorNoLimit(this.vx+(vx*randInt(4,6)),this.vy+(vy*randInt(4,6)));
+                        this.setVectorNoLimit(this.vx+(vx*randInt(3,5)),this.vy+(vy*randInt(3,5)));
                     } else {
-                        this.setVectorNoLimit(this.vx+(vx*10),this.vy+(vy*10));
+                        if (randInt(0,2) > 0){
+                            this.setVectorNoLimit(this.vx+(vx*8),this.vy+(vy*8));
+                        } else {
+                            this.setVectorNoLimit(this.vx+(vx*11),this.vy+(vy*11));
+                        }
                     }
                     
                     this.ZAxisJump(-5);
@@ -1960,7 +1965,7 @@ export class Enemy extends sprite {
                 }
 
                 //const scale = Math.hypot(this.vx,this.vy) > 5 ? 5 : Math.hypot(this.vx,this.vy);
-                const scale = 5;
+                const scale = 4;
 
                 const [nvx,nvy] = vectorNormalizer(this.vx,this.vy);
                 this.setVectorNoLimit(nvx*scale,nvy*scale);
@@ -2829,6 +2834,7 @@ export class Effect extends sprite {
                 }
 
                 break;
+            //素直にグラフィック描いてそれを表示したほうが楽
             case "boss_snow_rightHand":
                 if (!this.initalized){
                     this.myImg.setImage(img.imgList["snowBoss_assets"]);
@@ -2840,9 +2846,25 @@ export class Effect extends sprite {
                     this.unitGraphicSizeY = this.myImg.trimSizeY;
                     this.clearAnimState();
                     this.clearAnimTick();
-                    //このオブジェクトのみmemoryプロパティにオブジェクト丸ごとを代入する。
-                    this.memory = NowBoss;
+                    //このオブジェクトのみmemoryプロパティがオブジェクトになる。
+                    this.memory = {
+                        adx:0,
+                        ady:0,
+                        adz:0,
+                        boss:null,
+                        setCorrect(){
+                            //console.log(`before:${[this.adx,this.ady]}`);
+                            const [vx,vy] = vectorRotation([this.adx,this.ady],this.boss.direction*45);
+                            //console.log(`after:${[vx,vy]}`);
+                            this.adx = vx + this.boss.px;
+                            this.ady = vy + this.boss.py + this.boss.pz/2;
+                            this.adz += this.boss.pz - this.boss.sz/8;
+                        },
+                        animDiv:12,
+                    };
+                    this.memory.boss = NowBoss;
                     this.animationState = "normal";
+                    this.initalized = true;
                 }
 
                 //spriteオブジェクト プロパティ
@@ -2852,19 +2874,118 @@ export class Effect extends sprite {
                 //this.sy
                 //this.direction
 
+                //console.log([this.memory.adx,this.memory.ady,this.memory.adz,this.memory.boss.direction]);
+                
+                this.memory.adx = 0;
+                this.memory.ady = 0;
+                this.memory.adz = 0;
+
+                if (this.memory.boss.BossState == 3) {
+                    this.animationState = `throwing-${this.memory.boss.animationFrame}`;
+                } else if (this.memory.boss.BossState == "died") {
+                    this.animationState = "died";
+                } else {
+                    this.animationState = "normal";
+                }
+
                 switch (this.animationState){
                     case "normal":
-                        const adx = this.memory.px + COS(this.memory.direction*45)*this.memory.sx*0.5;
-                        const ady = this.memory.pz/2 + this.memory.py + SIN(this.memory.direction*45)*this.memory.sy*0.25;
-                        this.setPos(adx,ady+16,this.memory.pz-16);
+                        this.memory.adx = this.memory.boss.sx*0.5;
+                        this.memory.ady = this.memory.boss.sy*-0.125;
+                        this.memory.setCorrect();
+                        //console.log([this.memory.adx,this.memory.ady,this.memory.adz,this.memory.boss.direction]);
+                        this.setPos(this.memory.adx,this.memory.ady+16,this.memory.adz);
+                        
+                        this.myImg.trimStY = 160;
+                        
                         break;
-                    case "trhowing-1":
+                    case "throwing-1":
+                    case "throwing-2":
+                        this.memory.adx = 4 + this.memory.boss.sx*0.5;
+                        this.memory.ady = this.memory.boss.sy*0.25;
+                        this.memory.adz = this.memory.boss.sz*-0.125;
+                        this.memory.setCorrect();
+                        this.px += fadeIn(this.px,this.memory.adx,this.memory.animDiv);
+                        this.py += fadeIn(this.py,this.memory.ady+16,this.memory.animDiv);
+                        this.pz += fadeIn(this.pz,this.memory.adz,this.memory.animDiv);
+                        
+                        this.myImg.trimStY = 176;
+                        
                         break;
-                    case "trhowing-2":
+                    case "throwing-3":
+                        this.memory.adx = 4 + this.memory.boss.sx*0.6;
+                        this.memory.ady = this.memory.boss.sy*0.5;
+                        this.memory.adz = this.memory.boss.sz*-0.5;
+                        this.memory.setCorrect();
+                        this.px += fadeIn(this.px,this.memory.adx,this.memory.animDiv);
+                        this.py += fadeIn(this.py,this.memory.ady+16,this.memory.animDiv);
+                        this.pz += fadeIn(this.pz,this.memory.adz,this.memory.animDiv);
+                        
+                        this.myImg.trimStY = 176;
+                        
                         break;
-                    case "trhowing-3":
+                    case "throwing-4":
+                    case "throwing-5":
+                    case "throwing-6":
+                    case "throwing-7":
+                    case "throwing-8":
+                        this.memory.adx = 4 + this.memory.boss.sx*0.7;
+                        this.memory.ady = this.memory.boss.sy*0.6;
+                        this.memory.adz = this.memory.boss.sz*-0.6;
+                        this.memory.setCorrect();
+                        this.px += fadeIn(this.px,this.memory.adx,this.memory.animDiv);
+                        this.py += fadeIn(this.py,this.memory.ady+16,this.memory.animDiv);
+                        this.pz += fadeIn(this.pz,this.memory.adz,this.memory.animDiv);
+                        
+                        this.myImg.trimStY = 176;
+                        
                         break;
-                    case "trhowing-4":
+                    case "throwing-9":
+                        this.memory.adx = 4 + this.memory.boss.sx*0.5;
+                        this.memory.ady = this.memory.boss.sy*-0.3;
+                        this.memory.adz = this.memory.boss.sz*-0.4;
+                        this.memory.setCorrect();
+                        this.px += fadeIn(this.px,this.memory.adx,this.memory.animDiv);
+                        this.py += fadeIn(this.py,this.memory.ady+16,this.memory.animDiv);
+                        this.pz += fadeIn(this.pz,this.memory.adz,this.memory.animDiv);
+                        
+                        this.myImg.trimStY = 192;
+                        
+                        break;
+                    case "throwing-10":
+                    case "throwing-11":
+                    case "throwing-12":
+                    case "throwing-13":
+                    case "throwing-14":
+                    case "throwing-15":
+                    case "throwing-0":
+                        this.memory.adx = 4 + this.memory.boss.sx*0.3;
+                        this.memory.ady = this.memory.boss.sy*-0.5;
+                        this.memory.adz = this.memory.boss.sz*0.125;
+                        this.memory.setCorrect();
+                        this.px += fadeIn(this.px,this.memory.adx,this.memory.animDiv);
+                        this.py += fadeIn(this.py,this.memory.ady+16,this.memory.animDiv);
+                        this.pz += fadeIn(this.pz,this.memory.adz,this.memory.animDiv);
+                        
+                        this.myImg.trimStY = 192;
+                        
+                        break;
+                    case "died":
+                        for (let i = 0; i<5; i++){
+                            EfM.spawnNPC(
+                                this.px,
+                                this.py,
+                                this.pz,
+                                TILESIZE*4/5,
+                                TILESIZE*4/5,
+                                TILESIZE*4/5,
+                                "particle_snow",
+                                randFloat(-TILESIZE/3,TILESIZE/3)/2,
+                                randFloat(-TILESIZE/3,TILESIZE/3)/2,
+                                randFloat(-TILESIZE/2,0)/2
+                            );
+                        }
+                        this.Unactivate();
                         break;
                     case null:
                         console.error("animationState is not initalized");
@@ -2879,9 +3000,10 @@ export class Effect extends sprite {
                     
                 }
 
-                this.direction = Math.floor(this.memory.direction/2);
-                this.myImg.trimStX = this.unitGraphicSizeX*this.direction;
-
+                if (this.animationState != "died"){
+                    this.direction = Math.floor(this.memory.boss.direction/2);
+                    this.myImg.trimStX = this.unitGraphicSizeX*this.direction;
+                }
                 break;
             case "boss_snow_leftHand":
                 if (!this.initalized){
@@ -2892,24 +3014,135 @@ export class Effect extends sprite {
                     this.myImg.trimSizeY = 16;
                     this.unitGraphicSizeX = this.myImg.trimSizeX;
                     this.unitGraphicSizeY = this.myImg.trimSizeY;
-                    //このオブジェクトのみmemoryプロパティにオブジェクト丸ごとを代入する。
-                    this.memory = NowBoss;
+                    //このオブジェクトのみmemoryプロパティがオブジェクトになる。
+                    this.memory = {
+                        adx:0,
+                        ady:0,
+                        adz:0,
+                        boss:null,
+                        setCorrect(){
+                            [this.adx,this.ady] = vectorRotation([this.adx,this.ady],this.boss.direction*45);
+                            this.adx += this.boss.px;
+                            this.ady += this.boss.py + this.boss.pz/2;
+                            this.adz += this.boss.pz - this.boss.sz/8;
+                        },
+                        animDiv:11,
+                    };
+                    this.memory.boss = NowBoss;
+                    this.animationState = "normal";
+                    this.initalized = true;
+                }
+
+                //spriteオブジェクト プロパティ
+                //this.px
+                //this.py
+                //this.sx
+                //this.sy
+                //this.direction
+                
+                this.memory.adx = 0;
+                this.memory.ady = 0;
+                this.memory.adz = 0;
+
+                if (this.memory.boss.BossState == 3) {
+                    this.animationState = `throwing-${this.memory.boss.animationFrame}`;
+                } else if (this.memory.boss.BossState == "died") {
+                    this.animationState = "died";
+                } else {
                     this.animationState = "normal";
                 }
 
                 switch (this.animationState){
                     case "normal":
-                        const adx = this.memory.px + COS(180 + this.memory.direction*45)*this.memory.sx*0.5;
-                        const ady = this.memory.pz/2 + this.memory.py + SIN(180 + this.memory.direction*45)*this.memory.sy*0.25;
-                        this.setPos(adx,ady+16,this.memory.pz-16);
+                        this.memory.adx = this.memory.boss.sx*-0.5;
+                        this.memory.ady = this.memory.boss.sy*-0.125;
+                        this.memory.setCorrect();
+                        this.setPos(this.memory.adx,this.memory.ady+16,this.memory.adz);
+                        
+                        this.myImg.trimStY = 208;
+
                         break;
-                    case "trhowing-1":
+                    case "throwing-1":
+                    case "throwing-2":
+                        this.memory.adx = this.memory.boss.sx*-0.4;
+                        this.memory.ady = this.memory.boss.sy*-0.3;
+                        this.memory.setCorrect();
+                        this.px += fadeIn(this.px,this.memory.adx,this.memory.animDiv);
+                        this.py += fadeIn(this.py,this.memory.ady+16,this.memory.animDiv);
+                        this.pz += fadeIn(this.pz,this.memory.adz,this.memory.animDiv);
+                        
+                        this.myImg.trimStY = 208;
+
                         break;
-                    case "trhowing-2":
+                    case "throwing-3":
+                        this.memory.adx = this.memory.boss.sx*-0.5;
+                        this.memory.ady = this.memory.boss.sy*-0.125;
+                        this.memory.setCorrect();
+                        this.px += fadeIn(this.px,this.memory.adx,this.memory.animDiv);
+                        this.py += fadeIn(this.py,this.memory.ady+16,this.memory.animDiv);
+                        this.pz += fadeIn(this.pz,this.memory.adz,this.memory.animDiv);
+                        
+                        this.myImg.trimStY = 208;
+
                         break;
-                    case "trhowing-3":
+                    case "throwing-4":
+                    case "throwing-5":
+                    case "throwing-6":
+                    case "throwing-7":
+                    case "throwing-8":
+                        this.memory.adx = this.memory.boss.sx*-0.3;
+                        this.memory.setCorrect();
+                        this.px += fadeIn(this.px,this.memory.adx,this.memory.animDiv);
+                        this.py += fadeIn(this.py,this.memory.ady+16,this.memory.animDiv);
+                        this.pz += fadeIn(this.pz,this.memory.adz,this.memory.animDiv);
+                        
+                        this.myImg.trimStY = 208;
+
                         break;
-                    case "trhowing-4":
+                    case "throwing-9":
+                        this.memory.adx = this.memory.boss.sx*-0.5;
+                        this.memory.ady = this.memory.boss.sy*-0.125;
+                        this.memory.setCorrect();
+                        this.px += fadeIn(this.px,this.memory.adx,this.memory.animDiv);
+                        this.py += fadeIn(this.py,this.memory.ady+16,this.memory.animDiv);
+                        this.pz += fadeIn(this.pz,this.memory.adz,this.memory.animDiv);
+                        
+                        this.myImg.trimStY = 208;
+
+                        break;
+                    case "throwing-10":
+                    case "throwing-11":
+                    case "throwing-12":
+                    case "throwing-13":
+                    case "throwing-14":
+                    case "throwing-15":
+                    case "throwing-0":
+                        this.memory.adx = this.memory.boss.sx*-0.6;
+                        this.memory.ady = this.memory.boss.sy*-0.3;
+                        this.memory.setCorrect();
+                        this.px += fadeIn(this.px,this.memory.adx,this.memory.animDiv);
+                        this.py += fadeIn(this.py,this.memory.ady+16,this.memory.animDiv);
+                        this.pz += fadeIn(this.pz,this.memory.adz,this.memory.animDiv);
+                        
+                        this.myImg.trimStY = 208;
+
+                        break;
+                    case "died":
+                        for (let i = 0; i<5; i++){
+                            EfM.spawnNPC(
+                                this.px,
+                                this.py,
+                                this.pz,
+                                TILESIZE*4/5,
+                                TILESIZE*4/5,
+                                TILESIZE*4/5,
+                                "particle_snow",
+                                randFloat(-TILESIZE/3,TILESIZE/3)/2,
+                                randFloat(-TILESIZE/3,TILESIZE/3)/2,
+                                randFloat(-TILESIZE/2,0)/2
+                            );
+                        }
+                        this.Unactivate();
                         break;
                     case null:
                         console.error("animationState is not initalized");
@@ -2923,10 +3156,10 @@ export class Effect extends sprite {
                         break;
                 }
 
-                
-                this.direction = Math.floor(mod(this.memory.direction+1,8)/2);
-                this.myImg.trimStX = this.unitGraphicSizeX*this.direction;
-
+                if (this.animationState != "died"){
+                    this.direction = Math.floor(mod(this.memory.boss.direction+1,8)/2);
+                    this.myImg.trimStX = this.unitGraphicSizeX*this.direction;
+                }
                 break;
             case "particle_ice":
                 this.EfMove(ColMap,TILESIZE);
@@ -3235,12 +3468,12 @@ export class Boss extends Enemy {
     vibrate(UY,DY = UY){
         
         //ブリモーション
-        if (fpsFrameCount%2 == 0){
+        if (fpsFrameCount%3 == 0){
             this.fallOK = false;
             if (this.visualPY > 0){
-                this.visualPY = UY*VisualDeltaVector;
+                this.visualPY = UY*VisualDeltaVector*2;
             } else {
-                this.visualPY = DY*VisualDeltaVector;
+                this.visualPY = DY*VisualDeltaVector*2;
             }
         }
         /*
@@ -3887,7 +4120,7 @@ export class Boss extends Enemy {
                 //死モーション
                 case "died":
                     this.animationState = "angry";
-                    this.vibrate(-1,2);
+                    this.vibrate(-2,2);
                     if (this.waitFrame(420)){
                         renderCamera.setVibCamera(-8,8,80);
                         this.allive = false;
@@ -4044,15 +4277,15 @@ export class Boss extends Enemy {
                     const cycle = Math.floor(80-((this.hp <= this.MaxHp/2)*10));
                     //const dist = ((this.px-player.px)**2+(this.py-player.py)**2)**0.5;
                     const dist =Math.hypot(this.px-player.px,this.py-player.py);
-                    if (this.waitFrameC%(cycle/4) == 0){
-                        if (this.animationFrame < 3){
+                    if (this.waitFrameC%(cycle/16) == 0){
+                        if (this.animationFrame < 15){
                             this.animationFrame++;
                         } else {
                             this.animationFrame = 0;
                         }
                         console.log(`now animationFrame : ${this.animationFrame}`);
                         
-                        if (this.animationFrame == 0){
+                        if (this.animationFrame == 9){
                         
 
                             //これを有効にすると移動後の位置にあててくるようになる
@@ -5680,6 +5913,7 @@ export class Boss extends Enemy {
 
         if (this.hp <= 0){
             this.BossState = "died";
+            setIsNowBossAnimationF(true);
         } else if (hitFlag && this.giveDamage){
             player.damage(this.playerHurtPoint,this.px,this.py,this.doSlipDamage,this.doNkockBack);
             /*
